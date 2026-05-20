@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search, UserPlus, Phone, Mail, CreditCard } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { customersApi } from '../../../lib/api';
 
 const mockCustomers = [
   { id: '1', name: 'Carlos Ramírez', email: 'carlos@gmail.com', phone: '3001234567', totalOrders: 24, totalSpent: 1280000, creditLimit: 500000, creditUsed: 120000, lastOrder: '2026-05-19' },
@@ -106,13 +109,22 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Customer | null>(null);
 
+  const { data: customersData, isLoading } = useQuery({
+    queryKey: ['customers'],
+    queryFn: () => customersApi.getCustomers(),
+    retry: 1,
+  });
+
+  const customers: Customer[] = Array.isArray(customersData?.data) ? customersData.data :
+                                  Array.isArray(customersData) ? customersData : mockCustomers;
+
   const filtered = useMemo(() =>
-    mockCustomers.filter(c =>
+    customers.filter((c: Customer) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.email.toLowerCase().includes(search.toLowerCase()) ||
       c.phone.includes(search)
     ),
-    [search],
+    [customers, search],
   );
 
   return (
@@ -120,7 +132,7 @@ export default function CustomersPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[--text-primary]">Clientes</h1>
-          <p className="text-sm text-[--text-secondary] mt-0.5">{mockCustomers.length} clientes registrados</p>
+          <p className="text-sm text-[--text-secondary] mt-0.5">{customers.length} clientes registrados</p>
         </div>
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
           <UserPlus size={16} /> Nuevo cliente
@@ -154,41 +166,51 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[--border]">
-              {filtered.map((customer) => (
-                <tr
-                  key={customer.id}
-                  className="hover:bg-[--bg-secondary] transition-colors cursor-pointer"
-                  onClick={() => setSelected(customer)}
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[--nexus-500] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {customer.name.charAt(0)}
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={6} className="px-4">
+                      <Skeleton variant="table-row" />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                filtered.map((customer) => (
+                  <tr
+                    key={customer.id}
+                    className="hover:bg-[--bg-secondary] transition-colors cursor-pointer"
+                    onClick={() => setSelected(customer)}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[--nexus-500] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                          {customer.name.charAt(0)}
+                        </div>
+                        <span className="font-medium text-[--text-primary]">{customer.name}</span>
                       </div>
-                      <span className="font-medium text-[--text-primary]">{customer.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-[--text-secondary]">
-                    <p>{customer.email}</p>
-                    <p className="text-xs text-[--text-tertiary]">{customer.phone}</p>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-[--text-primary]">{customer.totalOrders}</td>
-                  <td className="px-4 py-3 text-right font-medium text-[--text-primary] tabular-nums">{formatCOP(customer.totalSpent)}</td>
-                  <td className="px-4 py-3">
-                    {customer.creditLimit > 0 ? (
-                      <Badge variant={customer.creditUsed / customer.creditLimit > 0.8 ? 'danger' : customer.creditUsed > 0 ? 'warning' : 'success'}>
-                        {formatCOP(customer.creditUsed)} / {formatCOP(customer.creditLimit)}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-[--text-tertiary]">Sin crédito</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-[--text-tertiary] text-xs">{customer.lastOrder}</td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 text-[--text-secondary]">
+                      <p>{customer.email}</p>
+                      <p className="text-xs text-[--text-tertiary]">{customer.phone}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-[--text-primary]">{customer.totalOrders}</td>
+                    <td className="px-4 py-3 text-right font-medium text-[--text-primary] tabular-nums">{formatCOP(customer.totalSpent)}</td>
+                    <td className="px-4 py-3">
+                      {customer.creditLimit > 0 ? (
+                        <Badge variant={customer.creditUsed / customer.creditLimit > 0.8 ? 'danger' : customer.creditUsed > 0 ? 'warning' : 'success'}>
+                          {formatCOP(customer.creditUsed)} / {formatCOP(customer.creditLimit)}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-[--text-tertiary]">Sin crédito</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-[--text-tertiary] text-xs">{customer.lastOrder}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-          {filtered.length === 0 && (
+          {!isLoading && filtered.length === 0 && (
             <div className="py-12 text-center text-[--text-tertiary] text-sm">No se encontraron clientes</div>
           )}
         </div>

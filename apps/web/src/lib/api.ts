@@ -98,7 +98,7 @@ api.interceptors.response.use(
 // ─── Typed API methods ────────────────────────────────────────
 
 export const posApi = {
-  getProducts: (params?: Record<string, string>) => api.get('/pos/products', { params }).then((r) => r.data),
+  getProducts: (params?: Record<string, string>) => api.get('/inventory/products', { params }).then((r) => r.data),
   createOrder: (data: unknown) => api.post('/pos/orders', data).then((r) => r.data),
   getOrders: (params?: Record<string, string>) => api.get('/pos/orders', { params }).then((r) => r.data),
   getOrder: (id: string) => api.get(`/pos/orders/${id}`).then((r) => r.data),
@@ -142,4 +142,16 @@ export const analyticsApi = {
 export const syncApi = {
   push: (data: unknown) => api.post('/sync/push', data).then((r) => r.data),
   pull: (data: unknown) => api.post('/sync/pull', data).then((r) => r.data),
+};
+
+export const tenantsApi = {
+  getConfig: () => api.get('/tenants/config').then((r) => r.data),
+  getBranches: () => api.get('/tenants/branches').then((r) => r.data),
+  getUsers: () => api.get('/tenants/users').then((r) => r.data),
+  updateConfig: (data: unknown) => api.patch('/tenants/config', data).then((r) => r.data),
+};
+
+export const billingApi = {
+  getPlans: () => api.get('/billing/plans').then((r) => r.data),
+  getSubscription: () => api.get('/billing/subscription').then((r) => r.data),
 };

@@ -1,15 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { Card } from '../../../components/ui/Card';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { analyticsApi } from '../../../lib/api';
 
 const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-const monthlyData = [
+const FALLBACK_MONTHLY = [
   { mes: 'Ene', ventas: 8200000, ordenes: 189 },
   { mes: 'Feb', ventas: 9100000, ordenes: 215 },
   { mes: 'Mar', ventas: 7800000, ordenes: 178 },
@@ -18,7 +21,7 @@ const monthlyData = [
   { mes: 'Jun', ventas: 9800000, ordenes: 223 },
 ];
 
-const categoryData = [
+const FALLBACK_CATEGORY = [
   { name: 'Bebidas', value: 38 },
   { name: 'Comidas', value: 29 },
   { name: 'Postres', value: 17 },
@@ -46,6 +49,27 @@ function formatCOP(n: number) {
 export default function AnalyticsPage() {
   const [range, setRange] = useState<Range>('30d');
 
+  const today = new Date().toISOString();
+  const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: salesData, isLoading: loadingSales } = useQuery({
+    queryKey: ['analytics-sales', range],
+    queryFn: () => analyticsApi.getSalesSummary({ dateFrom: monthAgo, dateTo: today, groupBy: 'month' }),
+    retry: 1,
+  });
+
+  const { data: performanceData } = useQuery({
+    queryKey: ['analytics-performance'],
+    queryFn: analyticsApi.getProductPerformance,
+    retry: 1,
+  });
+
+  const monthlyData = Array.isArray(salesData?.data) ? salesData.data :
+                      Array.isArray(salesData) ? salesData : FALLBACK_MONTHLY;
+
+  const categoryData = Array.isArray(performanceData?.data) ? performanceData.data :
+                       Array.isArray(performanceData) ? performanceData : FALLBACK_CATEGORY;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -71,18 +95,20 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Monthly sales bar + area */}
+        {/* Monthly sales bar */}
         <Card variant="default" padding="lg" className="xl:col-span-2">
           <h2 className="text-base font-semibold text-[--text-primary] mb-4">Ventas mensuales</h2>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={monthlyData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="mes" tick={{ fontSize: 12, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000000).toFixed(1)}M`} />
-              <Tooltip formatter={(v: number) => [formatCOP(v), 'Ventas']} contentStyle={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }} />
-              <Bar dataKey="ventas" fill="var(--nexus-500)" radius={[4, 4, 0, 0]} maxBarSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
+          {loadingSales ? <Skeleton variant="rect" height={240} className="w-full" /> : (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={monthlyData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="mes" tick={{ fontSize: 12, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000000).toFixed(1)}M`} />
+                <Tooltip formatter={(v: number) => [formatCOP(v), 'Ventas']} contentStyle={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }} />
+                <Bar dataKey="ventas" fill="var(--nexus-500)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         {/* Category pie */}
@@ -91,7 +117,7 @@ export default function AnalyticsPage() {
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={categoryData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={2} dataKey="value">
-                {categoryData.map((_, index) => (
+                {categoryData.map((_: unknown, index: number) => (
                   <Cell key={index} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -99,7 +125,7 @@ export default function AnalyticsPage() {
             </PieChart>
           </ResponsiveContainer>
           <div className="space-y-1.5 mt-2">
-            {categoryData.map((cat, i) => (
+            {categoryData.map((cat: { name: string; value: number }, i: number) => (
               <div key={cat.name} className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i] }} />

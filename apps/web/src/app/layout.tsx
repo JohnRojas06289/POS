@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ThemeProvider } from 'next-themes';
+import { Providers } from './providers';
 import '../styles/tokens.css';
 import './globals.css';
 
@@ -13,11 +14,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" suppressHydrationWarning>
       <body>
         <a href="#main-content" className="skip-link">Saltar al contenido principal</a>
-        <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
-          <div id="main-content">
-            {children}
-          </div>
-        </ThemeProvider>
+        <Providers>
+          <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
+            <div id="main-content">
+              {children}
+            </div>
+          </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

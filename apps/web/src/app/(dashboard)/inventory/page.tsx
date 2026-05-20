@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search, Package, AlertTriangle, TrendingDown, Plus, ArrowUpDown } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { useToast } from '../../../components/ui/Toast';
+import { inventoryApi } from '../../../lib/api';
 
-// Mock data — replace with real API call
+// Mock data — kept as fallback so the page is never empty during development
 const mockProducts = [
   { id: '1', name: 'Coca-Cola 350ml', sku: 'BEB-001', category: 'Bebidas', stock: 48, minStock: 12, cpp: 2100, price: 3500 },
   { id: '2', name: 'Agua Cristal 500ml', sku: 'BEB-002', category: 'Bebidas', stock: 5, minStock: 20, cpp: 800, price: 1500 },
@@ -149,24 +153,39 @@ export default function InventoryPage() {
   const [kardexProduct, setKardexProduct] = useState<Product | null>(null);
   const [receiveProduct, setReceiveProduct] = useState<Product | null>(null);
 
-  const categories = useMemo(() => ['all', ...Array.from(new Set(mockProducts.map(p => p.category)))], []);
+  const { toast } = useToast();
+
+  const { data: productsData, isLoading, isError } = useQuery({
+    queryKey: ['inventory-products'],
+    queryFn: () => inventoryApi.getProducts(),
+    retry: 1,
+  });
+
+  React.useEffect(() => {
+    if (isError) toast('No se pudo cargar el inventario', 'error');
+  }, [isError, toast]);
+
+  const products: Product[] = Array.isArray(productsData?.data) ? productsData.data :
+                               Array.isArray(productsData) ? productsData : mockProducts;
+
+  const categories = useMemo(() => ['all', ...Array.from(new Set(products.map((p: Product) => p.category)))], [products]);
 
   const filtered = useMemo(() => {
-    let list = mockProducts.filter(p => {
+    let list = products.filter((p: Product) => {
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
       const matchCat = category === 'all' || p.category === category;
       return matchSearch && matchCat;
     });
-    list = [...list].sort((a, b) => {
+    list = [...list].sort((a: Product, b: Product) => {
       const av = a[sortField], bv = b[sortField];
       const cmp = typeof av === 'string' ? av.localeCompare(bv as string) : (av as number) - (bv as number);
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [search, category, sortField, sortAsc]);
+  }, [products, search, category, sortField, sortAsc]);
 
-  const lowStock = mockProducts.filter(p => p.stock < p.minStock).length;
-  const outOfStock = mockProducts.filter(p => p.stock === 0).length;
+  const lowStock = products.filter((p: Product) => p.stock < p.minStock).length;
+  const outOfStock = products.filter((p: Product) => p.stock === 0).length;
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortAsc(!sortAsc);
@@ -178,7 +197,7 @@ export default function InventoryPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[--text-primary]">Inventario</h1>
-          <p className="text-sm text-[--text-secondary] mt-0.5">{mockProducts.length} productos registrados</p>
+          <p className="text-sm text-[--text-secondary] mt-0.5">{products.length} productos registrados</p>
         </div>
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
           <Plus size={16} /> Nuevo producto
@@ -189,7 +208,7 @@ export default function InventoryPage() {
       <div className="grid grid-cols-3 gap-4">
         <Card variant="default" padding="md" className="flex items-center gap-3">
           <span className="w-9 h-9 rounded-[--radius-md] bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0"><Package size={18} className="text-blue-600" /></span>
-          <div><p className="text-xl font-bold text-[--text-primary]">{mockProducts.length}</p><p className="text-xs text-[--text-secondary]">Total productos</p></div>
+          <div><p className="text-xl font-bold text-[--text-primary]">{products.length}</p><p className="text-xs text-[--text-secondary]">Total productos</p></div>
         </Card>
         <Card variant="default" padding="md" className="flex items-center gap-3">
           <span className="w-9 h-9 rounded-[--radius-md] bg-yellow-50 dark:bg-yellow-900/30 flex items-center justify-center flex-shrink-0"><AlertTriangle size={18} className="text-yellow-600" /></span>
@@ -260,43 +279,53 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[--border]">
-              {filtered.map((product) => (
-                <tr key={product.id} className="hover:bg-[--bg-secondary] transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-[--text-primary]">{product.name}</p>
-                    <p className="text-xs text-[--text-tertiary] mt-0.5">{product.sku}</p>
-                  </td>
-                  <td className="px-4 py-3 text-[--text-secondary]">{product.category}</td>
-                  <td className="px-4 py-3">
-                    <span className={`font-semibold tabular-nums ${product.stock === 0 ? 'text-[--danger]' : product.stock < product.minStock ? 'text-[--warning]' : 'text-[--text-primary]'}`}>
-                      {product.stock}
-                    </span>
-                    <span className="text-xs text-[--text-tertiary] ml-1">/ mín {product.minStock}</span>
-                  </td>
-                  <td className="px-4 py-3">{getStockBadge(product.stock, product.minStock)}</td>
-                  <td className="px-4 py-3 text-right text-[--text-secondary] tabular-nums">${product.cpp.toLocaleString('es-CO')}</td>
-                  <td className="px-4 py-3 text-right font-medium text-[--text-primary] tabular-nums">${product.price.toLocaleString('es-CO')}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => setKardexProduct(product)}
-                        className="px-2 py-1 text-xs rounded-[--radius-sm] border border-[--border] text-[--text-secondary] hover:border-[--nexus-500] hover:text-[--nexus-500] transition-colors"
-                      >
-                        Kardex
-                      </button>
-                      <button
-                        onClick={() => setReceiveProduct(product)}
-                        className="px-2 py-1 text-xs rounded-[--radius-sm] bg-[--nexus-500] text-white hover:bg-[#1d4ed8] transition-colors"
-                      >
-                        Recibir
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={7} className="px-4">
+                      <Skeleton variant="table-row" />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                filtered.map((product) => (
+                  <tr key={product.id} className="hover:bg-[--bg-secondary] transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-[--text-primary]">{product.name}</p>
+                      <p className="text-xs text-[--text-tertiary] mt-0.5">{product.sku}</p>
+                    </td>
+                    <td className="px-4 py-3 text-[--text-secondary]">{product.category}</td>
+                    <td className="px-4 py-3">
+                      <span className={`font-semibold tabular-nums ${product.stock === 0 ? 'text-[--danger]' : product.stock < product.minStock ? 'text-[--warning]' : 'text-[--text-primary]'}`}>
+                        {product.stock}
+                      </span>
+                      <span className="text-xs text-[--text-tertiary] ml-1">/ mín {product.minStock}</span>
+                    </td>
+                    <td className="px-4 py-3">{getStockBadge(product.stock, product.minStock)}</td>
+                    <td className="px-4 py-3 text-right text-[--text-secondary] tabular-nums">${product.cpp.toLocaleString('es-CO')}</td>
+                    <td className="px-4 py-3 text-right font-medium text-[--text-primary] tabular-nums">${product.price.toLocaleString('es-CO')}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setKardexProduct(product)}
+                          className="px-2 py-1 text-xs rounded-[--radius-sm] border border-[--border] text-[--text-secondary] hover:border-[--nexus-500] hover:text-[--nexus-500] transition-colors"
+                        >
+                          Kardex
+                        </button>
+                        <button
+                          onClick={() => setReceiveProduct(product)}
+                          className="px-2 py-1 text-xs rounded-[--radius-sm] bg-[--nexus-500] text-white hover:bg-[#1d4ed8] transition-colors"
+                        >
+                          Recibir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-          {filtered.length === 0 && (
+          {!isLoading && filtered.length === 0 && (
             <div className="py-12 text-center text-[--text-tertiary] text-sm">No se encontraron productos</div>
           )}
         </div>
