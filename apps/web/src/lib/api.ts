@@ -1,0 +1,145 @@
+import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: unknown) => void;
+}> = [];
+
+function processQueue(error: unknown, token: string | null): void {
+  failedQueue.forEach((prom) => {
+    if (error) prom.reject(error);
+    else prom.resolve(token!);
+  });
+  failedQueue = [];
+}
+
+export const api: AxiosInstance = axios.create({
+  baseURL: BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+api.interceptors.request.use((config) => {
+  const token =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('nexus_access_token')
+      : null;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (res) => res,
+  async (error: unknown) => {
+    const axiosError = error as { response?: { status: number }; config?: AxiosRequestConfig & { _retry?: boolean } };
+    const originalRequest = axiosError.config;
+
+    if (axiosError.response?.status !== 401 || originalRequest?._retry) {
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        if (originalRequest) {
+          originalRequest.headers = {
+            ...originalRequest.headers,
+            Authorization: `Bearer ${token}`,
+          };
+        }
+        return api(originalRequest!);
+      });
+    }
+
+    if (originalRequest) originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      const refreshToken =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('nexus_refresh_token')
+          : null;
+
+      if (!refreshToken) throw new Error('No refresh token');
+
+      const res = await axios.post<{ accessToken: string; refreshToken: string }>(
+        `${BASE_URL}/auth/refresh`,
+        { refreshToken },
+      );
+
+      const { accessToken, refreshToken: newRefresh } = res.data;
+      localStorage.setItem('nexus_access_token', accessToken);
+      localStorage.setItem('nexus_refresh_token', newRefresh);
+
+      processQueue(null, accessToken);
+
+      if (originalRequest) {
+        originalRequest.headers = {
+          ...originalRequest.headers,
+          Authorization: `Bearer ${accessToken}`,
+        };
+      }
+      return api(originalRequest!);
+    } catch (refreshError) {
+      processQueue(refreshError, null);
+      localStorage.removeItem('nexus_access_token');
+      localStorage.removeItem('nexus_refresh_token');
+      if (typeof window !== 'undefined') window.location.href = '/login';
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
+  },
+);
+
+// ─── Typed API methods ────────────────────────────────────────
+
+export const posApi = {
+  getProducts: (params?: Record<string, string>) => api.get('/pos/products', { params }).then((r) => r.data),
+  createOrder: (data: unknown) => api.post('/pos/orders', data).then((r) => r.data),
+  getOrders: (params?: Record<string, string>) => api.get('/pos/orders', { params }).then((r) => r.data),
+  getOrder: (id: string) => api.get(`/pos/orders/${id}`).then((r) => r.data),
+  holdOrder: (id: string) => api.patch(`/pos/orders/${id}/hold`).then((r) => r.data),
+  resumeOrder: (id: string) => api.patch(`/pos/orders/${id}/resume`).then((r) => r.data),
+  refundOrder: (id: string, data: unknown) => api.post(`/pos/orders/${id}/refund`, data).then((r) => r.data),
+};
+
+export const inventoryApi = {
+  getProducts: (params?: Record<string, string>) => api.get('/inventory/products', { params }).then((r) => r.data),
+  receiveStock: (data: unknown) => api.post('/inventory/stock/receive', data).then((r) => r.data),
+  adjustStock: (data: unknown) => api.post('/inventory/stock/adjust', data).then((r) => r.data),
+  getKardex: (variantId: string, params?: Record<string, string>) =>
+    api.get(`/inventory/stock/${variantId}/kardex`, { params }).then((r) => r.data),
+  getLowStock: () => api.get('/inventory/stock/low').then((r) => r.data),
+};
+
+export const cashApi = {
+  openSession: (data: unknown) => api.post('/cash/sessions/open', data).then((r) => r.data),
+  getCurrentSession: (terminalId: string) =>
+    api.get('/cash/sessions/current', { params: { terminalId } }).then((r) => r.data),
+  closeSession: (id: string, data: unknown) =>
+    api.post(`/cash/sessions/${id}/close`, data).then((r) => r.data),
+};
+
+export const customersApi = {
+  getCustomers: (params?: Record<string, string>) => api.get('/customers', { params }).then((r) => r.data),
+  getCustomer: (id: string) => api.get(`/customers/${id}`).then((r) => r.data),
+  payCredit: (id: string, data: unknown) =>
+    api.post(`/customers/${id}/credit/payment`, data).then((r) => r.data),
+};
+
+export const analyticsApi = {
+  getSalesSummary: (params: Record<string, string>) =>
+    api.get('/analytics/sales/summary', { params }).then((r) => r.data),
+  getProductPerformance: () => api.get('/analytics/products/performance').then((r) => r.data),
+  getInventoryValuation: () => api.get('/analytics/inventory/valuation').then((r) => r.data),
+  getCustomerInsights: () => api.get('/analytics/customers/insights').then((r) => r.data),
+};
+
+export const syncApi = {
+  push: (data: unknown) => api.post('/sync/push', data).then((r) => r.data),
+  pull: (data: unknown) => api.post('/sync/pull', data).then((r) => r.data),
+};

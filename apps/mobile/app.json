@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "NEXUS POS",
+    "slug": "nexus-pos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "nexus",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router"],
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0ea5e9"
+      },
+      "package": "app.nexuspos.mobile",
+      "versionCode": 1
+    },
+    "ios": {
+      "bundleIdentifier": "app.nexuspos.mobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-eas-project-id"
+      }
+    }
+  }
+}

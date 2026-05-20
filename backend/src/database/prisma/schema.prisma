@@ -1,0 +1,395 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public", "tenant"]
+}
+
+// ─── SCHEMA GLOBAL (public) ───────────────────────────────────
+
+model Plan {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  slug          String         @unique
+  price         Decimal        @db.Decimal(10, 2)
+  billingCycle  String         @default("monthly")
+  maxBranches   Int            @default(1)
+  maxUsers      Int            @default(5)
+  features      Json           @default("{}")
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+
+  @@schema("public")
+}
+
+model Tenant {
+  id            String         @id @default(uuid())
+  name          String
+  slug          String         @unique
+  schemaName    String         @unique
+  email         String         @unique
+  phone         String?
+  country       String         @default("CO")
+  timezone      String         @default("America/Bogota")
+  currency      String         @default("COP")
+  businessType  String         @default("retail_clothing")
+  isActive      Boolean        @default(true)
+  trialEndsAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+
+  @@schema("public")
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  tenantId         String
+  planId           String
+  status           String    @default("active")
+  wompiReference   String?
+  currentPeriodStart DateTime
+  currentPeriodEnd DateTime
+  cancelAtPeriodEnd Boolean  @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  plan             Plan      @relation(fields: [planId], references: [id])
+
+  @@schema("public")
+}
+
+model BusinessTemplate {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String?
+  config      Json
+  createdAt   DateTime @default(now())
+
+  @@schema("public")
+}
+
+// ─── SCHEMA POR TENANT (tenant) ───────────────────────────────
+
+model Branch {
+  id             String   @id @default(uuid())
+  name           String
+  address        String?
+  phone          String?
+  configOverride Json     @default("{}")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model Terminal {
+  id        String   @id @default(uuid())
+  branchId  String
+  name      String
+  type      String   @default("pos")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  branchId     String?
+  email        String   @unique
+  passwordHash String
+  pin          String?
+  name         String
+  role         String   @default("cashier")
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model TenantConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model Product {
+  id          String           @id @default(uuid())
+  sku         String           @unique
+  barcode     String?
+  name        String
+  description String?
+  categoryId  String?
+  imageUrl    String?
+  unitCost    Decimal          @default(0) @db.Decimal(10, 2)
+  unitPrice   Decimal          @db.Decimal(10, 2)
+  taxRate     Decimal          @default(0) @db.Decimal(5, 4)
+  isActive    Boolean          @default(true)
+  hasVariants Boolean          @default(false)
+  metadata    Json             @default("{}")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  variants    ProductVariant[]
+
+  @@schema("tenant")
+}
+
+model ProductVariant {
+  id        String   @id @default(uuid())
+  productId String
+  sku       String   @unique
+  barcode   String?
+  name      String
+  attributes Json    @default("{}")
+  unitCost  Decimal  @default(0) @db.Decimal(10, 2)
+  unitPrice Decimal  @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  minStock  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@schema("tenant")
+}
+
+model StockEntry {
+  id          String   @id @default(uuid())
+  variantId   String
+  quantity    Int
+  unitCost    Decimal  @db.Decimal(10, 2)
+  supplierId  String?
+  expiresAt   DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@schema("tenant")
+}
+
+model StockMovement {
+  id          String   @id @default(uuid())
+  variantId   String
+  type        String
+  quantity    Int
+  previousQty Int
+  newQty      Int
+  reason      String?
+  referenceId String?
+  referenceType String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@schema("tenant")
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  localId       String?     @unique
+  branchId      String
+  terminalId    String?
+  cashierId     String
+  customerId    String?
+  status        String      @default("completed")
+  subtotal      Decimal     @db.Decimal(10, 2)
+  discountTotal Decimal     @default(0) @db.Decimal(10, 2)
+  taxTotal      Decimal     @default(0) @db.Decimal(10, 2)
+  total         Decimal     @db.Decimal(10, 2)
+  notes         String?
+  clientTimestamp DateTime?
+  syncedAt      DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  items         OrderItem[]
+  payments      Payment[]
+
+  @@schema("tenant")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  variantId   String
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  unitCost    Decimal  @db.Decimal(10, 2)
+  discount    Decimal  @default(0) @db.Decimal(10, 2)
+  taxRate     Decimal  @default(0) @db.Decimal(5, 4)
+  total       Decimal  @db.Decimal(10, 2)
+  notes       String?
+  order       Order    @relation(fields: [orderId], references: [id])
+
+  @@schema("tenant")
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  orderId   String
+  method    String
+  amount    Decimal  @db.Decimal(10, 2)
+  reference String?
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  @@schema("tenant")
+}
+
+model CashSession {
+  id             String   @id @default(uuid())
+  branchId       String
+  terminalId     String
+  cashierId      String
+  status         String   @default("open")
+  openingAmount  Decimal  @db.Decimal(10, 2)
+  closingAmount  Decimal? @db.Decimal(10, 2)
+  expectedAmount Decimal? @db.Decimal(10, 2)
+  difference     Decimal? @db.Decimal(10, 2)
+  openedAt       DateTime @default(now())
+  closedAt       DateTime?
+  notes          String?
+
+  @@schema("tenant")
+}
+
+model Customer {
+  id           String   @id @default(uuid())
+  documentType String?
+  documentNum  String?
+  name         String
+  email        String?
+  phone        String?
+  address      String?
+  creditLimit  Decimal  @default(0) @db.Decimal(10, 2)
+  creditBalance Decimal @default(0) @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model CreditTransaction {
+  id          String   @id @default(uuid())
+  customerId  String
+  type        String
+  amount      Decimal  @db.Decimal(10, 2)
+  balance     Decimal  @db.Decimal(10, 2)
+  referenceId String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@schema("tenant")
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  nit       String?  @unique
+  email     String?
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model PurchaseOrder {
+  id         String   @id @default(uuid())
+  supplierId String
+  status     String   @default("draft")
+  total      Decimal  @db.Decimal(10, 2)
+  notes      String?
+  receivedAt DateTime?
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  branchId    String
+  category    String
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?
+  receiptUrl  String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@schema("tenant")
+}
+
+model Employee {
+  id         String   @id @default(uuid())
+  userId     String?  @unique
+  branchId   String
+  name       String
+  position   String?
+  salary     Decimal? @db.Decimal(10, 2)
+  isActive   Boolean  @default(true)
+  hiredAt    DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model SyncQueue {
+  id              String   @id @default(uuid())
+  localId         String
+  entityType      String
+  payload         Json
+  clientTimestamp DateTime
+  status          String   @default("pending")
+  conflictResolution String?
+  processedAt     DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@schema("tenant")
+}
+
+model AiEvent {
+  id          String   @id @default(uuid())
+  eventType   String
+  prompt      String?
+  response    Json?
+  tokensUsed  Int      @default(0)
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@schema("tenant")
+}
+
+model DianDocument {
+  id           String   @id @default(uuid())
+  orderId      String?
+  documentType String
+  cufe         String?
+  qrCode       String?
+  status       String   @default("pending")
+  payload      Json
+  response     Json?
+  sentAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  @@schema("tenant")
+}
