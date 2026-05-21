@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile --filter backend --filter @nexus/db-types --f
 COPY backend/ ./backend/
 COPY packages/ ./packages/
 
-RUN pnpm --filter backend exec prisma generate
+RUN pnpm --filter backend exec prisma generate --schema=src/database/prisma/schema.prisma
 RUN pnpm --filter backend build
 
 # Stage 2: Production
@@ -34,6 +34,7 @@ RUN pnpm install --frozen-lockfile --filter backend --filter @nexus/db-types --f
 
 COPY --from=builder /app/backend/dist ./backend/dist
 COPY --from=builder /app/backend/node_modules/.prisma ./backend/node_modules/.prisma
+COPY --from=builder /app/backend/src/database/prisma/schema.prisma ./backend/src/database/prisma/schema.prisma
 
 EXPOSE 3001
 
