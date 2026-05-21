@@ -128,10 +128,7 @@ export default function POSPage() {
             sku: v.sku ? String(v.sku) : undefined,
           })),
         }));
-        setProducts(mapped);
-        try {
-          localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({ products: mapped, timestamp: Date.now() }));
-        } catch { /* quota exceeded — ignore */ }
+        setProducts(mapped); // cache sync handled by the products useEffect
       } catch {
         // Fallback: serve cached catalog if fresh enough
         try {
@@ -152,6 +149,14 @@ export default function POSPage() {
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep product cache in sync whenever products change (API load or optimistic update)
+  useEffect(() => {
+    if (products.length === 0) return;
+    try {
+      localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({ products, timestamp: Date.now() }));
+    } catch { /* quota exceeded */ }
+  }, [products]);
 
   // Restore cart from localStorage
   useEffect(() => {
@@ -454,11 +459,35 @@ export default function POSPage() {
       setCartDiscountValue(0);
       return;
     }
+    // Optimistic stock update: reduce units in-memory so the cashier sees accurate stock immediately
+    setProducts((prev) =>
+      prev.map((product) => ({
+        ...product,
+        variants: product.variants.map((variant) => {
+          const sold = cart.find((item) => item.variantId === variant.id);
+          return sold ? { ...variant, stock: Math.max(0, variant.stock - sold.quantity) } : variant;
+        }),
+      })),
+    );
+
+    // Invalidate every query that a sale affects
+    const hadCreditPayment = payments.some((p) => p.method === 'credit_store');
     void Promise.all([
+      // Dashboard
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] }),
+      // Analytics (all sub-queries via prefix match)
       queryClient.invalidateQueries({ queryKey: ['analytics-sales'] }),
+      queryClient.invalidateQueries({ queryKey: ['analytics-performance'] }),
+      queryClient.invalidateQueries({ queryKey: ['analytics-inventory-valuation'] }),
+      queryClient.invalidateQueries({ queryKey: ['analytics-customer-insights'] }),
+      // Inventory
       queryClient.invalidateQueries({ queryKey: ['inventory-products'] }),
+      // Kardex for every sold product (prefix match covers ['kardex', variantId])
+      queryClient.invalidateQueries({ queryKey: ['kardex'] }),
+      // Orders history
       queryClient.invalidateQueries({ queryKey: ['orders'] }),
+      // Customers only if fiado was used (credit balance changes)
+      ...(hadCreditPayment ? [queryClient.invalidateQueries({ queryKey: ['customers'] })] : []),
     ]).catch(() => {
       toast('La venta se guardó, pero no se pudo refrescar la vista', 'warning');
     });
