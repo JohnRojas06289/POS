@@ -10,6 +10,7 @@ import { ReceiveStockDto } from './dto/receive-stock.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { TransferStockDto } from './dto/transfer-stock.dto';
 import { CreateProductDto, CreateVariantDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -63,6 +64,24 @@ export class InventoryService {
       include: { variants: true },
     });
     return product;
+  }
+
+  async updateProduct(id: string, dto: UpdateProductDto) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    if (!product) throw new NotFoundException(`Product ${id} not found`);
+
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
+        ...(dto.unitPrice !== undefined && { unitPrice: dto.unitPrice }),
+        ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+      include: { variants: true },
+    });
   }
 
   async addVariants(productId: string, variants: CreateVariantDto[]) {

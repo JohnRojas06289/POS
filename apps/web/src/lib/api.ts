@@ -113,6 +113,7 @@ export const authApi = {
 
 export const inventoryApi = {
   getProducts: (params?: Record<string, string>) => api.get('/inventory/products', { params }).then((r) => r.data),
+  updateProduct: (id: string, data: unknown) => api.patch(`/inventory/products/${id}`, data).then((r) => r.data),
   receiveStock: (data: unknown) => api.post('/inventory/stock/receive', data).then((r) => r.data),
   adjustStock: (data: unknown) => api.post('/inventory/stock/adjust', data).then((r) => r.data),
   getKardex: (variantId: string, params?: Record<string, string>) =>

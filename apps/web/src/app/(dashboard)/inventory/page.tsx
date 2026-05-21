@@ -14,6 +14,7 @@ import { ImageUpload } from '../../../components/ui/ImageUpload';
 // Mock data — kept as fallback so the page is never empty during development
 interface Product {
   id: string;
+  productId: string;
   name: string;
   sku: string;
   category: string;
@@ -25,14 +26,14 @@ interface Product {
 }
 
 const mockProducts: Product[] = [
-  { id: '1', name: 'Coca-Cola 350ml', sku: 'BEB-001', category: 'Bebidas', stock: 48, minStock: 12, cpp: 2100, price: 3500, imageUrl: null },
-  { id: '2', name: 'Agua Cristal 500ml', sku: 'BEB-002', category: 'Bebidas', stock: 5, minStock: 20, cpp: 800, price: 1500, imageUrl: null },
-  { id: '3', name: 'Empanada de Pipián', sku: 'COM-001', category: 'Comidas', stock: 18, minStock: 10, cpp: 1800, price: 3000, imageUrl: null },
-  { id: '4', name: 'Brownie Chocolate', sku: 'POS-001', category: 'Postres', stock: 0, minStock: 5, cpp: 2500, price: 4500, imageUrl: null },
-  { id: '5', name: 'Papas Fritas', sku: 'SNA-001', category: 'Snacks', stock: 32, minStock: 15, cpp: 1200, price: 2000, imageUrl: null },
-  { id: '6', name: 'Jugo Natural Naranja', sku: 'BEB-003', category: 'Bebidas', stock: 8, minStock: 10, cpp: 2800, price: 5000, imageUrl: null },
-  { id: '7', name: 'Sándwich Club', sku: 'COM-002', category: 'Comidas', stock: 22, minStock: 8, cpp: 4200, price: 8500, imageUrl: null },
-  { id: '8', name: 'Cheesecake Frutos Rojos', sku: 'POS-002', category: 'Postres', stock: 3, minStock: 5, cpp: 5500, price: 9000, imageUrl: null },
+  { id: '1', productId: '1', name: 'Coca-Cola 350ml', sku: 'BEB-001', category: 'Bebidas', stock: 48, minStock: 12, cpp: 2100, price: 3500, imageUrl: null },
+  { id: '2', productId: '2', name: 'Agua Cristal 500ml', sku: 'BEB-002', category: 'Bebidas', stock: 5, minStock: 20, cpp: 800, price: 1500, imageUrl: null },
+  { id: '3', productId: '3', name: 'Empanada de Pipián', sku: 'COM-001', category: 'Comidas', stock: 18, minStock: 10, cpp: 1800, price: 3000, imageUrl: null },
+  { id: '4', productId: '4', name: 'Brownie Chocolate', sku: 'POS-001', category: 'Postres', stock: 0, minStock: 5, cpp: 2500, price: 4500, imageUrl: null },
+  { id: '5', productId: '5', name: 'Papas Fritas', sku: 'SNA-001', category: 'Snacks', stock: 32, minStock: 15, cpp: 1200, price: 2000, imageUrl: null },
+  { id: '6', productId: '6', name: 'Jugo Natural Naranja', sku: 'BEB-003', category: 'Bebidas', stock: 8, minStock: 10, cpp: 2800, price: 5000, imageUrl: null },
+  { id: '7', productId: '7', name: 'Sándwich Club', sku: 'COM-002', category: 'Comidas', stock: 22, minStock: 8, cpp: 4200, price: 8500, imageUrl: null },
+  { id: '8', productId: '8', name: 'Cheesecake Frutos Rojos', sku: 'POS-002', category: 'Postres', stock: 3, minStock: 5, cpp: 5500, price: 9000, imageUrl: null },
 ];
 type SortField = 'name' | 'stock' | 'cpp' | 'price';
 const DEFAULT_BRANCH_ID = '00000000-0000-0000-0000-000000000001';
@@ -320,6 +321,74 @@ function ReceiveStockModal({ product, onClose, onSave }: { product: Product; onC
   );
 }
 
+function EditProductModal({ product, onClose, onSave }: { product: Product; onClose: () => void; onSave: () => void }) {
+  const [name, setName] = useState(product.name.split(' — ')[0] ?? product.name);
+  const [price, setPrice] = useState(String(product.price));
+  const [imageUrl, setImageUrl] = useState(product.imageUrl ?? '');
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!name || !price) return;
+    setSaving(true);
+    try {
+      await inventoryApi.updateProduct(product.productId, {
+        name,
+        unitPrice: Number(price),
+        imageUrl: imageUrl || undefined,
+      });
+      toast('Producto actualizado', 'success');
+      onSave();
+    } catch {
+      toast('Error al actualizar el producto', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-[--bg-primary] rounded-[--radius-lg] shadow-[--shadow-lg] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-[--border]">
+          <h3 className="font-semibold text-[--text-primary]">Editar producto</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-[--radius-sm] hover:bg-[--bg-tertiary] text-[--text-tertiary]">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Nombre *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Precio unitario *</label>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Imagen</label>
+            <ImageUpload value={imageUrl} onChange={setImageUrl} />
+          </div>
+        </div>
+        <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium hover:bg-[--border] transition-colors">Cancelar</button>
+          <button onClick={handleSave} disabled={!name || !price || saving} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors">
+            {saving ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function InventoryPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -328,6 +397,7 @@ export default function InventoryPage() {
   const [sortAsc, setSortAsc] = useState(true);
   const [kardexProduct, setKardexProduct] = useState<Product | null>(null);
   const [receiveProduct, setReceiveProduct] = useState<Product | null>(null);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [newProductOpen, setNewProductOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -356,6 +426,7 @@ export default function InventoryPage() {
         for (const v of variants) {
           result.push({
             id: String(v.id ?? p.id),
+            productId: String(p.id),
             name: `${String(p.name)} — ${String(v.name)}`,
             sku: String(v.sku ?? p.sku),
             category: String(p.categoryId ?? 'General'),
@@ -369,6 +440,7 @@ export default function InventoryPage() {
       } else {
         result.push({
           id: String(p.id),
+          productId: String(p.id),
           name: String(p.name),
           sku: String(p.sku),
           category: String(p.categoryId ?? 'General'),
@@ -664,6 +736,12 @@ export default function InventoryPage() {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => setEditProduct(product)}
+                          className="px-2 py-1 text-xs rounded-[--radius-sm] border border-[--border] text-[--text-secondary] hover:border-[--gold-500] hover:text-[--gold-600] transition-colors"
+                        >
+                          Editar
+                        </button>
+                        <button
                           onClick={() => setKardexProduct(product)}
                           className="px-2 py-1 text-xs rounded-[--radius-sm] border border-[--border] text-[--text-secondary] hover:border-[--nexus-500] hover:text-[--nexus-500] transition-colors"
                         >
@@ -689,6 +767,7 @@ export default function InventoryPage() {
       </Card>
 
       {newProductOpen && <NewProductModal onClose={() => setNewProductOpen(false)} onSave={() => { void refetch(); setNewProductOpen(false); }} />}
+      {editProduct && <EditProductModal product={editProduct} onClose={() => setEditProduct(null)} onSave={() => { void refetch(); setEditProduct(null); }} />}
       {kardexProduct && <KardexModal product={kardexProduct} onClose={() => setKardexProduct(null)} />}
       {receiveProduct && (
         <ReceiveStockModal

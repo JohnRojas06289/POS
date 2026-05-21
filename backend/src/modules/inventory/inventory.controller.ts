@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Param, Body, Query, Request,
+  Controller, Get, Post, Patch, Param, Body, Query, Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
@@ -7,6 +7,7 @@ import { ReceiveStockDto } from './dto/receive-stock.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { TransferStockDto } from './dto/transfer-stock.dto';
 import { CreateProductDto, CreateVariantDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 interface AuthRequest {
   user: { sub: string };
@@ -22,6 +23,12 @@ export class InventoryController {
   @ApiOperation({ summary: 'Create a product with variants' })
   createProduct(@Body() dto: CreateProductDto, @Request() req: AuthRequest) {
     return this.inventoryService.createProduct(dto, req.user.sub);
+  }
+
+  @Patch('products/:id')
+  @ApiOperation({ summary: 'Update product name, description, image, price or status' })
+  updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    return this.inventoryService.updateProduct(id, dto);
   }
 
   @Post('products/:id/variants')
