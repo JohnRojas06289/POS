@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronUp, Save, AlertTriangle, Building2, ShoppingCart, MapPin, FileText, Shield, MonitorSmartphone } from 'lucide-react';
+import { ChevronDown, ChevronUp, Save, AlertTriangle, Building2, ShoppingCart, MapPin, FileText, Shield, MonitorSmartphone, Palette } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useToast } from '../../../components/ui/Toast';
 import { tenantsApi } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
+import { THEME_OPTIONS } from '../../../lib/themes';
 
 function Section({ title, icon, children, defaultOpen = false }: { title: string; icon: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -44,6 +46,60 @@ function TextInput({ defaultValue, placeholder }: { defaultValue?: string; place
       placeholder={placeholder}
       className="w-full px-3 py-2 text-sm border border-[--border] rounded-[--radius-md] bg-[--bg-primary] text-[--text-primary] focus:outline-none focus:border-[--nexus-500] transition-colors"
     />
+  );
+}
+
+function ThemeSelector() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{THEME_OPTIONS.map((themeOption) => <div key={themeOption.id} className="h-28 rounded-[--radius-lg] border border-[--border] bg-[--bg-primary]" />)}</div>;
+  }
+
+  const currentTheme = resolvedTheme ?? theme ?? 'minimal';
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {THEME_OPTIONS.map((option) => {
+        const active = currentTheme === option.id;
+
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => setTheme(option.id)}
+            className={cn(
+              'group rounded-[--radius-lg] border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[--shadow-md]',
+              active
+                ? 'border-[--nexus-500] bg-[rgba(201,168,76,0.08)] shadow-[--shadow-md]'
+                : 'border-[--border] bg-[--bg-primary] hover:border-[--nexus-500]',
+            )}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-[--radius-md] border border-[--border] bg-[--bg-secondary] text-[--text-secondary]">
+                  <Palette size={16} />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-[--text-primary]">{option.label}</p>
+                  <p className="text-xs text-[--text-secondary]">{option.description}</p>
+                </div>
+              </div>
+              {active && <span className="rounded-full bg-[--nexus-500] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">Activo</span>}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="h-10 rounded-[--radius-md] border border-black/10" style={{ background: option.surface }} />
+              <div className="h-10 rounded-[--radius-md] border border-black/10" style={{ background: option.muted }} />
+              <div className="h-10 rounded-[--radius-md] border border-black/10" style={{ background: option.accent }} />
+            </div>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -461,6 +517,19 @@ export default function SettingsPage() {
           <Save size={16} /> Guardar cambios
         </button>
       </div>
+
+      <Card variant="default" padding="none">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[--border]">
+          <div>
+            <h3 className="text-lg font-semibold text-[--text-primary]">Apariencia</h3>
+            <p className="text-sm text-[--text-secondary]">Elige un tema sin cambiar la funcionalidad ni los controles.</p>
+          </div>
+        </div>
+
+        <div className="p-5">
+          <ThemeSelector />
+        </div>
+      </Card>
 
       {/* Información del negocio */}
       <Section title="Información del negocio" icon={<Building2 size={18} />} defaultOpen>
