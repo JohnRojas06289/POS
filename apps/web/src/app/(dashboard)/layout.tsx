@@ -12,7 +12,7 @@ import { useAuthStore } from '../../stores/auth.store';
 import { authApi } from '../../lib/api';
 
 const NAV = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/orders', label: 'Órdenes', icon: ClipboardList },
   { href: '/analytics', label: 'Analíticas', icon: BarChart2 },
   { href: '/inventory', label: 'Inventario', icon: Package },
@@ -53,7 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     queryFn: authApi.me,
     retry: false,
   });
-  const activeLabel = NAV.find((item) => (item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)))?.label ?? 'Dashboard';
+  const activeLabel = NAV.find((item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)))?.label ?? 'Dashboard';
 
   useEffect(() => {
     if (!isAuthenticated) router.replace('/login');
@@ -89,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Navegación principal">
             {NAV.map((item) => (
-              <NavItem key={item.href} item={item} active={item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)} />
+              <NavItem key={item.href} item={item} active={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))} />
             ))}
           </nav>
 

@@ -54,7 +54,7 @@ export default function LoginPage() {
     try {
       await login(email, password, tenantEmail);
       clearTimeout(timer);
-      router.push('/');
+      router.push('/dashboard');
     } catch {
       clearTimeout(timer);
       setSlowRequest(false);
@@ -66,7 +66,7 @@ export default function LoginPage() {
     clearError();
     try {
       await loginPin(pin, tenantId, branchId);
-      router.push('/');
+      router.push('/dashboard');
     } catch {
       // error handled by store
     }
