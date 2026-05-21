@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, ShoppingCart, Users, Package, DollarSign } from 'lucide-react';
-import { Card } from '../../components/ui/Card';
-import { KPICard } from '../../components/ui/KPICard';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { useToast } from '../../components/ui/Toast';
-import { analyticsApi } from '../../lib/api';
+import { Card } from '../../../components/ui/Card';
+import { KPICard } from '../../../components/ui/KPICard';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { useToast } from '../../../components/ui/Toast';
+import { analyticsApi } from '../../../lib/api';
 
 // CountUp animation hook
 function useCountUp(target: number, duration = 1200) {
