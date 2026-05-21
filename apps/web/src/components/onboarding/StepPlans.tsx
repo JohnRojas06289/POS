@@ -72,8 +72,7 @@ export function StepPlans({ selected, onNext }: Props) {
 
   if (loading) {
     return (
-      <div className="text-center py-16" style={{ color: 'var(--text-tertiary)' }}>
-        <div className="text-2xl mb-3">⏳</div>
+      <div className="py-16 text-center text-white/30">
         <p className="text-sm">Cargando planes...</p>
       </div>
     );
@@ -97,14 +96,11 @@ export function StepPlans({ selected, onNext }: Props) {
 
   return (
     <div>
-      <h2
-        className="text-2xl font-display font-semibold mb-1"
-        style={{ color: 'var(--text-primary)' }}
-      >
+      <h2 className="mb-1 text-2xl font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
         Elige tu plan
       </h2>
-      <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
-        Empieza gratis y escala cuando lo necesites.
+      <p className="mb-8 text-sm text-white/45">
+        Empieza y escala cuando lo necesites.
       </p>
 
       <div className="space-y-3 mb-8">
@@ -119,38 +115,29 @@ export function StepPlans({ selected, onNext }: Props) {
               className="w-full text-left rounded-xl p-4 transition-all"
               style={{
                 border: isSelected
-                  ? '2px solid var(--gold-500)'
-                  : '2px solid var(--border-default)',
-                background: isSelected ? 'var(--gold-50)' : 'var(--bg-surface)',
-                boxShadow: isSelected ? 'var(--shadow-gold)' : 'none',
+                  ? '2px solid #C9A84C'
+                  : '2px solid rgba(255,255,255,0.08)',
+                background: isSelected ? 'rgba(201,168,76,0.1)' : '#161616',
+                boxShadow: isSelected ? '0 0 0 3px rgba(201,168,76,0.15)' : 'none',
               }}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span
-                      className="text-sm font-semibold"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
+                    <span className="text-sm font-semibold" style={{ color: isSelected ? '#E8C96A' : '#F2F0EB' }}>
                       {plan.name}
                     </span>
                     {isFree && (
-                      <span
-                        className="text-xs font-medium px-2 py-0.5 rounded-full"
-                        style={{
-                          background: 'var(--success-bg)',
-                          color: 'var(--success-text)',
-                        }}
-                      >
-                        Recomendado para empezar
+                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
+                        Gratis para empezar
                       </span>
                     )}
                     {!isFree && (
                       <span
-                        className="text-xs font-medium px-2 py-0.5 rounded-full"
+                        className="rounded-full px-2 py-0.5 text-xs font-medium"
                         style={{
-                          background: isLifetime ? 'rgba(201,168,76,0.12)' : 'var(--bg-subtle)',
-                          color: isLifetime ? 'var(--gold-600)' : 'var(--text-secondary)',
+                          background: isLifetime ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.08)',
+                          color: isLifetime ? '#C9A84C' : 'rgba(255,255,255,0.5)',
                         }}
                       >
                         {formatCycle(plan)}
@@ -158,23 +145,18 @@ export function StepPlans({ selected, onNext }: Props) {
                     )}
                   </div>
                   {plan.description && (
-                    <p className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                      {plan.description}
-                    </p>
+                    <p className="mb-1.5 text-xs text-white/40">{plan.description}</p>
                   )}
-                  <p className="text-xs space-y-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="space-y-0.5 text-xs text-white/30">
                     <span className="block">{formatLimit(plan.maxBranches, 'sucursal', 'sucursales')}</span>
                     <span className="block">{formatLimit(plan.maxUsers, 'usuario', 'usuarios')}</span>
                   </p>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="flex-shrink-0 text-right">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/30">
                     {formatCycle(plan)}
                   </p>
-                  <span
-                    className="text-lg font-bold"
-                    style={{ color: isSelected ? 'var(--gold-600)' : 'var(--text-primary)' }}
-                  >
+                  <span className="text-lg font-bold" style={{ color: isSelected ? '#C9A84C' : '#F2F0EB' }}>
                     {formatPrice(plan.price)}{plan.price > 0 && plan.billingCycle === 'monthly' ? '/mes' : ''}
                   </span>
                 </div>
@@ -182,11 +164,8 @@ export function StepPlans({ selected, onNext }: Props) {
 
               {isSelected && (
                 <div
-                  className="flex items-center gap-1.5 mt-3 pt-3 text-xs font-medium"
-                  style={{
-                    borderTop: '1px solid var(--border-gold)',
-                    color: 'var(--gold-600)',
-                  }}
+                  className="mt-3 flex items-center gap-1.5 pt-3 text-xs font-medium text-[#C9A84C]"
+                  style={{ borderTop: '1px solid rgba(201,168,76,0.2)' }}
                 >
                   <span>✓</span>
                   <span>Plan seleccionado</span>
@@ -203,8 +182,8 @@ export function StepPlans({ selected, onNext }: Props) {
           if (plan) onNext({ planId: plan.id, planName: plan.name, planPrice: plan.price });
         }}
         disabled={!selectedId}
-        className="w-full py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
-        style={{ background: 'var(--text-primary)', color: '#F7F6F3' }}
+        className="w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
+        style={{ background: '#C9A84C', color: '#0A0A0A' }}
       >
         Continuar →
       </button>

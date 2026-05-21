@@ -188,13 +188,10 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
 
   return (
     <div>
-      <h2
-        className="text-2xl font-display font-semibold mb-1"
-        style={{ color: 'var(--text-primary)' }}
-      >
+      <h2 className="mb-1 text-2xl font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
         Tu negocio
       </h2>
-      <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mb-6 text-sm text-white/45">
         Elige el tipo de negocio — configuraremos todo automáticamente para ti.
       </p>
 
@@ -210,10 +207,10 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
               className="rounded-xl overflow-hidden transition-all"
               style={{
                 border: isSelected
-                  ? '2px solid var(--gold-500)'
-                  : '2px solid var(--border-default)',
-                background: isSelected ? 'var(--gold-50)' : 'var(--bg-surface)',
-                boxShadow: isSelected ? 'var(--shadow-gold)' : 'none',
+                  ? '2px solid #C9A84C'
+                  : '2px solid rgba(255,255,255,0.08)',
+                background: isSelected ? 'rgba(201,168,76,0.1)' : '#161616',
+                boxShadow: isSelected ? '0 0 0 3px rgba(201,168,76,0.15)' : 'none',
               }}
             >
               {/* Header row */}
@@ -228,27 +225,16 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
                 <span className="text-2xl flex-shrink-0">{t.config.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className="text-sm font-semibold"
-                      style={{ color: isSelected ? 'var(--gold-700)' : 'var(--text-primary)' }}
-                    >
+                    <span className="text-sm font-semibold" style={{ color: isSelected ? '#E8C96A' : '#F2F0EB' }}>
                       {t.name}
                     </span>
                     <TaxBadge rate={t.config.defaultTaxRate} />
                   </div>
-                  <p
-                    className="text-xs mt-0.5 truncate"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {t.description}
-                  </p>
+                  <p className="mt-0.5 truncate text-xs text-white/40">{t.description}</p>
                 </div>
                 <span
-                  className="text-xs flex-shrink-0 ml-1 transition-transform duration-200"
-                  style={{
-                    color: 'var(--text-tertiary)',
-                    transform: isExpanded ? 'rotate(180deg)' : 'none',
-                  }}
+                  className="ml-1 flex-shrink-0 text-xs text-white/30 transition-transform duration-200"
+                  style={{ transform: isExpanded ? 'rotate(180deg)' : 'none' }}
                 >
                   ▾
                 </span>
@@ -256,25 +242,15 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
 
               {/* Expanded features */}
               {isExpanded && (
-                <div
-                  className="px-4 pb-4 pt-0"
-                  style={{ borderTop: '1px solid var(--border-default)' }}
-                >
-                  <p
-                    className="text-xs font-semibold uppercase tracking-wider mb-2 mt-3"
-                    style={{ color: 'var(--text-tertiary)' }}
-                  >
+                <div className="px-4 pb-4 pt-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-white/30">
                     Qué incluye esta plantilla
                   </p>
                   <ul className="space-y-1.5">
                     {t.config.features.map((f, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="mt-0.5 flex-shrink-0 text-xs" style={{ color: 'var(--gold-500)' }}>
-                          ✓
-                        </span>
-                        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                          {f}
-                        </span>
+                        <span className="mt-0.5 flex-shrink-0 text-xs text-[#C9A84C]">✓</span>
+                        <span className="text-xs text-white/50">{f}</span>
                       </li>
                     ))}
                   </ul>
@@ -287,7 +263,7 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
 
       {/* Business name */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
+        <label className="mb-1.5 block text-sm font-medium text-white/70">
           Nombre del negocio *
         </label>
         <input
@@ -296,20 +272,16 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
           onChange={(e) => setBusinessName(e.target.value)}
           placeholder={selectedTemplate ? `Ej: Mi ${selectedTemplate.name.split('/')[0].trim()}` : 'Ej: Boutique La Moda'}
           maxLength={80}
-          className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
-          style={{
-            border: '1.5px solid var(--border-default)',
-            background: 'var(--bg-surface)',
-            color: 'var(--text-primary)',
-          }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+          className="w-full rounded-lg px-3 py-2.5 text-sm text-white/90 outline-none transition-all placeholder:text-white/20"
+          style={{ border: '1.5px solid rgba(255,255,255,0.1)', background: '#161616' }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = '#C9A84C')}
+          onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
         />
       </div>
 
       {/* Phone */}
       <div className="mb-8">
-        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
+        <label className="mb-1.5 block text-sm font-medium text-white/70">
           Teléfono del negocio *
         </label>
         <input
@@ -318,14 +290,10 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
           onChange={(e) => setPhone(e.target.value)}
           placeholder="Ej: 3001234567"
           maxLength={15}
-          className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
-          style={{
-            border: '1.5px solid var(--border-default)',
-            background: 'var(--bg-surface)',
-            color: 'var(--text-primary)',
-          }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+          className="w-full rounded-lg px-3 py-2.5 text-sm text-white/90 outline-none transition-all placeholder:text-white/20"
+          style={{ border: '1.5px solid rgba(255,255,255,0.1)', background: '#161616' }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = '#C9A84C')}
+          onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
         />
       </div>
 
@@ -333,12 +301,8 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={onBack}
-          className="flex-1 py-3 rounded-xl text-sm font-medium transition-all"
-          style={{
-            border: '1.5px solid var(--border-default)',
-            color: 'var(--text-secondary)',
-            background: 'transparent',
-          }}
+          className="flex-1 rounded-xl py-3 text-sm font-medium text-white/50 transition-all hover:text-white/80"
+          style={{ border: '1.5px solid rgba(255,255,255,0.1)', background: 'transparent' }}
         >
           ← Atrás
         </button>
@@ -346,8 +310,8 @@ export function StepBusiness({ data, onNext, onBack }: Props) {
           type="button"
           onClick={() => onNext({ businessName: businessName.trim(), businessType, phone: phone.trim() })}
           disabled={!canContinue}
-          className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
-          style={{ background: 'var(--text-primary)', color: '#F7F6F3' }}
+          className="flex-1 rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
+          style={{ background: '#C9A84C', color: '#0A0A0A' }}
         >
           Continuar →
         </button>

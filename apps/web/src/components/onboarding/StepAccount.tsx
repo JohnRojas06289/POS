@@ -34,15 +34,15 @@ function strengthColor(score: number): string {
 }
 
 function strengthBg(score: number): string {
-  if (score >= 4) return 'var(--success-text)';
-  if (score >= 3) return 'var(--gold-500)';
-  return 'var(--danger-text)';
+  if (score >= 4) return '#34D399';
+  if (score >= 3) return '#C9A84C';
+  return '#F09595';
 }
 
 const inputStyle = {
-  border: '1.5px solid var(--border-default)',
-  background: 'var(--bg-surface)',
-  color: 'var(--text-primary)',
+  border: '1.5px solid rgba(255,255,255,0.1)',
+  background: '#161616',
+  color: 'rgba(242,240,235,0.9)',
 };
 
 export function StepAccount({ data, onNext, onBack }: Props) {
@@ -60,20 +60,17 @@ export function StepAccount({ data, onNext, onBack }: Props) {
 
   return (
     <div>
-      <h2
-        className="text-2xl font-display font-semibold mb-1"
-        style={{ color: 'var(--text-primary)' }}
-      >
+      <h2 className="mb-1 text-2xl font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
         Crea tu cuenta
       </h2>
-      <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mb-8 text-sm text-white/45">
         Serás el administrador principal del negocio.
       </p>
 
       <div className="space-y-4 mb-8">
         {/* Owner name */}
         <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
+          <label className="mb-1.5 block text-sm font-medium text-white/70">
             Tu nombre completo *
           </label>
           <input
@@ -82,16 +79,16 @@ export function StepAccount({ data, onNext, onBack }: Props) {
             onChange={(e) => setOwnerName(e.target.value)}
             placeholder="Ej: Carlos Gómez"
             maxLength={80}
-            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
+            className="w-full rounded-lg px-3 py-2.5 text-sm text-white/90 outline-none transition-all placeholder:text-white/20"
             style={inputStyle}
-            onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+            onFocus={(e) => (e.currentTarget.style.borderColor = '#C9A84C')}
+            onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
           />
         </div>
 
         {/* Email */}
         <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
+          <label className="mb-1.5 block text-sm font-medium text-white/70">
             Correo electrónico *
           </label>
           <input
@@ -99,30 +96,26 @@ export function StepAccount({ data, onNext, onBack }: Props) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="admin@minegocio.co"
-            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
+            className="w-full rounded-lg px-3 py-2.5 text-sm text-white/90 outline-none transition-all placeholder:text-white/20"
             style={{
               ...inputStyle,
-              borderColor: email && !emailValid ? 'var(--danger-text)' : 'var(--border-default)',
+              borderColor: email && !emailValid ? '#F09595' : 'rgba(255,255,255,0.1)',
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor =
-                email && !emailValid ? 'var(--danger-text)' : 'var(--gold-500)';
+              e.currentTarget.style.borderColor = email && !emailValid ? '#F09595' : '#C9A84C';
             }}
             onBlur={(e) => {
-              e.currentTarget.style.borderColor =
-                email && !emailValid ? 'var(--danger-text)' : 'var(--border-default)';
+              e.currentTarget.style.borderColor = email && !emailValid ? '#F09595' : 'rgba(255,255,255,0.1)';
             }}
           />
           {email && !emailValid && (
-            <p className="text-xs mt-1" style={{ color: 'var(--danger-text)' }}>
-              Ingresa un correo válido
-            </p>
+            <p className="mt-1 text-xs text-[#F09595]">Ingresa un correo válido</p>
           )}
         </div>
 
         {/* Password */}
         <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
+          <label className="mb-1.5 block text-sm font-medium text-white/70">
             Contraseña *
           </label>
           <div className="relative">
@@ -131,16 +124,15 @@ export function StepAccount({ data, onNext, onBack }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Mínimo 8 caracteres"
-              className="w-full rounded-lg px-3 py-2.5 pr-20 text-sm outline-none transition-all"
+              className="w-full rounded-lg px-3 py-2.5 pr-20 text-sm text-white/90 outline-none transition-all placeholder:text-white/20"
               style={inputStyle}
-              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
-              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+              onFocus={(e) => (e.currentTarget.style.borderColor = '#C9A84C')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
             />
             <button
               type="button"
               onClick={() => setShowPass((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium"
-              style={{ color: 'var(--gold-600)' }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#C9A84C]"
             >
               {showPass ? 'Ocultar' : 'Mostrar'}
             </button>
@@ -148,21 +140,15 @@ export function StepAccount({ data, onNext, onBack }: Props) {
           {password && (
             <div className="mt-2 space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span style={{ color: 'var(--text-tertiary)' }}>Seguridad</span>
+                <span className="text-white/30">Seguridad</span>
                 <span className="font-semibold" style={{ color: strengthColor(score) }}>
                   {strengthLabel(score)}
                 </span>
               </div>
-              <div
-                className="h-1.5 rounded-full overflow-hidden"
-                style={{ background: 'var(--bg-muted)' }}
-              >
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${(score / 5) * 100}%`,
-                    background: strengthBg(score),
-                  }}
+                  style={{ width: `${(score / 5) * 100}%`, background: strengthBg(score) }}
                 />
               </div>
             </div>
@@ -171,7 +157,7 @@ export function StepAccount({ data, onNext, onBack }: Props) {
 
         {/* Confirm password */}
         <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
+          <label className="mb-1.5 block text-sm font-medium text-white/70">
             Confirmar contraseña *
           </label>
           <input
@@ -179,24 +165,20 @@ export function StepAccount({ data, onNext, onBack }: Props) {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="Repite tu contraseña"
-            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
+            className="w-full rounded-lg px-3 py-2.5 text-sm text-white/90 outline-none transition-all placeholder:text-white/20"
             style={{
               ...inputStyle,
-              borderColor: confirm && !match ? 'var(--danger-text)' : 'var(--border-default)',
+              borderColor: confirm && !match ? '#F09595' : 'rgba(255,255,255,0.1)',
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor =
-                confirm && !match ? 'var(--danger-text)' : 'var(--gold-500)';
+              e.currentTarget.style.borderColor = confirm && !match ? '#F09595' : '#C9A84C';
             }}
             onBlur={(e) => {
-              e.currentTarget.style.borderColor =
-                confirm && !match ? 'var(--danger-text)' : 'var(--border-default)';
+              e.currentTarget.style.borderColor = confirm && !match ? '#F09595' : 'rgba(255,255,255,0.1)';
             }}
           />
           {confirm && !match && (
-            <p className="text-xs mt-1" style={{ color: 'var(--danger-text)' }}>
-              Las contraseñas no coinciden
-            </p>
+            <p className="mt-1 text-xs text-[#F09595]">Las contraseñas no coinciden</p>
           )}
         </div>
       </div>
@@ -205,19 +187,17 @@ export function StepAccount({ data, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={onBack}
-          className="flex-1 py-3 rounded-xl text-sm font-medium transition-all"
-          style={{ border: '1.5px solid var(--border-default)', color: 'var(--text-secondary)' }}
+          className="flex-1 rounded-xl py-3 text-sm font-medium text-white/50 transition-all hover:text-white/80"
+          style={{ border: '1.5px solid rgba(255,255,255,0.1)', background: 'transparent' }}
         >
           ← Atrás
         </button>
         <button
           type="button"
-          onClick={() =>
-            onNext({ ownerName: ownerName.trim(), email: email.trim(), password })
-          }
+          onClick={() => onNext({ ownerName: ownerName.trim(), email: email.trim(), password })}
           disabled={!canContinue}
-          className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
-          style={{ background: 'var(--text-primary)', color: '#F7F6F3' }}
+          className="flex-1 rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
+          style={{ background: '#C9A84C', color: '#0A0A0A' }}
         >
           Continuar →
         </button>

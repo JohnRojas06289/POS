@@ -71,111 +71,93 @@ export function OnboardingFlow() {
 
   if (!hydrated) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-          Cargando...
-        </div>
+      <div className="flex h-screen items-center justify-center bg-[#0A0A0A]">
+        <div className="text-sm text-white/30">Cargando...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-base)' }}>
+    <div className="flex min-h-screen bg-[#0A0A0A] text-white">
       {/* Left panel — brand */}
-      <div
-        className="hidden lg:flex lg:w-[420px] xl:w-[480px] flex-col justify-between p-12 flex-shrink-0"
-        style={{ background: 'var(--text-primary)' }}
-      >
-        <div>
-          <div className="flex items-center gap-2 mb-16">
-            <span
-              className="text-xl font-display font-semibold tracking-tight"
-              style={{ color: 'var(--gold-400)' }}
-            >
-              NEXUS POS
-            </span>
+      <div className="relative hidden lg:flex lg:w-[400px] xl:w-[460px] flex-shrink-0 flex-col justify-between overflow-hidden border-r border-white/[0.06] bg-[#111111] p-12">
+        {/* Ambient grid */}
+        <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] [background-size:48px_48px]" />
+        <div className="pointer-events-none absolute left-0 top-0 h-[300px] w-[300px] bg-[radial-gradient(ellipse,rgba(201,168,76,0.08),transparent_65%)]" />
+
+        <div className="relative">
+          <div className="mb-14">
+            <p className="text-2xl font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
+              NEXUS
+            </p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-white/30">Premium POS</p>
           </div>
 
-          <h1
-            className="text-4xl font-display leading-tight mb-6"
-            style={{ color: '#F7F6F3' }}
-          >
-            Tu negocio en marcha en{' '}
-            <span style={{ color: 'var(--gold-400)' }}>minutos</span>
+          <h1 className="text-4xl font-medium leading-tight tracking-tight text-white mb-5" style={{ fontFamily: 'var(--font-display)' }}>
+            Tu negocio en marcha{' '}
+            <span className="text-shimmer">en minutos.</span>
           </h1>
 
-          <p className="text-base leading-relaxed mb-12" style={{ color: '#8A887F' }}>
-            NEXUS POS es el sistema de punto de venta diseñado para negocios colombianos que quieren
-            vender más y administrar mejor.
+          <p className="text-sm leading-7 text-white/45 mb-10">
+            NEXUS POS es el sistema de punto de venta diseñado para negocios colombianos que quieren vender más y administrar mejor.
           </p>
 
           <div className="space-y-5">
             {[
-              { icon: '⚡', title: 'Listo al instante', desc: 'Tu tienda lista en menos de 2 minutos.' },
-              { icon: '🔒', title: 'Seguro y confiable', desc: 'Datos encriptados, backups automáticos.' },
-              { icon: '📊', title: 'Reportes en tiempo real', desc: 'Ventas, inventario y clientes en un solo lugar.' },
+              { title: 'Configuración en minutos', desc: 'Sin técnicos, sin manuales. Selecciona tu tipo de negocio y empieza.' },
+              { title: 'Offline cuando lo necesitas', desc: 'La caja sigue funcionando sin internet y sincroniza sola.' },
+              { title: 'Reportes que se leen solos', desc: 'Ventas, inventario y clientes en un solo panel.' },
             ].map((f) => (
               <div key={f.title} className="flex gap-4">
-                <span className="text-2xl flex-shrink-0 mt-0.5">{f.icon}</span>
+                <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.08)]">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#C9A84C]" />
+                </div>
                 <div>
-                  <p className="text-sm font-semibold mb-0.5" style={{ color: '#F7F6F3' }}>
-                    {f.title}
-                  </p>
-                  <p className="text-sm" style={{ color: '#8A887F' }}>
-                    {f.desc}
-                  </p>
+                  <p className="text-sm font-semibold text-white/90 mb-0.5">{f.title}</p>
+                  <p className="text-sm text-white/40">{f.desc}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-xs" style={{ color: '#4A4844' }}>
+        <p className="relative text-xs text-white/20">
           © {new Date().getFullYear()} NEXUS POS · Colombia
         </p>
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+      <div className="flex min-h-screen flex-1 flex-col overflow-y-auto">
         {/* Mobile header */}
-        <div
-          className="lg:hidden flex items-center px-6 py-4 border-b"
-          style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}
-        >
-          <span
-            className="text-lg font-display font-semibold"
-            style={{ color: 'var(--gold-500)' }}
-          >
-            NEXUS POS
-          </span>
+        <div className="flex items-center border-b border-white/[0.06] bg-[#111111] px-6 py-4 lg:hidden">
+          <p className="text-lg font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
+            NEXUS <span className="text-[#C9A84C]">POS</span>
+          </p>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="w-full max-w-md">
             {/* Stepper */}
             <div className="mb-10">
-              <div className="flex items-center mb-3">
+              <div className="mb-3 flex items-center">
                 {STEPS.map((s, i) => (
-                  <div key={s} className="flex items-center flex-1 last:flex-none">
+                  <div key={s} className="flex flex-1 items-center last:flex-none">
                     <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 transition-all"
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all"
                       style={
                         i < stepIndex
-                          ? { background: 'var(--gold-500)', color: '#fff' }
+                          ? { background: '#C9A84C', color: '#0A0A0A' }
                           : i === stepIndex
-                          ? { background: 'var(--text-primary)', color: '#fff' }
-                          : { background: 'var(--bg-muted)', color: 'var(--text-tertiary)' }
+                          ? { background: '#F2F0EB', color: '#0A0A0A' }
+                          : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }
                       }
                     >
                       {i < stepIndex ? '✓' : i + 1}
                     </div>
                     {i < STEPS.length - 1 && (
                       <div
-                        className="flex-1 h-0.5 mx-2 transition-all"
-                        style={{
-                          background:
-                            i < stepIndex ? 'var(--gold-500)' : 'var(--bg-muted)',
-                        }}
+                        className="mx-2 h-0.5 flex-1 transition-all"
+                        style={{ background: i < stepIndex ? '#C9A84C' : 'rgba(255,255,255,0.08)' }}
                       />
                     )}
                   </div>
@@ -186,12 +168,7 @@ export function OnboardingFlow() {
                   <span
                     key={s}
                     className="text-xs font-medium transition-colors"
-                    style={{
-                      color:
-                        i === stepIndex
-                          ? 'var(--text-primary)'
-                          : 'var(--text-tertiary)',
-                    }}
+                    style={{ color: i === stepIndex ? '#F2F0EB' : 'rgba(255,255,255,0.3)' }}
                   >
                     {STEP_LABELS[s]}
                   </span>
@@ -243,13 +220,9 @@ export function OnboardingFlow() {
         </div>
 
         <div className="pb-8 text-center">
-          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <span className="text-xs text-white/30">
             ¿Ya tienes cuenta?{' '}
-            <a
-              href="/login"
-              className="font-medium underline"
-              style={{ color: 'var(--gold-600)' }}
-            >
+            <a href="/login" className="font-medium text-[#C9A84C] underline decoration-[rgba(201,168,76,0.4)] underline-offset-3">
               Iniciar sesión
             </a>
           </span>
