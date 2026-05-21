@@ -174,3 +174,14 @@ export const employeesApi = {
   getPayrollSummary: (params?: Record<string, string>) =>
     api.get('/employees/payroll/summary', { params }).then((r) => r.data),
 };
+
+export const suppliersApi = {
+  getSuppliers: () => api.get('/suppliers').then((r) => r.data),
+  createSupplier: (data: unknown) => api.post('/suppliers', data).then((r) => r.data),
+  getPurchaseOrders: (supplierId: string) =>
+    api.get(`/suppliers/${supplierId}/purchase-orders`).then((r) => r.data),
+  createPurchaseOrder: (supplierId: string, data: unknown) =>
+    api.post(`/suppliers/${supplierId}/purchase-orders`, data).then((r) => r.data),
+  receivePurchaseOrder: (supplierId: string, orderId: string, data: unknown) =>
+    api.patch(`/suppliers/${supplierId}/purchase-orders/${orderId}/receive`, data).then((r) => r.data),
+};

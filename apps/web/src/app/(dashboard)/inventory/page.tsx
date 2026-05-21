@@ -7,7 +7,7 @@ import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useToast } from '../../../components/ui/Toast';
-import { inventoryApi, api } from '../../../lib/api';
+import { inventoryApi, tenantsApi, api } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
 import { ImageUpload } from '../../../components/ui/ImageUpload';
 
@@ -36,7 +36,6 @@ const mockProducts: Product[] = [
   { id: '8', productId: '8', name: 'Cheesecake Frutos Rojos', sku: 'POS-002', category: 'Postres', stock: 3, minStock: 5, cpp: 5500, price: 9000, imageUrl: null },
 ];
 type SortField = 'name' | 'stock' | 'cpp' | 'price';
-const DEFAULT_BRANCH_ID = '00000000-0000-0000-0000-000000000001';
 
 function getStockBadge(stock: number, minStock: number) {
   if (stock === 0) return <Badge variant="danger" dot>Sin stock</Badge>;
@@ -100,7 +99,7 @@ function KardexModal({ product, onClose }: { product: Product; onClose: () => vo
   );
 }
 
-function NewProductModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+function NewProductModal({ onClose, onSave, branchId }: { onClose: () => void; onSave: () => void; branchId: string }) {
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('');
@@ -159,7 +158,7 @@ function NewProductModal({ onClose, onSave }: { onClose: () => void; onSave: () 
       if (variantId && Number(initialStock) > 0 && Number(unitCost) > 0) {
         await api.post('/inventory/stock/receive', {
           variantId,
-          branchId: DEFAULT_BRANCH_ID,
+          branchId,
           quantity: Number(initialStock),
           unitCost: Number(unitCost),
           invoiceNumber: `MANUAL-${Date.now()}`,
@@ -403,6 +402,18 @@ export default function InventoryPage() {
 
   const { toast } = useToast();
 
+  const { data: branchesData } = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => tenantsApi.getBranches(),
+    retry: 1,
+  });
+
+  const branchId: string = (() => {
+    const raw = branchesData as unknown;
+    const arr = Array.isArray(raw) ? raw : Array.isArray((raw as { data?: unknown[] })?.data) ? (raw as { data: unknown[] }).data : [];
+    return (arr[0] as { id?: string })?.id ?? '';
+  })();
+
   const { data: productsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['inventory-products'],
     queryFn: () => inventoryApi.getProducts(),
@@ -537,7 +548,7 @@ export default function InventoryPage() {
         if (variantId && Number(stock) > 0 && Number(cpp) > 0) {
           await api.post('/inventory/stock/receive', {
             variantId,
-            branchId: DEFAULT_BRANCH_ID,
+            branchId,
             quantity: Number(stock),
             unitCost: Number(cpp),
             invoiceNumber: `CSV-${Date.now()}`,
@@ -766,7 +777,7 @@ export default function InventoryPage() {
         </div>
       </Card>
 
-      {newProductOpen && <NewProductModal onClose={() => setNewProductOpen(false)} onSave={() => { void refetch(); setNewProductOpen(false); }} />}
+      {newProductOpen && <NewProductModal branchId={branchId} onClose={() => setNewProductOpen(false)} onSave={() => { void refetch(); setNewProductOpen(false); }} />}
       {editProduct && <EditProductModal product={editProduct} onClose={() => setEditProduct(null)} onSave={() => { void refetch(); setEditProduct(null); }} />}
       {kardexProduct && <KardexModal product={kardexProduct} onClose={() => setKardexProduct(null)} />}
       {receiveProduct && (
@@ -776,7 +787,7 @@ export default function InventoryPage() {
           onSave={(qty, cost, invoiceNumber) => {
             void api.post('/inventory/stock/receive', {
               variantId: receiveProduct.id,
-              branchId: DEFAULT_BRANCH_ID,
+              branchId,
               quantity: qty,
               unitCost: cost,
               invoiceNumber: invoiceNumber || undefined,
