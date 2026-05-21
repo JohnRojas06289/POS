@@ -7,7 +7,7 @@ import { useTheme } from 'next-themes';
 import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useToast } from '../../../components/ui/Toast';
-import { tenantsApi } from '../../../lib/api';
+import { billingApi, tenantsApi } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
 import { THEME_OPTIONS } from '../../../lib/themes';
 
@@ -180,6 +180,29 @@ function PermissionMatrix({
 
 const PAYMENT_METHODS = ['Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Nequi', 'Daviplata', 'Transferencia'];
 
+interface BillingPlanSummary {
+  id: string;
+  name: string;
+  slug: string;
+  price: string | number;
+  billingCycle: string;
+  maxBranches: number;
+  maxUsers: number;
+}
+
+interface SubscriptionSummary {
+  id: string;
+  status: string;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: string;
+  plan: BillingPlanSummary | null;
+}
+
+interface TenantUserRow {
+  id: string;
+  isActive?: boolean;
+}
+
 type RoleConfig = {
   id: string;
   name: string;
@@ -328,6 +351,22 @@ function NewBranchModal({ onClose, onSave }: { onClose: () => void; onSave: () =
   );
 }
 
+function formatLimit(value: number, singular: string, plural: string): string {
+  if (value < 0) return `Ilimitados ${plural}`;
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function formatBillingCycle(cycle: string): string {
+  if (cycle === 'lifetime') return 'Pago único';
+  return 'Mensual';
+}
+
+function formatCurrency(value: string | number): string {
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  if (Number.isNaN(numericValue) || numericValue === 0) return 'Gratis';
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(numericValue);
+}
+
 function NewTerminalModal({
   branches,
   onClose,
@@ -472,9 +511,21 @@ export default function SettingsPage() {
     retry: false,
   });
 
+  const { data: subscription, isLoading: loadingSubscription } = useQuery({
+    queryKey: ['billing-subscription'],
+    queryFn: billingApi.getSubscription,
+    retry: false,
+  });
+
   const { data: branches, isLoading: loadingBranches, refetch: refetchBranches } = useQuery({
     queryKey: ['tenant-branches'],
     queryFn: tenantsApi.getBranches,
+    retry: false,
+  });
+
+  const { data: users, isLoading: loadingUsers } = useQuery({
+    queryKey: ['tenant-users'],
+    queryFn: tenantsApi.getUsers,
     retry: false,
   });
 
@@ -503,6 +554,14 @@ export default function SettingsPage() {
     setActiveMethods(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
   };
 
+  const currentPlan = (subscription as SubscriptionSummary | undefined)?.plan;
+  const activeUsers = Array.isArray(users)
+    ? (users as TenantUserRow[]).filter((user) => user.isActive !== false).length
+    : 0;
+  const branchCount = Array.isArray(branches) ? branches.length : 0;
+  const userLimit = currentPlan?.maxUsers ?? -1;
+  const branchLimit = currentPlan?.maxBranches ?? -1;
+
   return (
     <div className="p-6 space-y-6 max-w-3xl">
       <div className="flex items-center justify-between">
@@ -530,6 +589,53 @@ export default function SettingsPage() {
           <ThemeSelector />
         </div>
       </Card>
+
+      <Section title="Plan y límites" icon={<Shield size={18} />} defaultOpen>
+        <div className="pt-4 space-y-4">
+          {loadingSubscription ? (
+            <Skeleton variant="text" lines={3} />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[--radius-lg] border border-[--border] bg-[--bg-secondary] p-4">
+                <p className="text-xs uppercase tracking-wide text-[--text-tertiary]">Plan actual</p>
+                <p className="mt-1 text-base font-semibold text-[--text-primary]">
+                  {currentPlan?.name ?? 'Sin plan'}
+                </p>
+                <p className="mt-1 text-sm text-[--text-secondary]">
+                  {currentPlan ? `${formatCurrency(currentPlan.price)} · ${formatBillingCycle(currentPlan.billingCycle)}` : 'Revisa tu suscripción desde billing.'}
+                </p>
+              </div>
+
+              <div className="rounded-[--radius-lg] border border-[--border] bg-[--bg-secondary] p-4">
+                <p className="text-xs uppercase tracking-wide text-[--text-tertiary]">Usuarios del sistema</p>
+                <p className="mt-1 text-base font-semibold text-[--text-primary]">
+                  {loadingUsers ? '...' : currentPlan ? `${activeUsers}${userLimit < 0 ? '' : ` / ${userLimit}`}` : '—'}
+                </p>
+                <p className="mt-1 text-sm text-[--text-secondary]">Acceso al POS, no incluye empleados de nómina.</p>
+              </div>
+
+              <div className="rounded-[--radius-lg] border border-[--border] bg-[--bg-secondary] p-4">
+                <p className="text-xs uppercase tracking-wide text-[--text-tertiary]">Sucursales</p>
+                <p className="mt-1 text-base font-semibold text-[--text-primary]">
+                  {loadingBranches ? '...' : currentPlan ? `${branchCount}${branchLimit < 0 ? '' : ` / ${branchLimit}`}` : '—'}
+                </p>
+                <p className="mt-1 text-sm text-[--text-secondary]">Límite del plan para operar nuevas ubicaciones.</p>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-[--radius-lg] border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-100">
+            Los empleados viven en el módulo de nómina. Los usuarios del sistema son quienes inician sesión y operan el POS.
+          </div>
+
+          {subscription && (
+            <div className="rounded-[--radius-lg] border border-[--border] bg-[--bg-primary] p-4 text-sm text-[--text-secondary]">
+              <p className="font-medium text-[--text-primary]">Estado de suscripción: {subscription.status}</p>
+              <p className="mt-1">{subscription.cancelAtPeriodEnd ? 'Se cancelará al final del periodo actual.' : 'Renovación activa.'}</p>
+            </div>
+          )}
+        </div>
+      </Section>
 
       {/* Información del negocio */}
       <Section title="Información del negocio" icon={<Building2 size={18} />} defaultOpen>

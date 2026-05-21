@@ -173,6 +173,40 @@ describe('SyncService', () => {
       expect(processedOrder[2]).toBe('third');
     });
   });
+
+  describe('payment validation', () => {
+    it('marks order as conflict when payment does not cover total', async () => {
+      mockPrisma.syncQueue.findFirst.mockResolvedValue(null);
+      mockPrisma.syncQueue.upsert.mockResolvedValue({ id: 'any' });
+      mockPrisma.syncQueue.update.mockResolvedValue({});
+      mockPrisma.productVariant.findUnique.mockResolvedValue({ id: 'var-1', stock: 10 });
+
+      const result = await service.pushOperations(
+        {
+          terminalId: 'terminal-1',
+          operations: [
+            {
+              localId: 'op-pay-1',
+              entityType: 'order' as const,
+              operation: 'CREATE' as const,
+              payload: {
+                branchId: 'b1',
+                items: [{ variantId: 'var-1', quantity: 1, unitPrice: 10000 }],
+                payments: [{ method: 'cash', amount: 5000 }],
+              },
+              clientTimestamp: '2026-01-01T09:00:00.000Z',
+            },
+          ],
+        },
+        'user-1',
+      );
+
+      expect(result.conflicts).toBe(1);
+      expect(result.results[0].status).toBe('conflict');
+      expect(result.results[0].conflictReason).toContain('insufficient_payment');
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
 });
 
 let uuidCounter = 0;

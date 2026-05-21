@@ -3,8 +3,10 @@ import {
   UnauthorizedException,
   ConflictException,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { RedisService } from '../../database/redis/redis.service';
 import * as bcrypt from 'bcrypt';
@@ -13,8 +15,11 @@ import { createHash } from 'crypto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { LoginPinDto } from './dto/login-pin.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { assertValidSchemaName, TENANT_TEMPLATE_TABLES } from '../../common/utils/tenant-schema.util';
 import { CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { withRetry, withTimeout } from '../../common/utils/resilience.util';
 
 export interface TenantRoleConfig {
   id: string;
@@ -47,6 +52,11 @@ const DEFAULT_ROLE_CONFIGS: TenantRoleConfig[] = [
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface PasswordResetResult {
+  message: string;
+  resetLink?: string;
 }
 
 interface JwtPayload {
@@ -91,12 +101,14 @@ interface ResolvedTerminal {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly REFRESH_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
+  private readonly PASSWORD_RESET_TTL = 60 * 60; // 1 hour
   private readonly SALT_ROUNDS = 12;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly jwtService: JwtService,
+    private readonly config: ConfigService,
   ) {}
 
   async registerTenant(dto: RegisterTenantDto): Promise<TokenPair> {
@@ -135,16 +147,32 @@ export class AuthService {
     // Provision tenant schema and create owner user
     const passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
     const userId = uuidv4();
-    await this.provisionTenantSchema(
-      schemaName,
-      userId,
-      dto.email,
-      dto.ownerName ?? dto.tenantName,
-      passwordHash,
-      templateConfig,
-    );
 
-    return this.generateTokens(userId, dto.email, tenant.id, schemaName, 'owner', null);
+    try {
+      await withRetry(
+        () => withTimeout(
+          () => this.provisionTenantSchema(
+            schemaName,
+            userId,
+            dto.email,
+            dto.ownerName ?? dto.tenantName,
+            passwordHash,
+            templateConfig,
+          ),
+          30_000,
+          `Tenant provisioning timed out for ${schemaName}`,
+        ),
+        { retries: 1, delayMs: 250 },
+      );
+
+      return this.generateTokens(userId, dto.email, tenant.id, schemaName, 'owner', null);
+    } catch (error) {
+      await this.rollbackTenantProvision(schemaName, tenant.id);
+      this.logger.error(
+        `Tenant registration failed for ${schemaName}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`,
+      );
+      throw error;
+    }
   }
 
   private async provisionTenantSchema(
@@ -423,6 +451,94 @@ export class AuthService {
     await this.redis.del(key);
   }
 
+  async requestPasswordReset(dto: RequestPasswordResetDto): Promise<PasswordResetResult> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { email: dto.tenantEmail },
+    });
+
+    if (!tenant || !tenant.isActive) {
+      return { message: 'Si la cuenta existe, enviamos un enlace de recuperación.' };
+    }
+
+    assertValidSchemaName(tenant.schemaName);
+
+    const users = await this.prisma.$queryRawUnsafe(
+      `SELECT id, email, "isActive"
+       FROM "${tenant.schemaName}"."User"
+       WHERE email = $1 LIMIT 1`,
+      dto.email,
+    ) as Array<{
+      id: string;
+      email: string;
+      isActive: boolean;
+    }>;
+
+    const user = users[0];
+    if (!user || !user.isActive) {
+      return { message: 'Si la cuenta existe, enviamos un enlace de recuperación.' };
+    }
+
+    const token = uuidv4() + uuidv4();
+    const key = `password-reset:${this.hashRefreshToken(token)}`;
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      tenantId: tenant.id,
+      schemaName: tenant.schemaName,
+    };
+
+    await this.redis.set(key, JSON.stringify(payload), this.PASSWORD_RESET_TTL);
+
+    const resetLink = `${this.getAppUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+    const emailed = await this.sendPasswordResetEmail(dto.email, resetLink);
+
+    if (!emailed) {
+      if (this.getNodeEnv() !== 'production') {
+        this.logger.warn(`Password reset email not sent; returning local link for ${dto.email}`);
+        return {
+          message: 'Enlace generado para desarrollo.',
+          resetLink,
+        };
+      }
+
+      throw new InternalServerErrorException('Unable to send password reset email');
+    }
+
+    return { message: 'Si la cuenta existe, enviamos un enlace de recuperación.' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const key = `password-reset:${this.hashRefreshToken(dto.token)}`;
+    const stored = await this.redis.get(key);
+
+    if (!stored) {
+      throw new UnauthorizedException('Reset token expired or invalid');
+    }
+
+    const payload = JSON.parse(stored) as {
+      userId: string;
+      email: string;
+      tenantId: string;
+      schemaName: string;
+    };
+
+    assertValidSchemaName(payload.schemaName);
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, this.SALT_ROUNDS);
+
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE "${payload.schemaName}"."User"
+       SET "passwordHash" = $2, "updatedAt" = NOW()
+       WHERE id = $1`,
+      payload.userId,
+      passwordHash,
+    );
+
+    await this.redis.del(key);
+
+    return { message: 'Contraseña actualizada correctamente.' };
+  }
+
   private async generateTokens(
     userId: string,
     email: string,
@@ -457,6 +573,46 @@ export class AuthService {
 
   private hashRefreshToken(token: string): string {
     return createHash('sha256').update(token, 'utf8').digest('hex');
+  }
+
+  private getAppUrl(): string {
+    return this.config.get<string>('app.url') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  }
+
+  private getNodeEnv(): string {
+    return this.config.get<string>('nodeEnv') ?? process.env.NODE_ENV ?? 'development';
+  }
+
+  private async sendPasswordResetEmail(email: string, resetLink: string): Promise<boolean> {
+    const apiKey = this.config.get<string>('email.resendApiKey') ?? process.env.RESEND_API_KEY ?? '';
+    const from = this.config.get<string>('email.from') ?? process.env.EMAIL_FROM ?? 'noreply@nexuspos.app';
+
+    if (!apiKey) return false;
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [email],
+        subject: 'Recupera tu acceso a NEXUS',
+        html: [
+          '<p>Solicitaste recuperar tu contraseña en NEXUS.</p>',
+          `<p><a href="${resetLink}">Restablecer contraseña</a></p>`,
+          '<p>Si no hiciste esta solicitud, puedes ignorar este correo.</p>',
+        ].join(''),
+      }),
+    });
+
+    if (!response.ok) {
+      this.logger.warn(`Resend returned ${response.status} while sending password reset email`);
+      return false;
+    }
+
+    return true;
   }
 
   private async assertTenantAccess(tenantId: string, isActiveOverride?: boolean): Promise<void> {
@@ -598,6 +754,24 @@ export class AuthService {
 
     if (terminal.deviceFingerprint && deviceFingerprint && terminal.deviceFingerprint !== deviceFingerprint) {
       throw new UnauthorizedException('Device fingerprint mismatch');
+    }
+  }
+
+  private async rollbackTenantProvision(schemaName: string, tenantId: string): Promise<void> {
+    try {
+      await this.prisma.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to drop schema ${schemaName} during tenant rollback: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    try {
+      await this.prisma.tenant.deleteMany({ where: { id: tenantId } });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to delete tenant ${tenantId} during rollback: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 }

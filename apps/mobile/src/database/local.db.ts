@@ -31,6 +31,33 @@ export async function initDB(): Promise<void> {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS products_cache (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      variants TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS orders_offline (
+      localId TEXT PRIMARY KEY,
+      payload TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending'
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_queue_local (
+      localId TEXT PRIMARY KEY,
+      payload TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending'
+    );
+
+    CREATE TABLE IF NOT EXISTS receipts (
+      id TEXT PRIMARY KEY,
+      payload TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
   `);
 }
 
@@ -45,6 +72,10 @@ export async function cacheProducts(products: LocalProduct[]): Promise<void> {
   for (const p of products) {
     await db.runAsync(
       `INSERT OR REPLACE INTO products (id, name, variants, updatedAt) VALUES (?, ?, ?, ?)`,
+      [p.id, p.name, JSON.stringify(p.variants), p.updatedAt],
+    );
+    await db.runAsync(
+      `INSERT OR REPLACE INTO products_cache (id, name, variants, updatedAt) VALUES (?, ?, ?, ?)`,
       [p.id, p.name, JSON.stringify(p.variants), p.updatedAt],
     );
   }
@@ -64,11 +95,31 @@ export interface PendingOrder {
   status: 'pending' | 'synced' | 'error';
 }
 
-export async function saveOfflineOrder(localId: string, payload: Record<string, unknown>): Promise<void> {
+function generateLocalId(): string {
+  return `local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export async function saveOfflineOrder(
+  localIdOrPayload: string | Record<string, unknown>,
+  payloadArg?: Record<string, unknown>,
+): Promise<string> {
+  const localId = typeof localIdOrPayload === 'string' ? localIdOrPayload : generateLocalId();
+  const payload = typeof localIdOrPayload === 'string' ? (payloadArg ?? {}) : localIdOrPayload;
+  const createdAt = new Date().toISOString();
+  const serialized = JSON.stringify(payload);
   await db.runAsync(
     `INSERT OR REPLACE INTO pending_orders (localId, payload, createdAt, status) VALUES (?, ?, ?, 'pending')`,
-    [localId, JSON.stringify(payload), new Date().toISOString()],
+    [localId, serialized, createdAt],
   );
+  await db.runAsync(
+    `INSERT OR REPLACE INTO orders_offline (localId, payload, createdAt, status) VALUES (?, ?, ?, 'pending')`,
+    [localId, serialized, createdAt],
+  );
+  await db.runAsync(
+    `INSERT OR REPLACE INTO sync_queue_local (localId, payload, createdAt, status) VALUES (?, ?, ?, 'pending')`,
+    [localId, serialized, createdAt],
+  );
+  return localId;
 }
 
 export async function getPendingSync(): Promise<PendingOrder[]> {
@@ -89,6 +140,21 @@ export async function markSynced(localIds: string[]): Promise<void> {
   await db.runAsync(
     `UPDATE pending_orders SET status = 'synced' WHERE localId IN (${placeholders})`,
     localIds,
+  );
+  await db.runAsync(
+    `UPDATE orders_offline SET status = 'synced' WHERE localId IN (${placeholders})`,
+    localIds,
+  );
+  await db.runAsync(
+    `UPDATE sync_queue_local SET status = 'synced' WHERE localId IN (${placeholders})`,
+    localIds,
+  );
+}
+
+export async function saveReceipt(id: string, payload: Record<string, unknown>): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO receipts (id, payload, createdAt) VALUES (?, ?, ?)`,
+    [id, JSON.stringify(payload), new Date().toISOString()],
   );
 }
 

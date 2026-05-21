@@ -163,9 +163,27 @@ export class SyncService {
       notes?: string;
     };
 
+    const items = payload.items ?? [];
+    const payments = payload.payments ?? [];
+    const subtotal = items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+    const discountTotal = 0;
+    const taxTotal = 0;
+    const total = subtotal - discountTotal + taxTotal;
+    const paymentsSum = payments.reduce((sum, payment) => sum + payment.amount, 0);
+
+    if (paymentsSum + 0.01 < total) {
+      return {
+        conflictReason: JSON.stringify({
+          reason: 'insufficient_payment',
+          expected: total,
+          received: paymentsSum,
+        }),
+      };
+    }
+
     // Verify stock availability
-    if (payload.items) {
-      for (const item of payload.items) {
+    if (items.length > 0) {
+      for (const item of items) {
         const variant = await this.prisma.productVariant.findUnique({
           where: { id: item.variantId },
         });
@@ -193,39 +211,39 @@ export class SyncService {
           branchId: payload.branchId,
           terminalId: payload.terminalId,
           cashierId: userId,
-          customerId: payload.customerId,
-          status: 'completed',
-          subtotal: (payload.payments ?? []).reduce((s, p) => s + p.amount, 0),
-          discountTotal: 0,
-          taxTotal: 0,
-          total: (payload.payments ?? []).reduce((s, p) => s + p.amount, 0),
-          notes: payload.notes,
-          clientTimestamp: new Date(op.clientTimestamp),
-          syncedAt: new Date(),
-          items: {
-            create: (payload.items ?? []).map((item) => ({
-              id: uuidv4(),
-              variantId: item.variantId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              unitCost: 0,
-              discount: 0,
-              taxRate: 0,
-              total: item.unitPrice * item.quantity,
-            })),
-          },
-          payments: {
-            create: (payload.payments ?? []).map((p) => ({
-              id: uuidv4(),
-              method: p.method,
-              amount: p.amount,
-            })),
-          },
+            customerId: payload.customerId,
+            status: 'completed',
+            subtotal,
+            discountTotal,
+            taxTotal,
+            total,
+            notes: payload.notes,
+            clientTimestamp: new Date(op.clientTimestamp),
+            syncedAt: new Date(),
+            items: {
+              create: items.map((item) => ({
+                id: uuidv4(),
+                variantId: item.variantId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                unitCost: 0,
+                discount: 0,
+                taxRate: 0,
+                total: item.unitPrice * item.quantity,
+              })),
+            },
+            payments: {
+              create: payments.map((p) => ({
+                id: uuidv4(),
+                method: p.method,
+                amount: p.amount,
+              })),
+            },
         },
       });
 
       // Deduct stock
-      for (const item of payload.items ?? []) {
+      for (const item of items) {
         const variant = await tx.productVariant.findUnique({ where: { id: item.variantId } });
         if (!variant) continue;
         const newQty = variant.stock - item.quantity;

@@ -1,7 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import * as SecureStore from 'expo-secure-store';
-import { getPendingSync, markSynced, saveOfflineOrder } from '../database/local.db';
+import {
+  getPendingSync,
+  getSyncMeta,
+  markSynced,
+  saveReceipt,
+  saveOfflineOrder,
+  setSyncMeta,
+} from '../database/local.db';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -15,21 +22,34 @@ interface OrderPayload {
 export function useOfflinePOS() {
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+
+  const refreshSyncMeta = useCallback(async () => {
+    const [pending, lastSync] = await Promise.all([
+      getPendingSync(),
+      getSyncMeta('lastSyncAt'),
+    ]);
+    setPendingCount(pending.length);
+    setLastSyncAt(lastSync);
+  }, []);
 
   useEffect(() => {
+    void refreshSyncMeta();
     const unsub = NetInfo.addEventListener((state) => {
       const online = !!state.isConnected && !!state.isInternetReachable;
       setIsOnline(online);
       if (online) void syncPending();
     });
     return () => unsub();
-  }, []);
+  }, [refreshSyncMeta]);
 
   const syncPending = useCallback(async () => {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
       const pending = await getPendingSync();
+      setPendingCount(pending.length);
       if (pending.length === 0) return;
 
       const token = await SecureStore.getItemAsync('access_token');
@@ -61,6 +81,11 @@ export function useOfflinePOS() {
         .filter((r) => r.status === 'done' || r.status === 'skipped')
         .map((r) => r.localId);
       await markSynced(succeeded);
+      const syncedAt = new Date().toISOString();
+      await setSyncMeta('lastSyncAt', syncedAt);
+      setLastSyncAt(syncedAt);
+      const remaining = await getPendingSync();
+      setPendingCount(remaining.length);
     } catch {
       // Silently fail — will retry when online again
     } finally {
@@ -71,6 +96,14 @@ export function useOfflinePOS() {
   const submitOrder = useCallback(async (order: OrderPayload) => {
     // Always save locally first
     await saveOfflineOrder(order.localId, order as unknown as Record<string, unknown>);
+    await saveReceipt(order.localId, {
+      ...order,
+      total: order.payments.reduce((sum, payment) => sum + payment.amount, 0),
+      createdAt: new Date().toISOString(),
+      source: isOnline ? 'online_attempt' : 'offline',
+    });
+    const pending = await getPendingSync();
+    setPendingCount(pending.length);
 
     // Try to sync immediately if online
     if (isOnline) {
@@ -78,5 +111,17 @@ export function useOfflinePOS() {
     }
   }, [isOnline, syncPending]);
 
-  return { submitOrder, syncPending, isOnline, isSyncing };
+  const syncNow = useCallback(async () => {
+    await syncPending();
+  }, [syncPending]);
+
+  return {
+    submitOrder,
+    syncPending,
+    syncNow,
+    isOnline,
+    isSyncing,
+    pendingCount,
+    lastSyncAt,
+  };
 }

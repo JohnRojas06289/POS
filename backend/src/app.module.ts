@@ -20,6 +20,7 @@ import { EmployeesModule } from './modules/employees/employees.module';
 import { PrismaModule } from './database/prisma/prisma.module';
 import { RedisModule } from './database/redis/redis.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
+import { HardeningModule } from './common/security/hardening.module';
 import { HealthModule } from './modules/health/health.module';
 
 @Module({
@@ -36,6 +37,7 @@ import { HealthModule } from './modules/health/health.module';
     }),
     PrismaModule,
     RedisModule,
+    HardeningModule,
     HealthModule,
     AuthModule,
     TenantsModule,

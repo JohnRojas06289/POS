@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
@@ -9,10 +9,33 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 export default function PinLoginScreen() {
   const [tenantId, setTenantId] = useState('');
   const [branchId, setBranchId] = useState('');
+  const [deviceFingerprint, setDeviceFingerprint] = useState('');
   const [step, setStep] = useState<'config' | 'pin'>('config');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      const savedTenantId = await SecureStore.getItemAsync('pin_login_tenant_id');
+      const savedBranchId = await SecureStore.getItemAsync('pin_login_branch_id');
+      const savedFingerprint = await SecureStore.getItemAsync('device_fingerprint');
+
+      if (savedTenantId) setTenantId(savedTenantId);
+      if (savedBranchId) setBranchId(savedBranchId);
+
+      if (savedFingerprint) {
+        setDeviceFingerprint(savedFingerprint);
+        return;
+      }
+
+      const generated = `mobile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      await SecureStore.setItemAsync('device_fingerprint', generated);
+      setDeviceFingerprint(generated);
+    };
+
+    void bootstrap();
+  }, []);
 
   const handleKey = async (key: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -35,7 +58,13 @@ export default function PinLoginScreen() {
       const res = await fetch(`${API_URL}/auth/login-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: p, tenantId, branchId }),
+        body: JSON.stringify({
+          pin: p,
+          tenantId,
+          branchId,
+          deviceFingerprint,
+          terminalName: 'Terminal móvil',
+        }),
       });
       if (!res.ok) throw new Error('PIN inválido');
       const data = (await res.json()) as { accessToken: string; refreshToken: string };
@@ -52,19 +81,34 @@ export default function PinLoginScreen() {
   };
 
   if (step === 'config') {
-    // Simple config step — in production this would be set once via QR or admin
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Configurar Terminal</Text>
         <Text style={styles.label}>Tenant ID</Text>
-        <View style={styles.inputRow}>
-          {/* Minimal text input placeholder — in real app use TextInput */}
-          <Text style={styles.inputPlaceholder} onPress={() => {}} />
-        </View>
+        <TextInput
+          value={tenantId}
+          onChangeText={setTenantId}
+          style={styles.input}
+          autoCapitalize="none"
+          placeholder="uuid del tenant"
+        />
+        <Text style={styles.label}>Branch ID</Text>
+        <TextInput
+          value={branchId}
+          onChangeText={setBranchId}
+          style={styles.input}
+          autoCapitalize="none"
+          placeholder="uuid de la sucursal"
+        />
+        <Text style={styles.deviceHint}>Huella del dispositivo: {deviceFingerprint || 'generando...'}</Text>
         <Pressable
           style={styles.primaryBtn}
           onPress={() => {
-            if (tenantId && branchId) setStep('pin');
+            if (tenantId && branchId && deviceFingerprint) {
+              void SecureStore.setItemAsync('pin_login_tenant_id', tenantId);
+              void SecureStore.setItemAsync('pin_login_branch_id', branchId);
+              setStep('pin');
+            }
           }}
         >
           <Text style={styles.primaryBtnText}>Continuar</Text>
@@ -125,8 +169,8 @@ const styles = StyleSheet.create({
   keyEmpty: { width: 64, height: 64 },
   keyText: { fontSize: 22, fontWeight: '500', color: '#111' },
   label: { fontSize: 14, fontWeight: '500', color: '#374151', alignSelf: 'flex-start', marginBottom: 4 },
-  inputRow: { width: '100%', marginBottom: 16 },
-  inputPlaceholder: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, color: '#111' },
+  input: { width: '100%', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, color: '#111', marginBottom: 12 },
+  deviceHint: { width: '100%', color: '#6b7280', fontSize: 12, marginBottom: 8 },
   primaryBtn: { backgroundColor: '#2563eb', paddingVertical: 12, paddingHorizontal: 32, borderRadius: 8, marginTop: 16 },
   primaryBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });

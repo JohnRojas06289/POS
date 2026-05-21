@@ -1,6 +1,7 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -15,7 +16,10 @@ export default function LoginScreen() {
       });
 
       if (res.ok) {
-        router.replace('/(pos)');
+        const data = (await res.json()) as { accessToken: string; refreshToken: string };
+        await SecureStore.setItemAsync('access_token', data.accessToken);
+        await SecureStore.setItemAsync('refresh_token', data.refreshToken);
+        router.replace('/(tabs)/pos');
       }
     } catch {
       // handle error

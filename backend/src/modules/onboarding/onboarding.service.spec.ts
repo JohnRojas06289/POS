@@ -7,11 +7,13 @@ describe('OnboardingService', () => {
   let service: OnboardingService;
 
   const mockPrisma = {
-    tenant: { findFirst: jest.fn(), create: jest.fn(), findUnique: jest.fn() },
+    tenant: { findFirst: jest.fn(), create: jest.fn(), findUnique: jest.fn(), deleteMany: jest.fn() },
     plan: { findUnique: jest.fn() },
-    subscription: { create: jest.fn() },
+    subscription: { create: jest.fn(), deleteMany: jest.fn() },
     $transaction: jest.fn(),
     $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
+    $queryRawUnsafe: jest.fn(),
+    $queryRaw: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -95,6 +97,20 @@ describe('OnboardingService', () => {
       });
       const result = await service.registerTenant(dto);
       expect(result.requiresPayment).toBe(true);
+    });
+
+    it('rolls back tenant records when provisioning fails', async () => {
+      mockPrisma.tenant.findFirst.mockResolvedValue(null);
+      mockPrisma.plan.findUnique.mockResolvedValue({ id: 'plan-free', price: 0 });
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => Promise<void>) => {
+        await fn(mockPrisma);
+      });
+      mockPrisma.$executeRawUnsafe.mockImplementation(() => Promise.reject(new Error('schema provisioning failed')));
+
+      await expect(service.registerTenant(dto)).rejects.toThrow('schema provisioning failed');
+      expect(mockPrisma.subscription.deleteMany).toHaveBeenCalledWith({ where: { tenantId: expect.any(String) } });
+      expect(mockPrisma.tenant.deleteMany).toHaveBeenCalledWith({ where: { id: expect.any(String) } });
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('DROP SCHEMA IF EXISTS'));
     });
   });
 });

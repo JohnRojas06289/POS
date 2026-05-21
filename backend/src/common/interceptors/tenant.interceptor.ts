@@ -7,9 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
-import { finalize } from 'rxjs/operators';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../database/prisma/prisma.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 interface JwtPayload {
@@ -32,7 +30,6 @@ const PUBLIC_ROUTES = [
 export class TenantInterceptor implements NestInterceptor {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService,
     private readonly reflector: Reflector,
   ) {}
 
@@ -80,28 +77,6 @@ export class TenantInterceptor implements NestInterceptor {
 
     request.user = payload;
 
-    const setSchema = this.prisma.$executeRawUnsafe(
-      `SET search_path = "${schemaName}", public`,
-    );
-
-    return new Observable((subscriber) => {
-      setSchema
-        .then(() => {
-          const handle = next.handle().pipe(
-            finalize(() => {
-              this.prisma.$executeRawUnsafe(
-                'SET search_path = public',
-              ).catch(() => {});
-            }),
-          );
-
-          handle.subscribe({
-            next: (val) => subscriber.next(val),
-            error: (err: Error) => subscriber.error(err),
-            complete: () => subscriber.complete(),
-          });
-        })
-        .catch((err: Error) => subscriber.error(err));
-    });
+    return next.handle();
   }
 }

@@ -9,6 +9,7 @@ import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { hash } from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { assertValidSchemaName, TENANT_TEMPLATE_TABLES } from '../../common/utils/tenant-schema.util';
+import { withRetry, withTimeout } from '../../common/utils/resilience.util';
 
 export interface OnboardingResult {
   tenantId: string;
@@ -45,36 +46,51 @@ export class OnboardingService {
     const passwordHash = await hash(dto.password, 12);
     const isFree = Number(plan.price) === 0;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.tenant.create({
-        data: {
-          id: tenantId,
-          name: dto.businessName,
-          slug: dto.schemaName,
-          email: dto.email,
-          phone: dto.phone,
-          schemaName: dto.schemaName,
-          isActive: isFree,
-        },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.tenant.create({
+          data: {
+            id: tenantId,
+            name: dto.businessName,
+            slug: dto.schemaName,
+            email: dto.email,
+            phone: dto.phone,
+            schemaName: dto.schemaName,
+            isActive: isFree,
+          },
+        });
+
+        await tx.subscription.create({
+          data: {
+            id: uuidv4(),
+            tenantId,
+            planId: dto.planId,
+            status: isFree ? 'active' : 'pending',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          },
+        });
+
+        await tx.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${dto.schemaName}"`);
       });
 
-      await tx.subscription.create({
-        data: {
-          id: uuidv4(),
-          tenantId,
-          planId: dto.planId,
-          status: isFree ? 'active' : 'pending',
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-      });
+      await withRetry(
+        () => withTimeout(
+          () => this.provisionSchema(dto.schemaName, tenantId, branchId, ownerId, dto.email, dto.businessName, passwordHash),
+          30_000,
+          `Schema provisioning timed out for ${dto.schemaName}`,
+        ),
+        { retries: 1, delayMs: 250 },
+      );
 
-      await tx.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${dto.schemaName}"`);
-    });
-
-    await this.provisionSchema(dto.schemaName, tenantId, branchId, ownerId, dto.email, dto.businessName, passwordHash);
-
-    return { tenantId, schemaName: dto.schemaName, requiresPayment: !isFree };
+      return { tenantId, schemaName: dto.schemaName, requiresPayment: !isFree };
+    } catch (error) {
+      await this.rollbackTenantProvision(dto.schemaName, tenantId);
+      this.logger.error(
+        `Onboarding failed for ${dto.schemaName}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`,
+      );
+      throw error;
+    }
   }
 
   private async provisionSchema(
@@ -180,5 +196,24 @@ export class OnboardingService {
       schemaName: tenant.schemaName,
       subscription: tenant.subscriptions[0] ?? null,
     };
+  }
+
+  private async rollbackTenantProvision(schemaName: string, tenantId: string): Promise<void> {
+    try {
+      await this.prisma.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to drop schema ${schemaName} during onboarding rollback: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    try {
+      await this.prisma.subscription.deleteMany({ where: { tenantId } });
+      await this.prisma.tenant.deleteMany({ where: { id: tenantId } });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to delete tenant ${tenantId} during onboarding rollback: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 }

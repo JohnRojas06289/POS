@@ -7,6 +7,7 @@ interface Plan {
   name: string;
   price: number;
   description?: string | null;
+  billingCycle: 'monthly' | 'lifetime' | string;
   maxBranches: number;
   maxUsers: number;
 }
@@ -29,13 +30,21 @@ function normalizePlans(payload: unknown): Plan[] {
 
 function formatPrice(price: number): string {
   if (price === 0) return 'Gratis';
-  return (
-    new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(price) + '/mes'
-  );
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+  }).format(price);
+}
+
+function formatCycle(plan: Plan): string {
+  if (plan.price === 0) return 'Gratis';
+  return plan.billingCycle === 'lifetime' ? 'Pago único' : 'Mensual';
+}
+
+function formatLimit(value: number, singular: string, plural: string): string {
+  if (value < 0) return `Sin límite de ${plural}`;
+  return `${value} ${value === 1 ? singular : plural}`;
 }
 
 export function StepPlans({ selected, onNext }: Props) {
@@ -102,6 +111,7 @@ export function StepPlans({ selected, onNext }: Props) {
         {plans.map((plan) => {
           const isSelected = selectedId === plan.id;
           const isFree = plan.price === 0;
+          const isLifetime = plan.billingCycle === 'lifetime';
           return (
             <button
               key={plan.id}
@@ -135,23 +145,37 @@ export function StepPlans({ selected, onNext }: Props) {
                         Recomendado para empezar
                       </span>
                     )}
+                    {!isFree && (
+                      <span
+                        className="text-xs font-medium px-2 py-0.5 rounded-full"
+                        style={{
+                          background: isLifetime ? 'rgba(201,168,76,0.12)' : 'var(--bg-subtle)',
+                          color: isLifetime ? 'var(--gold-600)' : 'var(--text-secondary)',
+                        }}
+                      >
+                        {formatCycle(plan)}
+                      </span>
+                    )}
                   </div>
                   {plan.description && (
                     <p className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                       {plan.description}
                     </p>
                   )}
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                    {plan.maxBranches} sucursal{plan.maxBranches !== 1 ? 'es' : ''} ·{' '}
-                    {plan.maxUsers} usuarios
+                  <p className="text-xs space-y-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                    <span className="block">{formatLimit(plan.maxBranches, 'sucursal', 'sucursales')}</span>
+                    <span className="block">{formatLimit(plan.maxUsers, 'usuario', 'usuarios')}</span>
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
+                  <p className="text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
+                    {formatCycle(plan)}
+                  </p>
                   <span
                     className="text-lg font-bold"
                     style={{ color: isSelected ? 'var(--gold-600)' : 'var(--text-primary)' }}
                   >
-                    {formatPrice(plan.price)}
+                    {formatPrice(plan.price)}{plan.price > 0 && plan.billingCycle === 'monthly' ? '/mes' : ''}
                   </span>
                 </div>
               </div>
