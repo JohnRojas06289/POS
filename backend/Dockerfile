@@ -25,7 +25,7 @@ RUN npx nest build
 ENV NODE_ENV=production
 EXPOSE 3001
 
-COPY entrypoint.sh ./entrypoint.sh
+COPY backend/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 
 CMD ["./entrypoint.sh"]
