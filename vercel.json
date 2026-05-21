@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://nexus-pos-api.onrender.com/:path*"
+      "destination": "https://nexus-lhhy.onrender.com/:path*"
     }
   ],
   "headers": [
