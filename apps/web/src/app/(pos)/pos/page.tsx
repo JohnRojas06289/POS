@@ -6,12 +6,15 @@ import { SearchBar } from '../../../components/pos/SearchBar';
 import { ProductCard } from '../../../components/pos/ProductCard';
 import { CartItem } from '../../../components/pos/CartItem';
 import { PaymentModal } from '../../../components/pos/PaymentModal';
+import { CashSessionModal } from '../../../components/pos/CashSessionModal';
 import { BarcodeScannerModal } from '../../../components/pos/BarcodeScannerModal';
+import type { ReceiptData } from '../../../components/pos/Receipt';
 import { SkeletonGrid } from '../../../components/ui/Skeleton';
 import { CurrencyDisplay } from '../../../components/ui';
 import { useToast } from '../../../components/ui/Toast';
+import { useAuthStore } from '../../../stores/auth.store';
 import { useOfflineStore } from '../../../stores/offline.store';
-import { posApi } from '../../../lib/api';
+import { posApi, cashApi } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -45,8 +48,8 @@ interface CartItemState {
 const CART_KEY = 'nexus-pos-cart';
 const HELD_CART_KEY = 'nexus-pos-held-cart';
 const RECEIPTS_KEY = 'nexus-pos-receipts';
-const DEFAULT_BRANCH_ID = '00000000-0000-0000-0000-000000000001';
-
+const PRODUCTS_CACHE_KEY = 'nexus-products-cache';
+const PRODUCTS_CACHE_TTL = 48 * 60 * 60 * 1000; // 48 h
 function parseDiscountInput(input: string, baseAmount: number): {
   discountMode: 'fixed' | 'percent';
   discountValue: number;
@@ -76,6 +79,9 @@ function computeDiscountAmount(item: CartItemState): number {
 
 export default function POSPage() {
   const { toast } = useToast();
+  const branchId = useAuthStore((s) => s.branch?.id ?? null);
+  const tenant = useAuthStore((s) => s.tenant);
+  const branch = useAuthStore((s) => s.branch);
   const { isOnline, addPendingOrder } = useOfflineStore();
   const queryClient = useQueryClient();
 
@@ -94,8 +100,17 @@ export default function POSPage() {
   const [clearConfirm, setClearConfirm] = useState(false);
   const [hasHeldCart, setHasHeldCart] = useState(false);
   const clearTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
+  const [cashSession, setCashSession] = useState<{ id: string; openingAmount: number } | null>(null);
+  const [cashSessionLoading, setCashSessionLoading] = useState(true);
+  const [cashModalMode, setCashModalMode] = useState<'open' | 'close' | null>(null);
 
-  // Load products
+  const terminalId = useMemo(() => {
+    if (typeof window === 'undefined') return 'web-terminal';
+    return localStorage.getItem('nexus_terminal_id') ?? 'web-terminal';
+  }, []);
+
+  // Load products (with 48h offline cache)
   useEffect(() => {
     void (async () => {
       try {
@@ -114,7 +129,22 @@ export default function POSPage() {
           })),
         }));
         setProducts(mapped);
+        try {
+          localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({ products: mapped, timestamp: Date.now() }));
+        } catch { /* quota exceeded — ignore */ }
       } catch {
+        // Fallback: serve cached catalog if fresh enough
+        try {
+          const raw = localStorage.getItem(PRODUCTS_CACHE_KEY);
+          if (raw) {
+            const { products: cached, timestamp } = JSON.parse(raw) as { products: Product[]; timestamp: number };
+            if (Date.now() - timestamp < PRODUCTS_CACHE_TTL) {
+              setProducts(cached);
+              toast('Sin conexión — usando catálogo en caché', 'warning');
+              return;
+            }
+          }
+        } catch { /* cache corrupt */ }
         toast('No se pudieron cargar los productos', 'error');
       } finally {
         setLoading(false);
@@ -144,6 +174,22 @@ export default function POSPage() {
   useEffect(() => {
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
   }, [cart]);
+
+  // Verify cash session on mount
+  useEffect(() => {
+    if (!branchId) return;
+    cashApi.getCurrentSession(terminalId)
+      .then((session: { id: string; openingAmount: number } | null) => {
+        if (session?.id) {
+          setCashSession(session);
+        } else {
+          setCashModalMode('open');
+        }
+      })
+      .catch(() => setCashModalMode('open'))
+      .finally(() => setCashSessionLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -312,8 +358,13 @@ export default function POSPage() {
   const itemCount = useMemo(() => cart.reduce((s, i) => s + i.quantity, 0), [cart]);
 
   const handleConfirmPayment = useCallback(async (payments: Array<{ method: string; amount: number }>) => {
+    if (!branchId) {
+      toast('No se pudo identificar la sucursal activa', 'error');
+      return;
+    }
+
     const localId = uuidv4();
-    const receipt = {
+    const receiptBase = {
       id: localId,
       createdAt: new Date().toISOString(),
       items: cart.map((item) => ({
@@ -325,24 +376,27 @@ export default function POSPage() {
       itemDiscountTotal,
       cartDiscountAmount,
       total,
-      mode: isOnline ? 'online' : 'offline',
     };
-    const existingReceipts = (() => {
-      try {
-        const raw = localStorage.getItem(RECEIPTS_KEY);
-        return raw ? JSON.parse(raw) as unknown[] : [];
-      } catch {
-        return [];
-      }
-    })();
-    localStorage.setItem(
-      RECEIPTS_KEY,
-      JSON.stringify([receipt, ...existingReceipts].slice(0, 50)),
-    );
+
+    const persistReceipt = (mode: 'online' | 'offline' | 'pending') => {
+      const receipt = { ...receiptBase, mode };
+      const existingReceipts = (() => {
+        try {
+          const raw = localStorage.getItem(RECEIPTS_KEY);
+          return raw ? JSON.parse(raw) as unknown[] : [];
+        } catch {
+          return [];
+        }
+      })();
+      localStorage.setItem(
+        RECEIPTS_KEY,
+        JSON.stringify([receipt, ...existingReceipts].slice(0, 50)),
+      );
+    };
 
     const payload = {
       localId,
-      branchId: DEFAULT_BRANCH_ID,
+      branchId,
       items: cart.map((i) => ({
         variantId: i.variantId,
         quantity: i.quantity,
@@ -355,32 +409,65 @@ export default function POSPage() {
 
     if (!isOnline) {
       addPendingOrder(payload);
+      persistReceipt('offline');
       localStorage.removeItem(CART_KEY);
       setCart([]);
       setCartDiscountMode(null);
       setCartDiscountValue(0);
-      toast('Recibo digital guardado para esta venta offline', 'success');
+      toast('Venta guardada sin conexión y lista para sincronizar', 'success');
       return;
     }
 
     try {
       await posApi.createOrder(payload);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['analytics-sales'] }),
-        queryClient.invalidateQueries({ queryKey: ['inventory-products'] }),
-        queryClient.invalidateQueries({ queryKey: ['orders'] }),
-      ]);
+      persistReceipt('online');
+      const cashPayment = payments.find((p) => p.method === 'cash');
+      const cashPaid = cashPayment?.amount ?? 0;
+      const changeAmount = Math.max(0, cashPaid - total);
+      setLastReceipt({
+        txId: localId.split('-')[0].toUpperCase(),
+        createdAt: new Date().toISOString(),
+        businessName: tenant?.name ?? 'Mi Negocio',
+        branchName: branch?.name,
+        items: cart.map((item) => ({
+          productName: item.productName,
+          variantName: item.variantName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountAmount: computeDiscountAmount(item),
+        })),
+        payments,
+        subtotal,
+        itemDiscountTotal,
+        cartDiscountAmount,
+        total,
+        change: changeAmount,
+      });
     } catch {
       // Fallback: save offline
       addPendingOrder(payload);
+      persistReceipt('pending');
+      toast('No se pudo enviar la venta al servidor. Quedó pendiente de sincronización.', 'warning');
+      localStorage.removeItem(CART_KEY);
+      setCart([]);
+      setCartDiscountMode(null);
+      setCartDiscountValue(0);
+      return;
     }
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] }),
+      queryClient.invalidateQueries({ queryKey: ['analytics-sales'] }),
+      queryClient.invalidateQueries({ queryKey: ['inventory-products'] }),
+      queryClient.invalidateQueries({ queryKey: ['orders'] }),
+    ]).catch(() => {
+      toast('La venta se guardó, pero no se pudo refrescar la vista', 'warning');
+    });
+    toast('Venta registrada correctamente', 'success');
     localStorage.removeItem(CART_KEY);
     setCart([]);
     setCartDiscountMode(null);
     setCartDiscountValue(0);
-    toast('Recibo digital guardado', 'success');
-  }, [addPendingOrder, cart, cartDiscountAmount, isOnline, itemDiscountTotal, subtotal, toast, total]);
+  }, [addPendingOrder, branch, branchId, cart, cartDiscountAmount, isOnline, itemDiscountTotal, queryClient, subtotal, tenant, toast, total]);
 
   const restoreHeldCart = useCallback(() => {
     try {
@@ -491,6 +578,18 @@ export default function POSPage() {
       <div className="flex min-w-[340px] flex-col bg-[var(--bg-surface)]">
         {/* Cart header */}
         <div className="flex items-center justify-between border-b border-[var(--border-default)] p-3">
+          {/* Cash session indicator */}
+          {cashSession && (
+            <button
+              onClick={() => setCashModalMode('close')}
+              className="mr-2 flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium transition-all"
+              style={{ background: 'rgba(52,211,153,0.1)', color: '#34D399', border: '1px solid rgba(52,211,153,0.2)' }}
+              title="Cerrar sesión de caja"
+            >
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#34D399]" />
+              Caja abierta · Cerrar
+            </button>
+          )}
           <h2 style={{ fontFamily: 'var(--font-display)' }} className="text-lg font-medium text-[var(--text-primary)]">
             Carrito
             {itemCount > 0 && (
@@ -597,11 +696,12 @@ export default function POSPage() {
       {/* Payment Modal */}
       <PaymentModal
         open={paymentOpen}
-        onClose={() => setPaymentOpen(false)}
+        onClose={() => { setPaymentOpen(false); setLastReceipt(null); }}
         total={total}
         cart={cart}
         hasCustomer={false}
         onConfirm={handleConfirmPayment}
+        receiptData={lastReceipt}
       />
 
       {/* Variant Selector (simple inline modal) */}
@@ -703,6 +803,21 @@ export default function POSPage() {
           toast(`Código detectado: ${value}`, 'success');
         }}
       />
+
+      {/* Cash session modal */}
+      {cashModalMode && !cashSessionLoading && (
+        <CashSessionModal
+          mode={cashModalMode}
+          sessionId={cashSession?.id}
+          terminalId={terminalId}
+          onSuccess={(id) => {
+            if (cashModalMode === 'open' && id) setCashSession({ id, openingAmount: 0 });
+            if (cashModalMode === 'close') setCashSession(null);
+            setCashModalMode(null);
+          }}
+          onCancel={() => setCashModalMode(null)}
+        />
+      )}
     </div>
   );
 }

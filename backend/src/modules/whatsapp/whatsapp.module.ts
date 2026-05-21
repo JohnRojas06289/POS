@@ -5,12 +5,13 @@ import { WhatsappService } from './whatsapp.service';
 import { WhatsappProcessor } from './whatsapp.processor';
 import { LlmService } from './llm.service';
 import { CfoIntentsService } from './cfo-intents.service';
+import { AiChatController } from './ai-chat.controller';
 
 @Module({
   imports: [
     BullModule.registerQueue({ name: 'whatsapp-messages' }),
   ],
-  controllers: [WhatsappController],
+  controllers: [WhatsappController, AiChatController],
   providers: [
     WhatsappService,
     WhatsappProcessor,

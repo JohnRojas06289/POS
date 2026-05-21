@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart2, Briefcase, ClipboardList, LayoutDashboard, LogOut, Package, Receipt, Search, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
@@ -10,6 +11,11 @@ import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { ToastProvider } from '../../components/ui/Toast';
 import { useAuthStore } from '../../stores/auth.store';
 import { authApi } from '../../lib/api';
+
+const AiChatWidget = dynamic(
+  () => import('../../components/ai/AiChatWidget').then((m) => m.AiChatWidget),
+  { ssr: false },
+);
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -161,6 +167,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       )}
+
+      <AiChatWidget />
     </ToastProvider>
   );
 }

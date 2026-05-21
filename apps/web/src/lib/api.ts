@@ -132,6 +132,8 @@ export const cashApi = {
     api.get('/cash/sessions/current', { params: { terminalId } }).then((r) => r.data),
   closeSession: (id: string, data: unknown) =>
     api.post(`/cash/sessions/${id}/close`, data).then((r) => r.data),
+  getSessionSummary: (id: string) =>
+    api.get(`/cash/sessions/${id}/summary`).then((r) => r.data),
 };
 
 export const customersApi = {
@@ -195,4 +197,9 @@ export const suppliersApi = {
     api.post(`/suppliers/${supplierId}/purchase-orders`, data).then((r) => r.data),
   receivePurchaseOrder: (supplierId: string, orderId: string, data: unknown) =>
     api.patch(`/suppliers/${supplierId}/purchase-orders/${orderId}/receive`, data).then((r) => r.data),
+};
+
+export const aiApi = {
+  chat: (message: string) =>
+    api.post<{ response: string; intent: string }>('/ai/chat', { message }).then((r) => r.data),
 };

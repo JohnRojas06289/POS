@@ -3,6 +3,8 @@
 import React, { useState, useCallback, useEffect, useId } from 'react';
 import { Badge, CurrencyDisplay } from '../ui';
 import { cn } from '../../lib/cn';
+import { Receipt } from './Receipt';
+import type { ReceiptData } from './Receipt';
 
 interface CartItemData {
   variantId: string;
@@ -25,7 +27,10 @@ interface PaymentModalProps {
   cart: CartItemData[];
   hasCustomer: boolean;
   onConfirm: (payments: PaymentLine[]) => Promise<void>;
+  receiptData?: ReceiptData | null;
 }
+
+export type { ReceiptData };
 
 const METHODS = [
   { id: 'cash', label: 'Efectivo', icon: '💵' },
@@ -36,7 +41,7 @@ const METHODS = [
   { id: 'credit_store', label: 'Fiado', icon: '🤝', requiresCustomer: true },
 ] as const;
 
-export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfirm }: PaymentModalProps) {
+export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfirm, receiptData }: PaymentModalProps) {
   const titleId = useId();
   const [payments, setPayments] = useState<PaymentLine[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,22 +122,28 @@ export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfir
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="w-full max-w-xl overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
         {success ? (
-          <div className="flex flex-col items-center p-8 text-center">
-            <div className="relative mb-4 h-20 w-20">
-              <svg className="h-20 w-20" viewBox="0 0 100 100" fill="none" aria-hidden>
-                <circle cx="50" cy="50" r="38" stroke="var(--gold-500)" strokeWidth="4" className="draw-circle" />
-                <path d="M33 51.5L45 63L68 37" stroke="var(--gold-500)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" className="draw-check" />
-              </svg>
+          receiptData ? (
+            <div className="p-4 overflow-y-auto max-h-[90vh]">
+              <Receipt data={receiptData} onClose={onClose} />
             </div>
-            <h2 style={{ fontFamily: 'var(--font-display)' }} className="text-3xl font-medium tracking-tight text-[var(--text-primary)]">Venta completada</h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">Venta {txId}</p>
-            <p className="mt-1 text-sm text-[var(--text-tertiary)]">Nueva venta en {countdown}s</p>
-            {change > 0 && <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--success-bg)] px-4 py-2 text-[var(--success-text)]"><span className="font-medium">Vuelto: </span><CurrencyDisplay amount={change} size="md" gold={false} /></div>}
-            <div className="mt-5 w-full space-y-3 sm:flex sm:space-x-3 sm:space-y-0">
-              <button onClick={onClose} className="flex-1 rounded-[var(--radius-md)] bg-[var(--gold-500)] px-4 py-3 font-semibold text-[#1A1400] transition-colors hover:bg-[var(--gold-400)]">Nueva venta</button>
-              <button onClick={onClose} className="rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 py-3 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-subtle)]">WhatsApp</button>
+          ) : (
+            <div className="flex flex-col items-center p-8 text-center">
+              <div className="relative mb-4 h-20 w-20">
+                <svg className="h-20 w-20" viewBox="0 0 100 100" fill="none" aria-hidden>
+                  <circle cx="50" cy="50" r="38" stroke="var(--gold-500)" strokeWidth="4" className="draw-circle" />
+                  <path d="M33 51.5L45 63L68 37" stroke="var(--gold-500)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" className="draw-check" />
+                </svg>
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-display)' }} className="text-3xl font-medium tracking-tight text-[var(--text-primary)]">Venta completada</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">Venta {txId}</p>
+              <p className="mt-1 text-sm text-[var(--text-tertiary)]">Nueva venta en {countdown}s</p>
+              {change > 0 && <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--success-bg)] px-4 py-2 text-[var(--success-text)]"><span className="font-medium">Vuelto: </span><CurrencyDisplay amount={change} size="md" gold={false} /></div>}
+              <div className="mt-5 w-full space-y-3 sm:flex sm:space-x-3 sm:space-y-0">
+                <button onClick={onClose} className="flex-1 rounded-[var(--radius-md)] bg-[var(--gold-500)] px-4 py-3 font-semibold text-[#1A1400] transition-colors hover:bg-[var(--gold-400)]">Nueva venta</button>
+                <button onClick={onClose} className="rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 py-3 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-subtle)]">WhatsApp</button>
+              </div>
             </div>
-          </div>
+          )
         ) : (
           <>
             <div className="flex items-start justify-between border-b border-[var(--border-default)] p-4">
