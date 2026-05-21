@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart2, Briefcase, ClipboardList, LayoutDashboard, LogOut, Package, Search, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
+import { BarChart2, Briefcase, ClipboardList, LayoutDashboard, LogOut, Package, Receipt, Search, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { ToastProvider } from '../../components/ui/Toast';
@@ -19,6 +19,7 @@ const NAV = [
   { href: '/customers', label: 'Clientes', icon: Users },
   { href: '/employees', label: 'Empleados', icon: Briefcase },
   { href: '/suppliers', label: 'Proveedores', icon: Truck },
+  { href: '/expenses', label: 'Gastos', icon: Receipt },
   { href: '/pos', label: 'POS', icon: ShoppingCart },
   { href: '/settings', label: 'Configuración', icon: Settings },
 ] as const;

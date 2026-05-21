@@ -109,6 +109,10 @@ export const posApi = {
 
 export const authApi = {
   me: () => api.get('/auth/me').then((r) => r.data),
+  requestPasswordReset: (data: { tenantEmail: string; email: string }) =>
+    api.post('/auth/request-password-reset', data).then((r) => r.data),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    api.post('/auth/reset-password', data).then((r) => r.data),
 };
 
 export const inventoryApi = {
@@ -173,6 +177,12 @@ export const employeesApi = {
   recordPayment: (id: string, data: unknown) => api.post(`/employees/${id}/payments`, data).then((r) => r.data),
   getPayrollSummary: (params?: Record<string, string>) =>
     api.get('/employees/payroll/summary', { params }).then((r) => r.data),
+};
+
+export const expensesApi = {
+  getExpenses: (params?: Record<string, string>) => api.get('/expenses', { params }).then((r) => r.data),
+  createExpense: (data: unknown) => api.post('/expenses', data).then((r) => r.data),
+  getSummary: (params?: Record<string, string>) => api.get('/expenses/summary', { params }).then((r) => r.data),
 };
 
 export const suppliersApi = {
