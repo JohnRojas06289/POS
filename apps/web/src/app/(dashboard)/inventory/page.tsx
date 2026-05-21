@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useRef, useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Package, AlertTriangle, TrendingDown, Plus, ArrowUpDown, Download, Upload } from 'lucide-react';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { Search, Package, AlertTriangle, TrendingDown, Plus, ArrowUpDown, Download, Upload, Loader2 } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Skeleton } from '../../../components/ui/Skeleton';
@@ -43,56 +43,146 @@ function getStockBadge(stock: number, minStock: number) {
   return <Badge variant="success">Normal</Badge>;
 }
 
+interface StockMovement {
+  id: string;
+  type: string;
+  quantity: number;
+  previousQty: number;
+  newQty: number;
+  reason?: string | null;
+  referenceType?: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+interface KardexPage {
+  variant: { id: string; sku: string; currentStock: number };
+  data: StockMovement[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+const MOVEMENT_LABELS: Record<string, { label: string; incoming: boolean }> = {
+  purchase:      { label: 'Compra',          incoming: true  },
+  adjustment:    { label: 'Ajuste',           incoming: false },
+  transfer_in:   { label: 'Traslado entrada', incoming: true  },
+  transfer_out:  { label: 'Traslado salida',  incoming: false },
+  sale:          { label: 'Venta',            incoming: false },
+};
+
+function movementMeta(type: string, qty: number) {
+  const meta = MOVEMENT_LABELS[type];
+  if (meta) return meta;
+  return { label: type, incoming: qty > 0 };
+}
+
 function KardexModal({ product, onClose }: { product: Product; onClose: () => void }) {
-  const movements = [
-    { date: '2026-05-19', type: 'Entrada', qty: 24, cost: product.cpp, balance: product.stock },
-    { date: '2026-05-18', type: 'Salida', qty: -6, cost: product.cpp, balance: product.stock + 6 },
-    { date: '2026-05-17', type: 'Salida', qty: -3, cost: product.cpp, balance: product.stock + 9 },
-    { date: '2026-05-16', type: 'Entrada', qty: 12, cost: product.cpp, balance: product.stock + 9 - 12 },
-  ];
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
+    useInfiniteQuery<KardexPage>({
+      queryKey: ['kardex', product.id],
+      queryFn: ({ pageParam }) =>
+        inventoryApi.getKardex(
+          product.id,
+          pageParam ? { cursor: pageParam as string } : undefined,
+        ) as Promise<KardexPage>,
+      getNextPageParam: (last) => last.hasMore ? last.nextCursor : undefined,
+      initialPageParam: undefined,
+    });
+
+  const movements = data?.pages.flatMap((p) => p.data) ?? [];
+  const variantInfo = data?.pages[0]?.variant;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-[--bg-primary] rounded-[--radius-lg] shadow-[--shadow-lg] w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-5 border-b border-[--border]">
+      <div className="bg-[--bg-primary] rounded-[--radius-lg] shadow-[--shadow-lg] w-full max-w-2xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-[--border] flex-shrink-0">
           <div>
             <h3 className="font-semibold text-[--text-primary]">Kardex — {product.name}</h3>
-            <p className="text-xs text-[--text-tertiary] mt-0.5">SKU: {product.sku}</p>
+            <p className="text-xs text-[--text-tertiary] mt-0.5">
+              SKU: {product.sku}
+              {variantInfo && (
+                <span className="ml-3">Stock actual: <strong className="text-[--text-primary]">{variantInfo.currentStock}</strong></span>
+              )}
+            </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-[--radius-sm] hover:bg-[--bg-tertiary] text-[--text-tertiary]" aria-label="Cerrar">✕</button>
         </div>
-        <div className="p-5 overflow-auto max-h-80">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[--text-tertiary] text-xs border-b border-[--border]">
-                <th className="pb-2 font-medium">Fecha</th>
-                <th className="pb-2 font-medium">Tipo</th>
-                <th className="pb-2 font-medium text-right">Cantidad</th>
-                <th className="pb-2 font-medium text-right">CPP</th>
-                <th className="pb-2 font-medium text-right">Saldo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[--border]">
-              {movements.map((m, i) => (
-                <tr key={i}>
-                  <td className="py-2.5 text-[--text-secondary]">{m.date}</td>
-                  <td className="py-2.5">
-                    <span className={`text-xs font-medium ${m.type === 'Entrada' ? 'text-[--success]' : 'text-[--danger]'}`}>{m.type}</span>
-                  </td>
-                  <td className={`py-2.5 text-right font-medium tabular-nums ${m.qty > 0 ? 'text-[--success]' : 'text-[--danger]'}`}>
-                    {m.qty > 0 ? '+' : ''}{m.qty}
-                  </td>
-                  <td className="py-2.5 text-right text-[--text-secondary] tabular-nums">
-                    ${m.cost.toLocaleString('es-CO')}
-                  </td>
-                  <td className="py-2.5 text-right font-semibold text-[--text-primary] tabular-nums">{m.balance}</td>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12 gap-2 text-[--text-tertiary] text-sm">
+              <Loader2 size={16} className="animate-spin" /> Cargando movimientos...
+            </div>
+          ) : isError ? (
+            <div className="py-12 text-center text-sm text-[--danger]">No se pudo cargar el kardex</div>
+          ) : movements.length === 0 ? (
+            <div className="py-12 text-center text-sm text-[--text-tertiary]">Sin movimientos registrados</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-[--bg-primary] z-10">
+                <tr className="text-left text-[--text-tertiary] text-xs border-b border-[--border]">
+                  <th className="px-4 py-3 font-medium">Fecha</th>
+                  <th className="px-4 py-3 font-medium">Tipo</th>
+                  <th className="px-4 py-3 font-medium text-right">Delta</th>
+                  <th className="px-4 py-3 font-medium text-right">Antes</th>
+                  <th className="px-4 py-3 font-medium text-right">Después</th>
+                  <th className="px-4 py-3 font-medium">Referencia</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[--border]">
+                {movements.map((m) => {
+                  const { label, incoming } = movementMeta(m.type, m.quantity);
+                  const isAdjust = m.type === 'adjustment';
+                  const effectiveIncoming = isAdjust ? m.quantity > 0 : incoming;
+                  return (
+                    <tr key={m.id} className="hover:bg-[--bg-secondary] transition-colors">
+                      <td className="px-4 py-2.5 text-[--text-secondary] text-xs tabular-nums whitespace-nowrap">
+                        {new Date(m.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <span className="block text-[--text-tertiary]">
+                          {new Date(m.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`text-xs font-medium ${effectiveIncoming ? 'text-[--success]' : 'text-[--danger]'}`}>
+                          {label}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-2.5 text-right font-semibold tabular-nums ${m.quantity > 0 ? 'text-[--success]' : 'text-[--danger]'}`}>
+                        {m.quantity > 0 ? '+' : ''}{m.quantity}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-[--text-tertiary] tabular-nums">{m.previousQty}</td>
+                      <td className="px-4 py-2.5 text-right font-medium text-[--text-primary] tabular-nums">{m.newQty}</td>
+                      <td className="px-4 py-2.5 text-xs text-[--text-tertiary] max-w-[160px] truncate" title={m.reason ?? ''}>
+                        {m.reason ?? m.referenceType ?? '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
-        <div className="p-5 border-t border-[--border] flex justify-end">
-          <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-primary] rounded-[--radius-md] text-sm font-medium hover:bg-[--border] transition-colors">Cerrar</button>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-[--border] flex items-center justify-between flex-shrink-0">
+          <span className="text-xs text-[--text-tertiary]">
+            {movements.length} movimiento{movements.length !== 1 ? 's' : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            {hasNextPage && (
+              <button
+                onClick={() => void fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="px-3 py-1.5 border border-[--border] text-[--text-secondary] rounded-[--radius-md] text-xs font-medium hover:bg-[--bg-tertiary] disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              >
+                {isFetchingNextPage && <Loader2 size={12} className="animate-spin" />}
+                Cargar más
+              </button>
+            )}
+            <button onClick={onClose} className="px-4 py-1.5 bg-[--bg-tertiary] text-[--text-primary] rounded-[--radius-md] text-sm font-medium hover:bg-[--border] transition-colors">Cerrar</button>
+          </div>
         </div>
       </div>
     </div>
