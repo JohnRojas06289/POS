@@ -6,7 +6,7 @@ import { InventoryService } from './inventory.service';
 import { ReceiveStockDto } from './dto/receive-stock.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { TransferStockDto } from './dto/transfer-stock.dto';
-import { CreateProductDto } from './dto/create-product.dto';
+import { CreateProductDto, CreateVariantDto } from './dto/create-product.dto';
 
 interface AuthRequest {
   user: { sub: string };
@@ -22,6 +22,15 @@ export class InventoryController {
   @ApiOperation({ summary: 'Create a product with variants' })
   createProduct(@Body() dto: CreateProductDto, @Request() req: AuthRequest) {
     return this.inventoryService.createProduct(dto, req.user.sub);
+  }
+
+  @Post('products/:id/variants')
+  @ApiOperation({ summary: 'Add variants to an existing product' })
+  addVariants(
+    @Param('id') id: string,
+    @Body() variants: CreateVariantDto[],
+  ) {
+    return this.inventoryService.addVariants(id, variants);
   }
 
   @Get('products')

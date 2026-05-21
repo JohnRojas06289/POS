@@ -54,6 +54,7 @@ model Subscription {
   planId           String
   status           String    @default("active")
   wompiReference   String?
+  killSwitch       Boolean   @default(false)
   currentPeriodStart DateTime
   currentPeriodEnd DateTime
   cancelAtPeriodEnd Boolean  @default(false)
@@ -92,13 +93,16 @@ model Branch {
 }
 
 model Terminal {
-  id        String   @id @default(uuid())
-  branchId  String
-  name      String
-  type      String   @default("pos")
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(uuid())
+  branchId          String
+  name              String
+  type              String   @default("pos")
+  deviceFingerprint String?  @unique
+  settings          Json     @default("{}")
+  isBlocked         Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@schema("tenant")
 }
@@ -120,10 +124,14 @@ model User {
 }
 
 model TenantConfig {
-  id        String   @id @default(uuid())
-  key       String   @unique
-  value     Json
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(uuid())
+  key            String   @unique
+  value          Json
+  posMode        String   @default("retail")
+  paymentMethods Json     @default("[]")
+  taxConfig      Json     @default("{}")
+  dianConfig     Json     @default("{}")
+  updatedAt      DateTime @updatedAt
 
   @@schema("tenant")
 }
@@ -338,16 +346,35 @@ model Expense {
 }
 
 model Employee {
-  id         String   @id @default(uuid())
-  userId     String?  @unique
-  branchId   String
-  name       String
-  position   String?
-  salary     Decimal? @db.Decimal(10, 2)
-  isActive   Boolean  @default(true)
-  hiredAt    DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String   @id @default(uuid())
+  userId           String?  @unique
+  branchId         String
+  name             String
+  documentNumber   String?
+  position         String?
+  salary           Decimal? @db.Decimal(10, 2)
+  paymentFrequency String   @default("monthly")
+  notes            String?
+  isActive         Boolean  @default(true)
+  hiredAt          DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  payrollPayments PayrollPayment[]
+
+  @@schema("tenant")
+}
+
+model PayrollPayment {
+  id          String   @id @default(uuid())
+  employeeId  String
+  amount      Decimal  @db.Decimal(10, 2)
+  periodStart DateTime?
+  periodEnd   DateTime?
+  notes       String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  employee    Employee @relation(fields: [employeeId], references: [id])
 
   @@schema("tenant")
 }

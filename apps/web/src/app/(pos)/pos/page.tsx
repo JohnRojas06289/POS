@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { SearchBar } from '../../../components/pos/SearchBar';
 import { ProductCard } from '../../../components/pos/ProductCard';
 import { CartItem } from '../../../components/pos/CartItem';
@@ -76,6 +77,7 @@ function computeDiscountAmount(item: CartItemState): number {
 export default function POSPage() {
   const { toast } = useToast();
   const { isOnline, addPendingOrder } = useOfflineStore();
+  const queryClient = useQueryClient();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -363,6 +365,12 @@ export default function POSPage() {
 
     try {
       await posApi.createOrder(payload);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['analytics-sales'] }),
+        queryClient.invalidateQueries({ queryKey: ['inventory-products'] }),
+        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+      ]);
     } catch {
       // Fallback: save offline
       addPendingOrder(payload);

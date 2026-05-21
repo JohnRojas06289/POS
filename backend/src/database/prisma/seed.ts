@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -161,8 +161,222 @@ async function main(): Promise<void> {
   });
 
   console.log(`✅ Created demo tenant: ${demoTenant.schemaName}`);
+
+  // Provision tenant_demo schema and demo user
+  await prisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "tenant_demo"`);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "tenant_demo"."User" (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "branchId" UUID,
+      email TEXT UNIQUE NOT NULL,
+      "passwordHash" TEXT NOT NULL,
+      pin TEXT,
+      name TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL DEFAULT 'cashier',
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "lastLoginAt" TIMESTAMPTZ,
+      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+      "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  const demoPasswordHash = await bcrypt.hash('demo1234', 12);
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO "tenant_demo"."User" (id, email, "passwordHash", name, role, "isActive")
+     VALUES (gen_random_uuid(), $1, $2, 'Demo Owner', 'owner', true)
+     ON CONFLICT (email) DO NOTHING`,
+    'demo@nexus.com',
+    demoPasswordHash,
+  );
+  console.log('✅ Provisioned tenant_demo schema with demo user');
+
+  // ─── Demo data in the static `tenant` schema (used by Prisma ORM) ───────────
+
+  // Branch
+  const branch = await prisma.branch.upsert({
+    where: { id: 'aaaaaaaa-0000-0000-0000-000000000001' },
+    update: {},
+    create: {
+      id: 'aaaaaaaa-0000-0000-0000-000000000001',
+      name: 'Sede Principal',
+      address: 'Calle 100 #15-20, Bogotá',
+      phone: '601-555-0100',
+      isActive: true,
+    },
+  });
+
+  // Products & variants
+  const shirt = await prisma.product.upsert({
+    where: { sku: 'SHIRT-001' },
+    update: {},
+    create: {
+      sku: 'SHIRT-001',
+      name: 'Camiseta Básica',
+      description: 'Camiseta de algodón 100%',
+      unitCost: 25000,
+      unitPrice: 59900,
+      taxRate: 0,
+      isActive: true,
+      hasVariants: true,
+    },
+  });
+
+  const shirtS = await prisma.productVariant.upsert({
+    where: { sku: 'SHIRT-001-S-BLK' },
+    update: {},
+    create: {
+      sku: 'SHIRT-001-S-BLK',
+      productId: shirt.id,
+      name: 'S / Negro',
+      attributes: { size: 'S', color: 'Negro' },
+      unitCost: 25000,
+      unitPrice: 59900,
+      stock: 24,
+      minStock: 5,
+    },
+  });
+
+  const shirtM = await prisma.productVariant.upsert({
+    where: { sku: 'SHIRT-001-M-WHT' },
+    update: {},
+    create: {
+      sku: 'SHIRT-001-M-WHT',
+      productId: shirt.id,
+      name: 'M / Blanco',
+      attributes: { size: 'M', color: 'Blanco' },
+      unitCost: 25000,
+      unitPrice: 59900,
+      stock: 18,
+      minStock: 5,
+    },
+  });
+
+  const jean = await prisma.product.upsert({
+    where: { sku: 'JEAN-001' },
+    update: {},
+    create: {
+      sku: 'JEAN-001',
+      name: 'Jean Slim Fit',
+      description: 'Jean de corte slim 98% algodón 2% elastano',
+      unitCost: 45000,
+      unitPrice: 119900,
+      taxRate: 0,
+      isActive: true,
+      hasVariants: true,
+    },
+  });
+
+  const jeanM = await prisma.productVariant.upsert({
+    where: { sku: 'JEAN-001-32-IND' },
+    update: {},
+    create: {
+      sku: 'JEAN-001-32-IND',
+      productId: jean.id,
+      name: '32 / Índigo',
+      attributes: { size: '32', color: 'Índigo' },
+      unitCost: 45000,
+      unitPrice: 119900,
+      stock: 12,
+      minStock: 3,
+    },
+  });
+
+  console.log('✅ Created demo products');
+
+  // Customers
+  const customer1 = await prisma.customer.upsert({
+    where: { id: 'cccccccc-0000-0000-0000-000000000001' },
+    update: {},
+    create: {
+      id: 'cccccccc-0000-0000-0000-000000000001',
+      name: 'María García',
+      email: 'maria@ejemplo.com',
+      phone: '300-555-0001',
+      documentType: 'CC',
+      documentNum: '1023456789',
+      creditLimit: 500000,
+      creditBalance: 0,
+      isActive: true,
+    },
+  });
+
+  const customer2 = await prisma.customer.upsert({
+    where: { id: 'cccccccc-0000-0000-0000-000000000002' },
+    update: {},
+    create: {
+      id: 'cccccccc-0000-0000-0000-000000000002',
+      name: 'Carlos Rodríguez',
+      email: 'carlos@ejemplo.com',
+      phone: '310-555-0002',
+      documentType: 'CC',
+      documentNum: '98765432',
+      creditLimit: 300000,
+      creditBalance: 89900,
+      isActive: true,
+    },
+  });
+
+  console.log('✅ Created demo customers');
+
+  // Demo orders spread over the last 7 days
+  const demoUserId = 'aaaaaaaa-0000-0000-0000-000000000099';
+  const now = Date.now();
+
+  const ordersData = [
+    { id: 'eeeeeeee-0000-0000-0001', daysAgo: 0, variantId: shirtS.id, qty: 2, unitPrice: 59900, method: 'cash', customerId: customer1.id },
+    { id: 'eeeeeeee-0000-0000-0002', daysAgo: 0, variantId: jeanM.id, qty: 1, unitPrice: 119900, method: 'card', customerId: null },
+    { id: 'eeeeeeee-0000-0000-0003', daysAgo: 1, variantId: shirtM.id, qty: 3, unitPrice: 59900, method: 'cash', customerId: customer2.id },
+    { id: 'eeeeeeee-0000-0000-0004', daysAgo: 1, variantId: jeanM.id, qty: 1, unitPrice: 119900, method: 'transfer', customerId: null },
+    { id: 'eeeeeeee-0000-0000-0005', daysAgo: 2, variantId: shirtS.id, qty: 1, unitPrice: 59900, method: 'cash', customerId: customer1.id },
+    { id: 'eeeeeeee-0000-0000-0006', daysAgo: 3, variantId: shirtM.id, qty: 2, unitPrice: 59900, method: 'card', customerId: null },
+    { id: 'eeeeeeee-0000-0000-0007', daysAgo: 4, variantId: jeanM.id, qty: 2, unitPrice: 119900, method: 'cash', customerId: customer2.id },
+    { id: 'eeeeeeee-0000-0000-0008', daysAgo: 5, variantId: shirtS.id, qty: 4, unitPrice: 59900, method: 'card', customerId: null },
+    { id: 'eeeeeeee-0000-0000-0009', daysAgo: 6, variantId: jeanM.id, qty: 1, unitPrice: 119900, method: 'cash', customerId: customer1.id },
+    { id: 'eeeeeeee-0000-0000-0010', daysAgo: 6, variantId: shirtM.id, qty: 2, unitPrice: 59900, method: 'transfer', customerId: null },
+  ];
+
+  for (const o of ordersData) {
+    const total = o.qty * o.unitPrice;
+    const createdAt = new Date(now - o.daysAgo * 86400000 - Math.random() * 28800000);
+    await prisma.order.upsert({
+      where: { id: o.id },
+      update: {},
+      create: {
+        id: o.id,
+        branchId: branch.id,
+        cashierId: demoUserId,
+        customerId: o.customerId,
+        status: 'completed',
+        subtotal: total,
+        discountTotal: 0,
+        taxTotal: 0,
+        total,
+        createdAt,
+        updatedAt: createdAt,
+        items: {
+          create: [{
+            variantId: o.variantId,
+            quantity: o.qty,
+            unitPrice: o.unitPrice,
+            unitCost: o.unitPrice * 0.42,
+            discount: 0,
+            taxRate: 0,
+            total,
+          }],
+        },
+        payments: {
+          create: [{ method: o.method, amount: total }],
+        },
+      },
+    });
+  }
+
+  console.log('✅ Created demo orders (last 7 days)');
+
   console.log('\n🎉 Seed completed!');
-  console.log('Demo credentials: demo@nexus.com / demo1234');
+  console.log('Demo credentials:');
+  console.log('  Tenant email: demo@nexus.com');
+  console.log('  User email:   demo@nexus.com');
+  console.log('  Password:     demo1234');
 }
 
 main()

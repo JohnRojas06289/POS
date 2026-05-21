@@ -14,6 +14,35 @@ import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { LoginPinDto } from './dto/login-pin.dto';
 import { assertValidSchemaName, TENANT_TEMPLATE_TABLES } from '../../common/utils/tenant-schema.util';
+import { CurrentUserData } from '../../common/decorators/current-user.decorator';
+
+export interface TenantRoleConfig {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+}
+
+const DEFAULT_ROLE_CONFIGS: TenantRoleConfig[] = [
+  {
+    id: 'owner',
+    name: 'Owner',
+    description: 'Control total del negocio y configuración.',
+    permissions: ['dashboard:read', 'inventory:write', 'orders:write', 'settings:write', 'users:write'],
+  },
+  {
+    id: 'manager',
+    name: 'Manager',
+    description: 'Administra operaciones y equipo.',
+    permissions: ['dashboard:read', 'inventory:write', 'orders:read', 'users:read'],
+  },
+  {
+    id: 'cashier',
+    name: 'Cashier',
+    description: 'Opera la caja y las ventas del POS.',
+    permissions: ['dashboard:read', 'orders:write', 'customers:read'],
+  },
+];
 
 export interface TokenPair {
   accessToken: string;
@@ -29,6 +58,25 @@ interface JwtPayload {
   branchId: string | null;
   terminalId?: string | null;
   deviceFingerprint?: string | null;
+}
+
+export interface AuthProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  branchId: string | null;
+  terminalId: string | null;
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    schemaName: string;
+  };
+  branch: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface ResolvedTerminal {
@@ -151,11 +199,66 @@ export class AuthService {
         businessName: name,
         defaultBranchId: branchId,
         defaultTerminalId: terminalId,
+        roles: DEFAULT_ROLE_CONFIGS,
       }),
       JSON.stringify(['cash', 'nequi', 'daviplata']),
       JSON.stringify({ defaultRate: 0.19 }),
       JSON.stringify({ currentInvoiceNumber: 1 }),
     );
+  }
+
+  async me(user: CurrentUserData): Promise<AuthProfile> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { id: true, name: true, slug: true, schemaName: true, isActive: true },
+    });
+
+    if (!tenant || !tenant.isActive) {
+      throw new UnauthorizedException('Tenant is inactive');
+    }
+
+    assertValidSchemaName(tenant.schemaName);
+
+    const users = await this.prisma.$queryRawUnsafe(
+      `SELECT id, name, email, role, "branchId", "isActive"
+       FROM "${tenant.schemaName}"."User"
+       WHERE id = $1
+       LIMIT 1`,
+      user.sub,
+    ) as Array<{ id: string; name: string; email: string; role: string; branchId: string | null; isActive: boolean }>;
+
+    const profile = users[0];
+    if (!profile || !profile.isActive) {
+      throw new UnauthorizedException('User is inactive');
+    }
+
+    let branch: AuthProfile['branch'] = null;
+    if (profile.branchId) {
+      const branches = await this.prisma.$queryRawUnsafe(
+        `SELECT id, name
+         FROM "${tenant.schemaName}"."Branch"
+         WHERE id = $1
+         LIMIT 1`,
+        profile.branchId,
+      ) as Array<{ id: string; name: string }>;
+      branch = branches[0] ?? null;
+    }
+
+    return {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role,
+      branchId: profile.branchId,
+      terminalId: user.terminalId ?? null,
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+        schemaName: tenant.schemaName,
+      },
+      branch,
+    };
   }
 
   async login(dto: LoginDto): Promise<TokenPair> {

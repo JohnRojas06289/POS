@@ -44,6 +44,7 @@ CREATE TABLE "public"."Subscription" (
     "tenantId" TEXT NOT NULL,
     "planId" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'active',
+    "killSwitch" BOOLEAN NOT NULL DEFAULT false,
     "currentPeriodStart" TIMESTAMP(3) NOT NULL,
     "currentPeriodEnd" TIMESTAMP(3) NOT NULL,
     "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false,
@@ -85,6 +86,9 @@ CREATE TABLE "tenant"."Terminal" (
     "branchId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "type" TEXT NOT NULL DEFAULT 'pos',
+    "deviceFingerprint" TEXT,
+    "settings" JSONB NOT NULL DEFAULT '{}',
+    "isBlocked" BOOLEAN NOT NULL DEFAULT false,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -114,6 +118,10 @@ CREATE TABLE "tenant"."TenantConfig" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "value" JSONB NOT NULL,
+    "posMode" TEXT NOT NULL DEFAULT 'retail',
+    "paymentMethods" JSONB NOT NULL DEFAULT '[]',
+    "taxConfig" JSONB NOT NULL DEFAULT '{}',
+    "dianConfig" JSONB NOT NULL DEFAULT '{}',
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "TenantConfig_pkey" PRIMARY KEY ("id")
@@ -341,14 +349,31 @@ CREATE TABLE "tenant"."Employee" (
     "userId" TEXT,
     "branchId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "documentNumber" TEXT,
     "position" TEXT,
     "salary" DECIMAL(10,2),
+    "paymentFrequency" TEXT NOT NULL DEFAULT 'monthly',
+    "notes" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "hiredAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Employee_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "tenant"."PayrollPayment" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "periodStart" TIMESTAMP(3),
+    "periodEnd" TIMESTAMP(3),
+    "notes" TEXT,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PayrollPayment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -421,6 +446,9 @@ CREATE UNIQUE INDEX "User_email_key" ON "tenant"."User"("email");
 CREATE UNIQUE INDEX "TenantConfig_key_key" ON "tenant"."TenantConfig"("key");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Terminal_deviceFingerprint_key" ON "tenant"."Terminal"("deviceFingerprint");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Product_sku_key" ON "tenant"."Product"("sku");
 
 -- CreateIndex
@@ -440,6 +468,9 @@ ALTER TABLE "public"."Subscription" ADD CONSTRAINT "Subscription_tenantId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "public"."Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "public"."Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tenant"."PayrollPayment" ADD CONSTRAINT "PayrollPayment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "tenant"."Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tenant"."ProductVariant" ADD CONSTRAINT "ProductVariant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "tenant"."Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

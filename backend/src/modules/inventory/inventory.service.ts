@@ -9,7 +9,7 @@ import { Prisma } from '@prisma/client';
 import { ReceiveStockDto } from './dto/receive-stock.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { TransferStockDto } from './dto/transfer-stock.dto';
-import { CreateProductDto } from './dto/create-product.dto';
+import { CreateProductDto, CreateVariantDto } from './dto/create-product.dto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -63,6 +63,36 @@ export class InventoryService {
       include: { variants: true },
     });
     return product;
+  }
+
+  async addVariants(productId: string, variants: CreateVariantDto[]) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+    });
+    if (!product) throw new NotFoundException(`Product ${productId} not found`);
+    if (!variants.length) {
+      throw new BadRequestException('At least one variant is required');
+    }
+
+    await this.prisma.productVariant.createMany({
+      data: variants.map((variant) => ({
+        id: uuidv4(),
+        productId,
+        sku: variant.sku,
+        barcode: variant.barcode,
+        name: variant.name,
+        attributes: variant.attributes ?? {},
+        unitCost: 0,
+        unitPrice: variant.unitPrice,
+        stock: 0,
+        minStock: variant.minStock ?? 0,
+      })),
+    });
+
+    return this.prisma.product.findUnique({
+      where: { id: productId },
+      include: { variants: true },
+    });
   }
 
   async listProducts(filters: {
@@ -142,6 +172,7 @@ export class InventoryService {
           expiresAt,
           notes: [
             dto.batchNumber ? `Lote: ${dto.batchNumber}` : null,
+            dto.invoiceNumber ? `Factura: ${dto.invoiceNumber}` : null,
             isExpiringSoon ? 'EXPIRING_SOON' : null,
           ].filter(Boolean).join(' | ') || null,
         },

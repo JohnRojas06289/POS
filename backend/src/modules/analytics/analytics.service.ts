@@ -6,10 +6,18 @@ import { Prisma } from '@prisma/client';
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSalesSummary(params: { from: string; to: string; branchId?: string }) {
+  async getSalesSummary(params: { from?: string; to?: string; branchId?: string }) {
+    const fromDate = params.from ? new Date(params.from) : new Date(Date.now() - 7 * 86400000);
+    const toDate = params.to ? new Date(params.to) : new Date();
+
+    // Guard against invalid dates
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      return this.emptySalesSummary();
+    }
+
     const where: Prisma.OrderWhereInput = {
       status: 'completed',
-      createdAt: { gte: new Date(params.from), lte: new Date(params.to) },
+      createdAt: { gte: fromDate, lte: toDate },
     };
     if (params.branchId) where.branchId = params.branchId;
 
@@ -23,26 +31,18 @@ export class AnalyticsService {
     const totalOrders = orders.length;
     const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    // Revenue by day
-    const byDayMap = new Map<string, { revenue: number; orders: number }>();
+    // Revenue by day — formatted for the dashboard chart
+    const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const byDayMap = new Map<string, { ventas: number; ordenes: number; day: string }>();
     for (const order of orders) {
-      const day = order.createdAt.toISOString().split('T')[0];
-      const existing = byDayMap.get(day) ?? { revenue: 0, orders: 0 };
-      existing.revenue += Number(order.total);
-      existing.orders++;
-      byDayMap.set(day, existing);
+      const date = order.createdAt.toISOString().split('T')[0];
+      const dayName = DAY_NAMES[order.createdAt.getDay()];
+      const existing = byDayMap.get(date) ?? { ventas: 0, ordenes: 0, day: dayName };
+      existing.ventas += Number(order.total);
+      existing.ordenes++;
+      byDayMap.set(date, existing);
     }
-    const revenueByDay = Array.from(byDayMap.entries()).map(([date, v]) => ({ date, ...v }));
-
-    // Revenue by branch
-    const byBranchMap = new Map<string, number>();
-    for (const order of orders) {
-      byBranchMap.set(order.branchId, (byBranchMap.get(order.branchId) ?? 0) + Number(order.total));
-    }
-    const revenueByBranch = Array.from(byBranchMap.entries()).map(([branchId, revenue]) => ({
-      branchId,
-      revenue,
-    }));
+    const salesByDay = Array.from(byDayMap.values());
 
     // Revenue by payment method
     const byMethodMap = new Map<string, number>();
@@ -60,13 +60,64 @@ export class AnalyticsService {
       percentage: totalRevenue > 0 ? Math.round((amount / totalRevenue) * 100) : 0,
     }));
 
+    const byBranchMap = new Map<string, number>();
+    for (const order of orders) {
+      byBranchMap.set(
+        order.branchId,
+        (byBranchMap.get(order.branchId) ?? 0) + Number(order.total),
+      );
+    }
+    const revenueByBranch = Array.from(byBranchMap.entries()).map(([branchId, revenue]) => ({
+      branchId,
+      revenue,
+    }));
+
+    // Recent orders (last 10)
+    const recentOrders = orders.slice(-10).reverse().map((o) => ({
+      id: o.id,
+      customer: o.customerId ?? 'Cliente',
+      items: 0,
+      total: Number(o.total),
+      status: o.status,
+      time: o.createdAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+    }));
+
     return {
-      totalRevenue,
+      totalRevenue: Math.round(totalRevenue),
+      totalSales: Math.round(totalRevenue),
       totalOrders,
+      totalCustomers: 0,
+      totalProducts: 0,
+      salesDelta: 0,
+      ordersDelta: 0,
+      customersDelta: 0,
+      productsDelta: 0,
       avgTicket: Math.round(avgTicket),
-      revenueByDay,
+      revenueByDay: salesByDay,
       revenueByBranch,
+      salesByDay,
+      recentOrders,
       revenueByPaymentMethod,
+    };
+  }
+
+  private emptySalesSummary() {
+    return {
+      totalRevenue: 0,
+      totalSales: 0,
+      totalOrders: 0,
+      totalCustomers: 0,
+      totalProducts: 0,
+      salesDelta: 0,
+      ordersDelta: 0,
+      customersDelta: 0,
+      productsDelta: 0,
+      avgTicket: 0,
+      revenueByDay: [],
+      revenueByBranch: [],
+      salesByDay: [],
+      recentOrders: [],
+      revenueByPaymentMethod: [],
     };
   }
 

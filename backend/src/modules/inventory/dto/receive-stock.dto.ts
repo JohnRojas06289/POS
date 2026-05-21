@@ -8,5 +8,6 @@ export class ReceiveStockDto {
   @ApiProperty() @IsNumber() @IsPositive() unitCost!: number;
   @ApiProperty({ required: false }) @IsOptional() @IsDateString() expiresAt?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() batchNumber?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() invoiceNumber?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsUUID() purchaseOrderId?: string;
 }

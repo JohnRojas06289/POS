@@ -6,7 +6,8 @@ import { Search, UserPlus, Phone, Mail, CreditCard } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Skeleton } from '../../../components/ui/Skeleton';
-import { customersApi } from '../../../lib/api';
+import { customersApi, api } from '../../../lib/api';
+import { useToast } from '../../../components/ui/Toast';
 
 const mockCustomers = [
   { id: '1', name: 'Carlos Ramírez', email: 'carlos@gmail.com', phone: '3001234567', totalOrders: 24, totalSpent: 1280000, creditLimit: 500000, creditUsed: 120000, lastOrder: '2026-05-19' },
@@ -22,7 +23,104 @@ function formatCOP(n: number) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 }
 
-function CustomerDrawer({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+function NewCustomerModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!name) return;
+    setSaving(true);
+    try {
+      await api.post('/customers', { name, email, phone, creditLimit: Number(creditLimit) || 0 });
+      toast('Cliente creado exitosamente', 'success');
+      onSave();
+    } catch {
+      toast('Error al crear el cliente', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-[--bg-primary] rounded-[--radius-lg] shadow-[--shadow-lg] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-[--border]">
+          <h3 className="font-semibold text-[--text-primary]">Nuevo cliente</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-[--radius-sm] hover:bg-[--bg-tertiary] text-[--text-tertiary]">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Nombre *</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="Nombre del cliente" autoFocus />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="cliente@email.com" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Teléfono</label>
+            <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="3001234567" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Límite de crédito</label>
+            <input type="number" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
+          </div>
+        </div>
+        <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium">Cancelar</button>
+          <button onClick={handleSave} disabled={!name || saving} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50">Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PayCreditModal({ customer, onClose, onSave }: { customer: Customer; onClose: () => void; onSave: () => void }) {
+  const [amount, setAmount] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!amount || Number(amount) <= 0) return;
+    setSaving(true);
+    try {
+      await api.post(`/customers/${customer.id}/credit/payment`, { amount: Number(amount), method: 'cash', notes: '' });
+      toast('Abono registrado exitosamente', 'success');
+      onSave();
+    } catch {
+      toast('Error al registrar el abono', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-[--bg-primary] rounded-[--radius-lg] shadow-[--shadow-lg] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-[--border]">
+          <h3 className="font-semibold text-[--text-primary]">Registrar abono — {customer.name}</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-[--radius-sm] hover:bg-[--bg-tertiary] text-[--text-tertiary]">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Monto del abono *</label>
+            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" autoFocus />
+          </div>
+        </div>
+        <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium">Cancelar</button>
+          <button onClick={handleSave} disabled={!amount || Number(amount) <= 0 || saving} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50">Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomerDrawer({ customer, onClose, onPayCredit }: { customer: Customer; onClose: () => void; onPayCredit: () => void }) {
   const creditPct = customer.creditLimit > 0 ? Math.round((customer.creditUsed / customer.creditLimit) * 100) : 0;
 
   const creditHistory = [
@@ -96,7 +194,7 @@ function CustomerDrawer({ customer, onClose }: { customer: Customer; onClose: ()
         </div>
 
         <div className="p-5 border-t border-[--border]">
-          <button className="w-full py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
+          <button onClick={onPayCredit} className="w-full py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
             Registrar abono
           </button>
         </div>
@@ -108,8 +206,10 @@ function CustomerDrawer({ customer, onClose }: { customer: Customer; onClose: ()
 export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Customer | null>(null);
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
 
-  const { data: customersData, isLoading } = useQuery({
+  const { data: customersData, isLoading, refetch } = useQuery({
     queryKey: ['customers'],
     queryFn: () => customersApi.getCustomers(),
     retry: 1,
@@ -134,7 +234,7 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-[--text-primary]">Clientes</h1>
           <p className="text-sm text-[--text-secondary] mt-0.5">{customers.length} clientes registrados</p>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
+        <button onClick={() => setNewCustomerOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
           <UserPlus size={16} /> Nuevo cliente
         </button>
       </div>
@@ -216,7 +316,9 @@ export default function CustomersPage() {
         </div>
       </Card>
 
-      {selected && <CustomerDrawer customer={selected} onClose={() => setSelected(null)} />}
+      {newCustomerOpen && <NewCustomerModal onClose={() => setNewCustomerOpen(false)} onSave={() => { void refetch(); setNewCustomerOpen(false); }} />}
+      {paymentCustomer && <PayCreditModal customer={paymentCustomer} onClose={() => setPaymentCustomer(null)} onSave={() => { void refetch(); setPaymentCustomer(null); }} />}
+      {selected && <CustomerDrawer customer={selected} onClose={() => setSelected(null)} onPayCredit={() => setPaymentCustomer(selected)} />}
     </div>
   );
 }

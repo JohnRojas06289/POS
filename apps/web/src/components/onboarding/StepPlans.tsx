@@ -16,6 +16,28 @@ interface Props {
   onNext: (data: { planId: string; planName: string; planPrice: number }) => void;
 }
 
+function normalizePlans(payload: unknown): Plan[] {
+  if (Array.isArray(payload)) return payload as Plan[];
+  if (payload && typeof payload === 'object') {
+    const data =
+      (payload as { data?: unknown; plans?: unknown }).data ??
+      (payload as { plans?: unknown }).plans;
+    if (Array.isArray(data)) return data as Plan[];
+  }
+  return [];
+}
+
+function formatPrice(price: number): string {
+  if (price === 0) return 'Gratis';
+  return (
+    new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+    }).format(price) + '/mes'
+  );
+}
+
 export function StepPlans({ selected, onNext }: Props) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedId, setSelectedId] = useState(selected ?? '');
@@ -25,57 +47,130 @@ export function StepPlans({ selected, onNext }: Props) {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
     fetch(`${apiUrl}/billing/plans`)
       .then((r) => r.json())
-      .then((data: Plan[]) => {
-        setPlans(data);
-        if (data[0] && !selectedId) setSelectedId(data[0].id);
+      .then((data: unknown) => {
+        const normalized = normalizePlans(data);
+        setPlans(normalized);
+        if (normalized[0] && !selectedId) setSelectedId(normalized[0].id);
       })
       .catch(() => setPlans([]))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const formatPrice = (price: number) =>
-    price === 0
-      ? 'Gratis'
-      : new Intl.NumberFormat('es-CO', {
-          style: 'currency',
-          currency: 'COP',
-          minimumFractionDigits: 0,
-        }).format(price) + '/mes';
+  useEffect(() => {
+    if (selected && plans.some((p) => p.id === selected)) setSelectedId(selected);
+  }, [plans, selected]);
 
-  if (loading) return <div className="text-center py-8 text-gray-400">Cargando planes...</div>;
+  if (loading) {
+    return (
+      <div className="text-center py-16" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="text-2xl mb-3">⏳</div>
+        <p className="text-sm">Cargando planes...</p>
+      </div>
+    );
+  }
+
+  if (plans.length === 0) {
+    return (
+      <div
+        className="rounded-xl p-5 text-sm"
+        style={{
+          background: 'var(--warning-bg)',
+          color: 'var(--warning-text)',
+          border: '1px solid rgba(133,79,11,0.15)',
+        }}
+      >
+        <p className="font-semibold mb-1">Sin planes disponibles</p>
+        <p>El servidor de suscripción no respondió. Intenta de nuevo en unos momentos.</p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Elige tu plan</h2>
-      <p className="text-gray-500 mb-6">Empieza gratis, escala cuando lo necesites.</p>
+      <h2
+        className="text-2xl font-display font-semibold mb-1"
+        style={{ color: 'var(--text-primary)' }}
+      >
+        Elige tu plan
+      </h2>
+      <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
+        Empieza gratis y escala cuando lo necesites.
+      </p>
 
-      <div className="grid gap-3 mb-8">
-        {plans.map((plan) => (
-          <button
-            key={plan.id}
-            onClick={() => setSelectedId(plan.id)}
-            className={`w-full text-left rounded-xl border-2 p-4 transition-colors ${
-              selectedId === plan.id
-                ? 'border-blue-600 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-semibold text-gray-900">{plan.name}</span>
-                {plan.description && (
-                  <p className="text-sm text-gray-500 mt-0.5">{plan.description}</p>
-                )}
-                <p className="text-xs text-gray-400 mt-1">
-                  {plan.maxBranches} sucursal{plan.maxBranches > 1 ? 'es' : ''} · {plan.maxUsers} usuarios
-                </p>
+      <div className="space-y-3 mb-8">
+        {plans.map((plan) => {
+          const isSelected = selectedId === plan.id;
+          const isFree = plan.price === 0;
+          return (
+            <button
+              key={plan.id}
+              onClick={() => setSelectedId(plan.id)}
+              className="w-full text-left rounded-xl p-4 transition-all"
+              style={{
+                border: isSelected
+                  ? '2px solid var(--gold-500)'
+                  : '2px solid var(--border-default)',
+                background: isSelected ? 'var(--gold-50)' : 'var(--bg-surface)',
+                boxShadow: isSelected ? 'var(--shadow-gold)' : 'none',
+              }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span
+                      className="text-sm font-semibold"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {plan.name}
+                    </span>
+                    {isFree && (
+                      <span
+                        className="text-xs font-medium px-2 py-0.5 rounded-full"
+                        style={{
+                          background: 'var(--success-bg)',
+                          color: 'var(--success-text)',
+                        }}
+                      >
+                        Recomendado para empezar
+                      </span>
+                    )}
+                  </div>
+                  {plan.description && (
+                    <p className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                      {plan.description}
+                    </p>
+                  )}
+                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    {plan.maxBranches} sucursal{plan.maxBranches !== 1 ? 'es' : ''} ·{' '}
+                    {plan.maxUsers} usuarios
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span
+                    className="text-lg font-bold"
+                    style={{ color: isSelected ? 'var(--gold-600)' : 'var(--text-primary)' }}
+                  >
+                    {formatPrice(plan.price)}
+                  </span>
+                </div>
               </div>
-              <span className="text-xl font-bold text-blue-700 whitespace-nowrap ml-4">
-                {formatPrice(plan.price)}
-              </span>
-            </div>
-          </button>
-        ))}
+
+              {isSelected && (
+                <div
+                  className="flex items-center gap-1.5 mt-3 pt-3 text-xs font-medium"
+                  style={{
+                    borderTop: '1px solid var(--border-gold)',
+                    color: 'var(--gold-600)',
+                  }}
+                >
+                  <span>✓</span>
+                  <span>Plan seleccionado</span>
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <button
@@ -84,9 +179,10 @@ export function StepPlans({ selected, onNext }: Props) {
           if (plan) onNext({ planId: plan.id, planName: plan.name, planPrice: plan.price });
         }}
         disabled={!selectedId}
-        className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors"
+        className="w-full py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
+        style={{ background: 'var(--text-primary)', color: '#F7F6F3' }}
       >
-        Continuar
+        Continuar →
       </button>
     </div>
   );

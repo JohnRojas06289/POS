@@ -2,7 +2,6 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma/prisma.service';
@@ -37,6 +36,7 @@ export interface OrderSummary {
   createdAt: Date;
   items: unknown[];
   payments: unknown[];
+  changeDue?: number;
 }
 
 @Injectable()
@@ -46,13 +46,19 @@ export class PosService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createOrder(dto: CreateOrderDto, cashierId: string): Promise<OrderSummary> {
-    // Prevent duplicate offline orders
+    const normalizedPayments = dto.payments.map((payment) => ({
+      ...payment,
+      method: payment.method === 'credit' ? 'credit_store' : payment.method,
+    }));
+
+    // Idempotent offline orders: same localId returns the first successful result
     if (dto.localId) {
       const existing = await this.prisma.order.findUnique({
         where: { localId: dto.localId },
+        include: { items: true, payments: true },
       });
       if (existing) {
-        throw new ConflictException(`Order with localId ${dto.localId} already exists`);
+        return existing as unknown as OrderSummary;
       }
     }
 
@@ -100,11 +106,48 @@ export class PosService {
     const total = subtotal - discountTotal + taxTotal;
 
     // Validate payments sum
-    const paymentsSum = dto.payments.reduce((s, p) => s + p.amount, 0);
-    if (Math.abs(paymentsSum - total) > 0.01) {
+    const paymentsSum = normalizedPayments.reduce((s, p) => s + p.amount, 0);
+    const changeDue = Math.max(0, parseFloat((paymentsSum - total).toFixed(2)));
+    const cashPaid = normalizedPayments
+      .filter((payment) => payment.method === 'cash')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+
+    if (paymentsSum + 0.01 < total) {
       throw new BadRequestException(
-        `Payments total (${paymentsSum}) does not match order total (${total})`,
+        `Payments total (${paymentsSum}) does not cover order total (${total})`,
       );
+    }
+    if (changeDue > 0.01 && cashPaid + 0.01 < changeDue) {
+      throw new BadRequestException(
+        `Change due (${changeDue}) exceeds cash received (${cashPaid})`,
+      );
+    }
+
+    const creditStoreAmount = normalizedPayments
+      .filter((payment) => payment.method === 'credit_store')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+
+    if (creditStoreAmount > 0) {
+      if (!dto.customerId) {
+        throw new BadRequestException(
+          'credit_store requires a customerId to validate creditLimit',
+        );
+      }
+
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: dto.customerId },
+      });
+      if (!customer) {
+        throw new NotFoundException(`Customer ${dto.customerId} not found`);
+      }
+
+      const creditLimit = Number(customer.creditLimit);
+      const currentBalance = Number(customer.creditBalance);
+      if (creditLimit > 0 && currentBalance + creditStoreAmount > creditLimit) {
+        throw new BadRequestException(
+          `Credit limit exceeded: limit ${creditLimit}, current balance ${currentBalance}, requested ${creditStoreAmount}`,
+        );
+      }
     }
 
     const orderId = uuidv4();
@@ -141,11 +184,14 @@ export class PosService {
             })),
           },
           payments: {
-            create: dto.payments.map((p) => ({
+            create: normalizedPayments.map((p) => ({
               id: uuidv4(),
               method: p.method,
               amount: p.amount,
               reference: p.reference,
+              metadata: p.method === 'cash' && changeDue > 0
+                ? { changeDue }
+                : {},
             })),
           },
         },
@@ -178,7 +224,7 @@ export class PosService {
       }
 
       // Handle credit_store payments
-      for (const payment of dto.payments) {
+      for (const payment of normalizedPayments) {
         if (payment.method === 'credit_store' && dto.customerId) {
           await tx.creditTransaction.create({
             data: {
@@ -202,7 +248,10 @@ export class PosService {
       return created;
     });
 
-    return order as unknown as OrderSummary;
+    return {
+      ...(order as unknown as OrderSummary),
+      changeDue,
+    };
   }
 
   async listOrders(filters: OrderFilters) {

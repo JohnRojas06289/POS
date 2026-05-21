@@ -107,6 +107,10 @@ export const posApi = {
   refundOrder: (id: string, data: unknown) => api.post(`/pos/orders/${id}/refund`, data).then((r) => r.data),
 };
 
+export const authApi = {
+  me: () => api.get('/auth/me').then((r) => r.data),
+};
+
 export const inventoryApi = {
   getProducts: (params?: Record<string, string>) => api.get('/inventory/products', { params }).then((r) => r.data),
   receiveStock: (data: unknown) => api.post('/inventory/stock/receive', data).then((r) => r.data),
@@ -148,10 +152,24 @@ export const tenantsApi = {
   getConfig: () => api.get('/tenants/config').then((r) => r.data),
   getBranches: () => api.get('/tenants/branches').then((r) => r.data),
   getUsers: () => api.get('/tenants/users').then((r) => r.data),
+  getTerminals: () => api.get('/tenants/terminals').then((r) => r.data),
   updateConfig: (data: unknown) => api.patch('/tenants/config', data).then((r) => r.data),
+  createUser: (data: unknown) => api.post('/tenants/users', data).then((r) => r.data),
+  createBranch: (data: unknown) => api.post('/tenants/branches', data).then((r) => r.data),
+  createTerminal: (data: unknown) => api.post('/tenants/terminals', data).then((r) => r.data),
+  blockTerminal: (id: string) => api.patch(`/tenants/terminals/${id}/block`).then((r) => r.data),
+  unblockTerminal: (id: string) => api.patch(`/tenants/terminals/${id}/unblock`).then((r) => r.data),
 };
 
 export const billingApi = {
   getPlans: () => api.get('/billing/plans').then((r) => r.data),
   getSubscription: () => api.get('/billing/subscription').then((r) => r.data),
+};
+
+export const employeesApi = {
+  getEmployees: (params?: Record<string, string>) => api.get('/employees', { params }).then((r) => r.data),
+  createEmployee: (data: unknown) => api.post('/employees', data).then((r) => r.data),
+  recordPayment: (id: string, data: unknown) => api.post(`/employees/${id}/payments`, data).then((r) => r.data),
+  getPayrollSummary: (params?: Record<string, string>) =>
+    api.get('/employees/payroll/summary', { params }).then((r) => r.data),
 };

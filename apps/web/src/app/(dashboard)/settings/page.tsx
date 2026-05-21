@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronUp, Save, AlertTriangle, Building2, ShoppingCart, Users, MapPin, FileText, Shield } from 'lucide-react';
+import { ChevronDown, ChevronUp, Save, AlertTriangle, Building2, ShoppingCart, MapPin, FileText, Shield, MonitorSmartphone } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useToast } from '../../../components/ui/Toast';
@@ -47,11 +47,368 @@ function TextInput({ defaultValue, placeholder }: { defaultValue?: string; place
   );
 }
 
+function PermissionMatrix({
+  selected,
+  onToggle,
+}: {
+  selected: string[];
+  onToggle: (permissionId: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {PERMISSION_GROUPS.map((group) => {
+        const selectedCount = group.options.filter((option) => selected.includes(option.id)).length;
+        const groupSelected = selectedCount === group.options.length && group.options.length > 0;
+        const someSelected = selectedCount > 0 && !groupSelected;
+
+        return (
+          <div key={group.id} className="rounded-[--radius-lg] border border-[--border] bg-[--bg-primary] p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[--text-primary]">{group.title}</p>
+                <p className="mt-0.5 text-xs text-[--text-secondary]">{group.description}</p>
+              </div>
+              <span className={cn(
+                'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                groupSelected
+                  ? 'bg-[--nexus-500] text-white'
+                  : someSelected
+                    ? 'bg-[rgba(201,168,76,0.12)] text-[--text-gold]'
+                    : 'bg-[--bg-tertiary] text-[--text-tertiary]',
+              )}>
+                {selectedCount}/{group.options.length}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {group.options.map((option) => {
+                const active = selected.includes(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => onToggle(option.id)}
+                    className={cn(
+                      'flex w-full items-start gap-3 rounded-[--radius-md] border p-3 text-left transition-colors',
+                      active
+                        ? 'border-[--nexus-500] bg-[rgba(201,168,76,0.08)]'
+                        : 'border-[--border] bg-[var(--bg-secondary)] hover:border-[--nexus-500]',
+                    )}
+                  >
+                    <span className={cn(
+                      'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-[4px] border text-[10px] font-bold',
+                      active ? 'border-[--nexus-500] bg-[--nexus-500] text-white' : 'border-[--border] text-transparent',
+                    )}>
+                      ✓
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-[--text-primary]">{option.label}</p>
+                        {option.importance === 'high' && (
+                          <span className="rounded-full bg-[rgba(201,168,76,0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[--text-gold]">Importante</span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-[--text-secondary]">{option.description}</p>
+                      {option.route && <p className="mt-1 text-[11px] text-[--text-tertiary]">Ruta: {option.route}</p>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const PAYMENT_METHODS = ['Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Nequi', 'Daviplata', 'Transferencia'];
+
+type RoleConfig = {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+};
+
+type PermissionOption = {
+  id: string;
+  label: string;
+  description: string;
+  route?: string;
+  importance?: 'high' | 'medium' | 'low';
+};
+
+type PermissionGroup = {
+  id: string;
+  title: string;
+  description: string;
+  options: PermissionOption[];
+};
+
+const PERMISSION_GROUPS: PermissionGroup[] = [
+  {
+    id: 'dashboard',
+    title: 'Dashboard',
+    description: 'Acceso a métricas, tarjetas y resumen operativo.',
+    options: [
+      { id: 'dashboard:read', label: 'Ver dashboard', description: 'Abre el resumen general del negocio.', route: '/dashboard', importance: 'high' },
+    ],
+  },
+  {
+    id: 'inventory',
+    title: 'Inventario',
+    description: 'Productos, variantes, stock y valuación.',
+    options: [
+      { id: 'inventory:read', label: 'Ver inventario', description: 'Consultar productos, existencias y kardex.', route: '/inventory' },
+      { id: 'inventory:write', label: 'Editar inventario', description: 'Crear productos, ajustar stock y gestionar variantes.', route: '/inventory', importance: 'high' },
+    ],
+  },
+  {
+    id: 'orders',
+    title: 'Órdenes y POS',
+    description: 'Ventas, cobros y seguimiento de órdenes.',
+    options: [
+      { id: 'orders:read', label: 'Ver órdenes', description: 'Abrir historial y detalle de ventas.', route: '/orders' },
+      { id: 'orders:write', label: 'Crear ventas', description: 'Cobrar, crear y suspender órdenes desde POS.', route: '/pos', importance: 'high' },
+    ],
+  },
+  {
+    id: 'customers',
+    title: 'Clientes',
+    description: 'Base de clientes, crédito y comportamiento.',
+    options: [
+      { id: 'customers:read', label: 'Ver clientes', description: 'Consultar clientes, deuda y compras.' },
+    ],
+  },
+  {
+    id: 'users',
+    title: 'Usuarios y equipo',
+    description: 'Personal, roles y acceso interno.',
+    options: [
+      { id: 'users:read', label: 'Ver usuarios', description: 'Listar equipo y revisar roles actuales.' },
+      { id: 'users:write', label: 'Editar usuarios', description: 'Crear usuarios y ajustar sus accesos.', importance: 'high' },
+    ],
+  },
+  {
+    id: 'settings',
+    title: 'Configuración',
+    description: 'Ajustes del tenant, sucursales y terminales.',
+    options: [
+      { id: 'settings:write', label: 'Editar configuración', description: 'Cambiar ajustes globales del tenant.', importance: 'high' },
+    ],
+  },
+];
+
+const DEFAULT_ROLE_CONFIGS: RoleConfig[] = [
+  {
+    id: 'owner',
+    name: 'Owner',
+    description: 'Control total del negocio y configuración.',
+    permissions: ['dashboard:read', 'inventory:write', 'orders:write', 'settings:write', 'users:write'],
+  },
+  {
+    id: 'manager',
+    name: 'Manager',
+    description: 'Administra operaciones y equipo.',
+    permissions: ['dashboard:read', 'inventory:write', 'orders:read', 'users:read'],
+  },
+  {
+    id: 'cashier',
+    name: 'Cashier',
+    description: 'Opera la caja y las ventas del POS.',
+    permissions: ['dashboard:read', 'orders:write', 'customers:read'],
+  },
+];
+
+function NewBranchModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!name) return;
+    setSaving(true);
+    try {
+      await tenantsApi.createBranch({ name, address, phone });
+      toast('Sucursal creada exitosamente', 'success');
+      onSave();
+    } catch {
+      toast('Error al crear la sucursal', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-[--bg-primary] rounded-[--radius-lg] shadow-[--shadow-lg] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-[--border]">
+          <h3 className="font-semibold text-[--text-primary]">Nueva sucursal</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-[--radius-sm] hover:bg-[--bg-tertiary] text-[--text-tertiary]">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Nombre *</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="Sucursal principal" autoFocus />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Dirección</label>
+            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="Calle 123 # 45-67" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Teléfono</label>
+            <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="3001234567" />
+          </div>
+        </div>
+        <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium">Cancelar</button>
+          <button onClick={handleSave} disabled={!name || saving} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50">Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewTerminalModal({
+  branches,
+  onClose,
+  onSave,
+}: {
+  branches: Array<{ id: string; name: string }>;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
+  const [type, setType] = useState('pos');
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!name || !branchId) return;
+    setSaving(true);
+    try {
+      await tenantsApi.createTerminal({ name, branchId, type });
+      toast('Terminal creada exitosamente', 'success');
+      onSave();
+    } catch {
+      toast('Error al crear la terminal', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-[--bg-primary] rounded-[--radius-lg] shadow-[--shadow-lg] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-[--border]">
+          <h3 className="font-semibold text-[--text-primary]">Nueva terminal</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-[--radius-sm] hover:bg-[--bg-tertiary] text-[--text-tertiary]">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Nombre *</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="Caja 2" autoFocus />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Sucursal *</label>
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]">
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>{branch.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Tipo</label>
+            <select value={type} onChange={(e) => setType(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]">
+              <option value="pos">POS</option>
+              <option value="mobile_pos">Mobile POS</option>
+              <option value="kiosk">Kiosko</option>
+            </select>
+          </div>
+        </div>
+        <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium">Cancelar</button>
+          <button onClick={handleSave} disabled={!name || !branchId || saving} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50">Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewRoleModal({ onClose, onSave }: { onClose: () => void; onSave: (role: RoleConfig) => void }) {
+  const [name, setName] = useState('');
+  const [id, setId] = useState('');
+  const [description, setDescription] = useState('');
+  const [permissions, setPermissions] = useState<string[]>([]);
+
+  const togglePermission = (permissionId: string) => {
+    setPermissions((prev) => (prev.includes(permissionId)
+      ? prev.filter((item) => item !== permissionId)
+      : [...prev, permissionId]));
+  };
+
+  const handleSave = () => {
+    if (!name || !id) return;
+    onSave({
+      id,
+      name,
+      description,
+      permissions,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-[--radius-lg] bg-[--bg-primary] shadow-[--shadow-lg]" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-[--border] p-5">
+          <h3 className="font-semibold text-[--text-primary]">Nuevo rol</h3>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[--radius-sm] text-[--text-tertiary] hover:bg-[--bg-tertiary]">✕</button>
+        </div>
+        <div className="space-y-4 p-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[--text-secondary]">Nombre *</label>
+              <input value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-[--radius-md] border border-[--border] bg-[--bg-primary] px-3 py-2 text-sm text-[--text-primary] focus:border-[--nexus-500] focus:outline-none" placeholder="Supervisor" autoFocus />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[--text-secondary]">ID *</label>
+              <input value={id} onChange={(event) => setId(event.target.value)} className="w-full rounded-[--radius-md] border border-[--border] bg-[--bg-primary] px-3 py-2 text-sm text-[--text-primary] focus:border-[--nexus-500] focus:outline-none" placeholder="supervisor" />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[--text-secondary]">Descripción</label>
+            <textarea value={description} onChange={(event) => setDescription(event.target.value)} className="min-h-[92px] w-full rounded-[--radius-md] border border-[--border] bg-[--bg-primary] px-3 py-2 text-sm text-[--text-primary] focus:border-[--nexus-500] focus:outline-none" placeholder="Rol para..." />
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <label className="block text-xs font-medium text-[--text-secondary]">Permisos</label>
+              <p className="text-xs text-[--text-tertiary]">{permissions.length} seleccionados</p>
+            </div>
+            <PermissionMatrix selected={permissions} onToggle={togglePermission} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-[--border] p-5">
+          <button onClick={onClose} className="rounded-[--radius-md] bg-[--bg-tertiary] px-4 py-2 text-sm font-medium text-[--text-secondary]">Cancelar</button>
+          <button onClick={handleSave} disabled={!name || !id} className="rounded-[--radius-md] bg-[--nexus-500] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-50">Guardar rol</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const [activeMethods, setActiveMethods] = useState<string[]>(['Efectivo', 'Tarjeta débito', 'Nequi']);
+  const [newBranchOpen, setNewBranchOpen] = useState(false);
+  const [newTerminalOpen, setNewTerminalOpen] = useState(false);
+  const [newRoleOpen, setNewRoleOpen] = useState(false);
+  const [roles, setRoles] = useState<RoleConfig[]>(DEFAULT_ROLE_CONFIGS);
 
   const { data: config, isLoading: loadingConfig } = useQuery({
     queryKey: ['tenant-config'],
@@ -59,20 +416,31 @@ export default function SettingsPage() {
     retry: false,
   });
 
-  const { data: branches, isLoading: loadingBranches } = useQuery({
+  const { data: branches, isLoading: loadingBranches, refetch: refetchBranches } = useQuery({
     queryKey: ['tenant-branches'],
     queryFn: tenantsApi.getBranches,
     retry: false,
   });
 
-  const { data: users, isLoading: loadingUsers } = useQuery({
-    queryKey: ['tenant-users'],
-    queryFn: tenantsApi.getUsers,
+  const { data: terminals, isLoading: loadingTerminals, refetch: refetchTerminals } = useQuery({
+    queryKey: ['tenant-terminals'],
+    queryFn: tenantsApi.getTerminals,
     retry: false,
   });
 
-  const handleSave = () => {
+  useEffect(() => {
+    const tenantRoles = (config as { roles?: RoleConfig[] } | undefined)?.roles;
+    setRoles(Array.isArray(tenantRoles) && tenantRoles.length > 0 ? tenantRoles : DEFAULT_ROLE_CONFIGS);
+  }, [config]);
+
+  const handleSave = async () => {
+    await tenantsApi.updateConfig({ roles });
     toast('Configuración guardada', 'success');
+  };
+
+  const upsertRole = (nextRole: RoleConfig) => {
+    setRoles((prev) => [...prev, nextRole]);
+    setNewRoleOpen(false);
   };
 
   const toggleMethod = (m: string) => {
@@ -116,6 +484,74 @@ export default function SettingsPage() {
         )}
       </Section>
 
+      {/* Terminales */}
+      <Section title="Terminales y kill-switch" icon={<MonitorSmartphone size={18} />}>
+        {loadingTerminals ? (
+          <div className="pt-4"><Skeleton variant="table-row" /><Skeleton variant="table-row" /></div>
+        ) : (
+          <div className="pt-4 space-y-3">
+            <div className="flex justify-end">
+              <button onClick={() => setNewTerminalOpen(true)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
+                + Nueva terminal
+              </button>
+            </div>
+            {Array.isArray(terminals) && terminals.length > 0 ? (
+              (terminals as Array<{
+                id: string;
+                name: string;
+                branchName?: string | null;
+                type: string;
+                isBlocked: boolean;
+                deviceFingerprint?: string | null;
+              }>).map((terminal) => (
+                <div key={terminal.id} className="flex flex-col gap-3 rounded-[--radius-md] bg-[--bg-secondary] p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-[--text-primary] text-sm">{terminal.name}</p>
+                    <p className="text-xs text-[--text-tertiary] mt-0.5">
+                      {terminal.branchName ?? 'Sin sucursal'} · {terminal.type}
+                    </p>
+                    <p className="text-[11px] text-[--text-tertiary] mt-1 break-all">
+                      Fingerprint: {terminal.deviceFingerprint ?? 'Pendiente de vincular'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn('text-xs px-2 py-0.5 rounded-full', terminal.isBlocked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700')}>
+                      {terminal.isBlocked ? 'Bloqueada' : 'Activa'}
+                    </span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          if (terminal.isBlocked) {
+                            await tenantsApi.unblockTerminal(terminal.id);
+                            toast('Terminal desbloqueada', 'success');
+                          } else {
+                            await tenantsApi.blockTerminal(terminal.id);
+                            toast('Terminal bloqueada remotamente', 'success');
+                          }
+                          await refetchTerminals();
+                        } catch {
+                          toast('No fue posible actualizar la terminal', 'error');
+                        }
+                      }}
+                      className={cn(
+                        'px-3 py-1.5 rounded-[--radius-md] text-xs font-medium transition-colors',
+                        terminal.isBlocked
+                          ? 'bg-[--nexus-500] text-white hover:bg-[#1d4ed8]'
+                          : 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-200',
+                      )}
+                    >
+                      {terminal.isBlocked ? 'Desbloquear' : 'Bloquear'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-[--text-tertiary] py-4 text-center">No hay terminales configuradas</p>
+            )}
+          </div>
+        )}
+      </Section>
+
       {/* Configuración del POS */}
       <Section title="Configuración del POS" icon={<ShoppingCart size={18} />}>
         <div className="pt-4 space-y-4">
@@ -155,45 +591,72 @@ export default function SettingsPage() {
         </div>
       </Section>
 
-      {/* Usuarios y roles */}
-      <Section title="Usuarios y roles" icon={<Users size={18} />}>
-        {loadingUsers ? (
-          <div className="pt-4"><Skeleton variant="table-row" /><Skeleton variant="table-row" /></div>
-        ) : (
-          <div className="pt-4">
-            {Array.isArray(users) && users.length > 0 ? (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-[--text-tertiary] border-b border-[--border]">
-                    <th className="pb-2 font-medium">Usuario</th>
-                    <th className="pb-2 font-medium">Rol</th>
-                    <th className="pb-2 font-medium">Sucursal</th>
-                    <th className="pb-2 font-medium">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[--border]">
-                  {(users as Array<{ id: string; name: string; email: string; role: string; branch?: string; isActive?: boolean }>).map(u => (
-                    <tr key={u.id}>
-                      <td className="py-2.5">
-                        <p className="font-medium text-[--text-primary]">{u.name}</p>
-                        <p className="text-xs text-[--text-tertiary]">{u.email}</p>
-                      </td>
-                      <td className="py-2.5 capitalize text-[--text-secondary]">{u.role}</td>
-                      <td className="py-2.5 text-[--text-secondary]">{u.branch ?? '—'}</td>
-                      <td className="py-2.5">
-                        <span className={cn('text-xs px-2 py-0.5 rounded-full', u.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-[--bg-tertiary] text-[--text-tertiary]')}>
-                          {u.isActive !== false ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-sm text-[--text-tertiary] py-4 text-center">No hay usuarios configurados</p>
-            )}
+      {/* Roles y permisos */}
+      <Section title="Roles y permisos" icon={<Shield size={18} />}>
+        <div className="pt-4 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-[--text-secondary]">Define qué puede hacer cada rol dentro del tenant.</p>
+            <button
+              onClick={() => setNewRoleOpen(true)}
+              className="inline-flex items-center gap-2 rounded-[--radius-md] bg-[--nexus-500] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#1d4ed8]"
+            >
+              + Nuevo rol
+            </button>
           </div>
-        )}
+
+          <div className="rounded-[--radius-lg] border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-100">
+            Después de guardar los permisos, el usuario debe cerrar sesión e iniciar sesión de nuevo para que los cambios se reflejen en su token.
+          </div>
+
+          <div className="space-y-3">
+            {roles.map((role, index) => (
+              <div key={role.id} className="rounded-[--radius-md] border border-[--border] bg-[--bg-secondary] p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <Field label="Nombre">
+                    <input
+                      value={role.name}
+                      onChange={(event) => setRoles((prev) => prev.map((item, currentIndex) => (currentIndex === index ? { ...item, name: event.target.value } : item)))}
+                      className="w-full rounded-[--radius-md] border border-[--border] bg-[--bg-primary] px-3 py-2 text-sm text-[--text-primary] focus:border-[--nexus-500] focus:outline-none"
+                    />
+                  </Field>
+                  <Field label="ID">
+                    <input
+                      value={role.id}
+                      onChange={(event) => setRoles((prev) => prev.map((item, currentIndex) => (currentIndex === index ? { ...item, id: event.target.value } : item)))}
+                      className="w-full rounded-[--radius-md] border border-[--border] bg-[--bg-primary] px-3 py-2 text-sm text-[--text-primary] focus:border-[--nexus-500] focus:outline-none"
+                    />
+                  </Field>
+                </div>
+                <Field label="Descripción">
+                  <textarea
+                    value={role.description}
+                    onChange={(event) => setRoles((prev) => prev.map((item, currentIndex) => (currentIndex === index ? { ...item, description: event.target.value } : item)))}
+                    className="min-h-[88px] w-full rounded-[--radius-md] border border-[--border] bg-[--bg-primary] px-3 py-2 text-sm text-[--text-primary] focus:border-[--nexus-500] focus:outline-none"
+                  />
+                </Field>
+                <div className="mt-4">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <label className="block text-xs font-medium text-[--text-secondary] uppercase tracking-wide">Permisos</label>
+                    <p className="text-xs text-[--text-tertiary]">{role.permissions.length} seleccionados</p>
+                  </div>
+                  <PermissionMatrix
+                    selected={role.permissions}
+                    onToggle={(permissionId) => setRoles((prev) => prev.map((item, currentIndex) => {
+                      if (currentIndex !== index) return item;
+                      const active = item.permissions.includes(permissionId);
+                      return {
+                        ...item,
+                        permissions: active
+                          ? item.permissions.filter((value) => value !== permissionId)
+                          : [...item.permissions, permissionId],
+                      };
+                    }))}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </Section>
 
       {/* Sucursales */}
@@ -202,6 +665,11 @@ export default function SettingsPage() {
           <div className="pt-4"><Skeleton variant="text" lines={3} /></div>
         ) : (
           <div className="pt-4 space-y-3">
+            <div className="flex justify-end">
+              <button onClick={() => setNewBranchOpen(true)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
+                + Nueva sucursal
+              </button>
+            </div>
             {Array.isArray(branches) && branches.length > 0 ? (
               (branches as Array<{ id: string; name: string; address?: string; isMain?: boolean }>).map(b => (
                 <div key={b.id} className="flex items-center justify-between p-3 bg-[--bg-secondary] rounded-[--radius-md]">
@@ -268,6 +736,10 @@ export default function SettingsPage() {
           </div>
         </div>
       </Section>
+
+      {newBranchOpen && <NewBranchModal onClose={() => setNewBranchOpen(false)} onSave={() => { void refetchBranches(); setNewBranchOpen(false); }} />}
+      {newTerminalOpen && <NewTerminalModal branches={Array.isArray(branches) ? branches as Array<{ id: string; name: string }> : []} onClose={() => setNewTerminalOpen(false)} onSave={() => { void refetchTerminals(); setNewTerminalOpen(false); }} />}
+      {newRoleOpen && <NewRoleModal onClose={() => setNewRoleOpen(false)} onSave={upsertRole} />}
     </div>
   );
 }

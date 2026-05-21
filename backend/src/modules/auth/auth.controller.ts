@@ -1,17 +1,19 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { LoginPinDto } from './dto/login-pin.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -47,6 +49,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with PIN (for cashiers offline)' })
   async loginPin(@Body() dto: LoginPinDto) {
     return this.authService.loginPin(dto);
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current authenticated user profile' })
+  me(@CurrentUser() user: CurrentUserData) {
+    return this.authService.me(user);
   }
 
   @Public()

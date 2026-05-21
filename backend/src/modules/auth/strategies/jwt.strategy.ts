@@ -8,7 +8,9 @@ interface JwtPayload {
   tenantId: string;
   schemaName: string;
   role: string;
-  branchId: string;
+  branchId: string | null;
+  terminalId?: string | null;
+  deviceFingerprint?: string | null;
 }
 
 @Injectable()

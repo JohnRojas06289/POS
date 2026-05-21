@@ -8,6 +8,7 @@ import { PrismaService } from '../../database/prisma/prisma.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { hash } from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { assertValidSchemaName, TENANT_TEMPLATE_TABLES } from '../../common/utils/tenant-schema.util';
 
 export interface OnboardingResult {
   tenantId: string;
@@ -22,6 +23,8 @@ export class OnboardingService {
   constructor(private readonly prisma: PrismaService) {}
 
   async registerTenant(dto: RegisterTenantDto): Promise<OnboardingResult> {
+    assertValidSchemaName(dto.schemaName);
+
     const existing = await this.prisma.tenant.findFirst({
       where: {
         OR: [{ email: dto.email }, { schemaName: dto.schemaName }],
@@ -84,31 +87,67 @@ export class OnboardingService {
     passwordHash: string,
   ): Promise<void> {
     try {
+      assertValidSchemaName(schemaName);
+
+      for (const table of TENANT_TEMPLATE_TABLES) {
+        await this.prisma.$executeRawUnsafe(
+          `CREATE TABLE IF NOT EXISTS "${schemaName}"."${table}" (LIKE "tenant"."${table}" INCLUDING ALL)`,
+        );
+      }
+
+      const terminalId = uuidv4();
+      const configId = uuidv4();
+
       await this.prisma.$executeRawUnsafe(`
         INSERT INTO "${schemaName}"."Branch"
-          (id, "tenantId", name, "isMain", "isActive", "createdAt", "updatedAt")
+          (id, name, "isActive", "configOverride", "createdAt", "updatedAt")
         VALUES
-          ('${branchId}', '${tenantId}', 'Sucursal Principal', true, true, NOW(), NOW())
-        ON CONFLICT DO NOTHING
+          ('${branchId}', 'Sucursal Principal', true, '{}'::jsonb, NOW(), NOW())
+        ON CONFLICT (id) DO NOTHING
       `);
 
-      await this.prisma.$executeRawUnsafe(`
-        INSERT INTO "${schemaName}"."User"
-          (id, email, "passwordHash", name, role, "isActive", "createdAt", "updatedAt")
-        VALUES
-          ('${ownerId}', '${email}', '${passwordHash}', '${businessName}', 'owner', true, NOW(), NOW())
-        ON CONFLICT DO NOTHING
-      `);
+      await this.prisma.$executeRawUnsafe(
+        `INSERT INTO "${schemaName}"."User"
+          (id, "branchId", email, "passwordHash", name, role, "isActive", "createdAt", "updatedAt")
+         VALUES
+          ($1, NULL, $2, $3, $4, 'owner', true, NOW(), NOW())
+         ON CONFLICT (email) DO NOTHING`,
+        ownerId,
+        email,
+        passwordHash,
+        businessName,
+      );
 
-      await this.prisma.$executeRawUnsafe(`
-        INSERT INTO "${schemaName}"."Terminal"
-          (id, "branchId", name, "isActive", "createdAt", "updatedAt")
-        VALUES
-          ('${uuidv4()}', '${branchId}', 'Caja 1', true, NOW(), NOW())
-        ON CONFLICT DO NOTHING
-      `);
+      await this.prisma.$executeRawUnsafe(
+        `INSERT INTO "${schemaName}"."Terminal"
+          (id, "branchId", name, type, "deviceFingerprint", settings, "isBlocked", "isActive", "createdAt", "updatedAt")
+         VALUES
+          ($1, $2, 'Caja Principal', 'pos', NULL, '{}'::jsonb, false, true, NOW(), NOW())
+         ON CONFLICT (id) DO NOTHING`,
+        terminalId,
+        branchId,
+      );
+
+      await this.prisma.$executeRawUnsafe(
+        `INSERT INTO "${schemaName}"."TenantConfig"
+          (id, key, value, "posMode", "paymentMethods", "taxConfig", "dianConfig", "updatedAt")
+         VALUES
+          ($1, 'default', $2::jsonb, 'retail', $3::jsonb, $4::jsonb, $5::jsonb, NOW())
+         ON CONFLICT (key) DO UPDATE SET
+          value = EXCLUDED.value,
+          "paymentMethods" = EXCLUDED."paymentMethods",
+          "taxConfig" = EXCLUDED."taxConfig",
+          "dianConfig" = EXCLUDED."dianConfig",
+          "updatedAt" = NOW()`,
+        configId,
+        JSON.stringify({ businessName, tenantId, defaultBranchId: branchId, defaultTerminalId: terminalId }),
+        JSON.stringify(['cash', 'nequi', 'daviplata']),
+        JSON.stringify({ defaultRate: 0.19 }),
+        JSON.stringify({ currentInvoiceNumber: 1 }),
+      );
     } catch (error) {
       this.logger.error(`Schema provisioning failed for ${schemaName}: ${String(error)}`);
+      throw error;
     }
   }
 

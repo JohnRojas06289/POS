@@ -3,14 +3,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BarChart2, Briefcase, LayoutDashboard, LogOut, Package, Search, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { BarChart2, Briefcase, ClipboardList, LayoutDashboard, LogOut, Package, Search, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { ToastProvider } from '../../components/ui/Toast';
 import { useAuthStore } from '../../stores/auth.store';
+import { authApi } from '../../lib/api';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/orders', label: 'Órdenes', icon: ClipboardList },
   { href: '/analytics', label: 'Analíticas', icon: BarChart2 },
   { href: '/inventory', label: 'Inventario', icon: Package },
   { href: '/customers', label: 'Clientes', icon: Users },
@@ -44,6 +47,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, logout, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const { data: profile } = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: authApi.me,
+    retry: false,
+  });
   const activeLabel = NAV.find((item) => (item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)))?.label ?? 'Dashboard';
 
   useEffect(() => {
@@ -65,7 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!isAuthenticated) return null;
 
-  const initials = (user?.name ?? user?.email ?? 'N').slice(0, 1).toUpperCase();
+  const initials = (profile?.name ?? user?.name ?? user?.email ?? 'N').slice(0, 1).toUpperCase();
 
   return (
     <ToastProvider>
@@ -88,9 +96,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="mb-4 flex items-center gap-3 rounded-[var(--radius-lg)] bg-white/5 p-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--gold-500)] font-semibold text-[#1A1400]">{initials}</div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white">{user?.name ?? user?.email ?? 'Usuario'}</p>
+                <p className="truncate text-sm font-medium text-white">{profile?.name ?? user?.name ?? user?.email ?? 'Usuario'}</p>
                 <div className="mt-1 inline-flex rounded-full border border-[rgba(201,168,76,0.25)] bg-[rgba(201,168,76,0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-gold)]">
-                  Plan Pro
+                  {profile?.role ?? user?.role ?? 'Plan Pro'}
                 </div>
               </div>
             </div>
@@ -116,9 +124,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <kbd className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 text-xs text-[var(--text-tertiary)]">Cmd+K</kbd>
             </button>
             <ThemeToggle />
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--bg-subtle)] text-sm font-semibold text-[var(--text-primary)]">
+            <Link href="/profile" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--bg-subtle)] text-sm font-semibold text-[var(--text-primary)]" aria-label="Ir al perfil">
               {initials}
-            </div>
+            </Link>
           </header>
 
           <main id="main-content" className="min-w-0 flex-1 overflow-y-auto p-6">

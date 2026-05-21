@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, ShoppingCart, Users, Package, DollarSign } from 'lucide-react';
@@ -129,7 +130,7 @@ export default function DashboardHome() {
   }, [isError, toast]);
 
   const chartData = data?.salesByDay ?? FALLBACK_CHART;
-  const recentOrders = data?.recentOrders ?? [];
+  const recentOrders = (data?.recentOrders ?? []).slice(0, 3);
 
   return (
     <div className="space-y-6 p-6">
@@ -173,7 +174,12 @@ export default function DashboardHome() {
         </Card>
 
         <Card variant="default" padding="lg">
-          <h2 style={{ fontFamily: 'var(--font-display)' }} className="mb-4 text-base font-medium text-[var(--text-primary)]">Órdenes recientes</h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 style={{ fontFamily: 'var(--font-display)' }} className="text-base font-medium text-[var(--text-primary)]">Órdenes recientes</h2>
+            <Link href="/orders" className="text-xs font-medium text-[var(--text-gold)] hover:underline">
+              Ver más
+            </Link>
+          </div>
           {isLoading ? (
             <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="table-row" />)}</div>
           ) : recentOrders.length === 0 ? (
