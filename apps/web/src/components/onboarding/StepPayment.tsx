@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../stores/auth.store';
 import type { OnboardingData } from './OnboardingFlow';
@@ -90,8 +90,8 @@ export function StepPayment({ data, onBack }: Props) {
 
       setStep('success');
 
-      await new Promise((r) => setTimeout(r, 1800));
-      router.push('/pos');
+      await new Promise((r) => setTimeout(r, 2000));
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado. Intenta de nuevo.');
       setStep('form');
@@ -103,16 +103,16 @@ export function StepPayment({ data, onBack }: Props) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <div
-          className="w-16 h-16 rounded-full border-4 border-t-transparent animate-spin mb-8"
-          style={{ borderColor: 'var(--gold-200)', borderTopColor: 'var(--gold-500)' }}
+          className="w-16 h-16 rounded-full border-4 animate-spin mb-8"
+          style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopColor: '#C9A84C' }}
         />
-        <h2 className="text-xl font-display font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="text-xl font-medium tracking-tight text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
           Procesando pago...
         </h2>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm text-white/45">
           Estamos verificando tu tarjeta con el banco.
         </p>
-        <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+        <p className="text-xs mt-2 text-white/25">
           No cierres esta ventana.
         </p>
       </div>
@@ -122,50 +122,83 @@ export function StepPayment({ data, onBack }: Props) {
   // ── Success screen ─────────────────────────────────────────────────────────
   if (step === 'success') {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div
-          className="w-16 h-16 rounded-full flex items-center justify-center mb-6"
-          style={{ background: 'var(--success-bg)' }}
-        >
-          <span className="text-3xl">✓</span>
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        {/* Animated gold checkmark */}
+        <div className="relative mb-8">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(201,168,76,0.08)', border: '1.5px solid rgba(201,168,76,0.25)' }}
+          >
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(201,168,76,0.15)' }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M5 13l4 4L19 7" stroke="#C9A84C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+          <div className="absolute inset-0 rounded-full" style={{ boxShadow: '0 0 48px rgba(201,168,76,0.18)' }} />
         </div>
-        <h2 className="text-xl font-display font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-          ¡Pago exitoso!
+
+        <h2 className="text-2xl font-medium tracking-tight text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+          ¡Tu negocio está listo!
         </h2>
-        <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-          Tu cuenta ha sido creada. Preparando tu POS...
+        {data.businessName && (
+          <p className="text-sm font-semibold mb-3" style={{ color: '#C9A84C' }}>
+            {data.businessName}
+          </p>
+        )}
+        <p className="text-sm text-white/40 mb-10 max-w-xs leading-relaxed">
+          Tu cuenta ha sido creada y tu plataforma está lista.<br />
+          Accederás en un momento.
         </p>
-        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          Serás redirigido automáticamente.
-        </p>
+
+        {/* Progress indicator */}
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full" style={{ background: '#C9A84C' }} />
+          <div className="w-14 h-px" style={{ background: '#C9A84C' }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: '#C9A84C' }} />
+          <div className="w-14 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }} />
+        </div>
+        <p className="mt-3 text-xs text-white/25">Preparando tu espacio...</p>
       </div>
     );
   }
 
+  const inputStyle = {
+    border: '1.5px solid rgba(255,255,255,0.1)',
+    background: '#161616',
+    color: 'rgba(242,240,235,0.9)',
+  };
+  const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => (e.currentTarget.style.borderColor = '#C9A84C');
+  const inputBlur = (e: React.FocusEvent<HTMLInputElement>) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)');
+
   // ── Payment form ───────────────────────────────────────────────────────────
   return (
     <div>
-      <h2 className="text-2xl font-display font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+      <h2 className="text-2xl font-medium tracking-tight text-white mb-1" style={{ fontFamily: 'var(--font-display)' }}>
         Pago
       </h2>
-      <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-sm mb-6 text-white/45">
         Ingresa los datos de tu tarjeta para activar tu cuenta.
       </p>
 
       {/* Order summary */}
       <div
         className="rounded-xl px-4 py-3 mb-6 flex items-center justify-between"
-        style={{ background: 'var(--bg-subtle)', border: '1.5px solid var(--border-default)' }}
+        style={{ background: '#161616', border: '1.5px solid rgba(255,255,255,0.1)' }}
       >
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-0.5 text-white/30">
             Plan {data.planName}
           </p>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-xs text-white/45">
             {data.businessName} · Facturación mensual
           </p>
         </div>
-        <span className="text-lg font-bold" style={{ color: 'var(--gold-600)' }}>
+        <span className="text-lg font-bold" style={{ color: '#C9A84C' }}>
           {formatPrice(data.planPrice ?? 0)}
         </span>
       </div>
@@ -174,12 +207,12 @@ export function StepPayment({ data, onBack }: Props) {
       <div className="space-y-3 mb-6">
         {/* Card number */}
         <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+          <label className="block text-xs font-medium mb-1 text-white/55">
             Número de tarjeta
           </label>
           <div
-            className="flex items-center gap-2 rounded-lg px-3 py-2.5"
-            style={{ border: '1.5px solid var(--border-default)', background: 'var(--bg-surface)' }}
+            className="flex items-center gap-2 rounded-lg px-3 py-2.5 transition-all"
+            style={inputStyle}
           >
             <span className="text-base">💳</span>
             <input
@@ -188,15 +221,15 @@ export function StepPayment({ data, onBack }: Props) {
               value={cardNumber}
               onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
               placeholder="0000 0000 0000 0000"
-              className="flex-1 text-sm bg-transparent outline-none"
-              style={{ color: 'var(--text-primary)' }}
+              className="flex-1 text-sm bg-transparent outline-none placeholder:text-white/20"
+              style={{ color: 'rgba(242,240,235,0.9)' }}
             />
           </div>
         </div>
 
         {/* Card name */}
         <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+          <label className="block text-xs font-medium mb-1 text-white/55">
             Nombre en la tarjeta
           </label>
           <input
@@ -204,19 +237,17 @@ export function StepPayment({ data, onBack }: Props) {
             value={cardName}
             onChange={(e) => setCardName(e.target.value.toUpperCase())}
             placeholder="JUAN PÉREZ"
-            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none"
-            style={{
-              border: '1.5px solid var(--border-default)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-            }}
+            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all placeholder:text-white/20"
+            style={inputStyle}
+            onFocus={inputFocus}
+            onBlur={inputBlur}
           />
         </div>
 
         {/* Expiry + CVV */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            <label className="block text-xs font-medium mb-1 text-white/55">
               Vencimiento
             </label>
             <input
@@ -225,16 +256,14 @@ export function StepPayment({ data, onBack }: Props) {
               value={expiry}
               onChange={(e) => setExpiry(formatExpiry(e.target.value))}
               placeholder="MM/AA"
-              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none"
-              style={{
-                border: '1.5px solid var(--border-default)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-              }}
+              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all placeholder:text-white/20"
+              style={inputStyle}
+              onFocus={inputFocus}
+              onBlur={inputBlur}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            <label className="block text-xs font-medium mb-1 text-white/55">
               CVV
             </label>
             <input
@@ -243,12 +272,10 @@ export function StepPayment({ data, onBack }: Props) {
               value={cvv}
               onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
               placeholder="•••"
-              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none"
-              style={{
-                border: '1.5px solid var(--border-default)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-              }}
+              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all placeholder:text-white/20"
+              style={inputStyle}
+              onFocus={inputFocus}
+              onBlur={inputBlur}
             />
           </div>
         </div>
@@ -257,7 +284,7 @@ export function StepPayment({ data, onBack }: Props) {
       {/* Security badges */}
       <div className="flex items-center justify-center gap-4 mb-6">
         {['🔒 SSL', '🛡️ PCI DSS', '✓ 3D Secure'].map((b) => (
-          <span key={b} className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <span key={b} className="text-xs text-white/25">
             {b}
           </span>
         ))}
@@ -266,7 +293,7 @@ export function StepPayment({ data, onBack }: Props) {
       {error && (
         <div
           className="flex items-start gap-2 rounded-xl px-4 py-3 mb-4 text-sm"
-          style={{ background: 'var(--danger-bg)', color: 'var(--danger-text)' }}
+          style={{ background: 'rgba(240,149,149,0.1)', color: '#F09595', border: '1px solid rgba(240,149,149,0.15)' }}
         >
           <span>⚠️</span>
           <p>{error}</p>
@@ -277,8 +304,8 @@ export function StepPayment({ data, onBack }: Props) {
         <button
           type="button"
           onClick={onBack}
-          className="flex-1 py-3 rounded-xl text-sm font-medium transition-all"
-          style={{ border: '1.5px solid var(--border-default)', color: 'var(--text-secondary)' }}
+          className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:text-white/80 text-white/50"
+          style={{ border: '1.5px solid rgba(255,255,255,0.1)', background: 'transparent' }}
         >
           ← Atrás
         </button>
@@ -286,14 +313,14 @@ export function StepPayment({ data, onBack }: Props) {
           type="button"
           onClick={handlePay}
           disabled={!isCardValid}
-          className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 flex items-center justify-center gap-2"
-          style={{ background: 'var(--gold-500)', color: '#fff' }}
+          className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-2"
+          style={{ background: '#C9A84C', color: '#0A0A0A' }}
         >
           🔒 Pagar {formatPrice(data.planPrice ?? 0)}
         </button>
       </div>
 
-      <p className="text-center text-xs mt-4" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="text-center text-xs mt-4 text-white/25">
         Tus datos están encriptados y protegidos.
       </p>
     </div>
