@@ -4,6 +4,7 @@ WORKDIR /app
 
 RUN npm install -g pnpm@9
 
+# Install dependencies from monorepo root
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY backend/package.json ./backend/
 COPY packages/db-types/package.json ./packages/db-types/
@@ -11,11 +12,14 @@ COPY packages/core/package.json ./packages/core/
 
 RUN pnpm install --frozen-lockfile --filter backend --filter @nexus/db-types --filter @nexus/core
 
+# Copy source
 COPY backend/ ./backend/
 COPY packages/ ./packages/
 
-RUN pnpm --filter backend exec prisma generate --schema=src/database/prisma/schema.prisma
-RUN pnpm --filter backend build
+# Generate Prisma client and build from inside the backend directory
+WORKDIR /app/backend
+RUN npx prisma generate --schema=src/database/prisma/schema.prisma
+RUN npx nest build
 
 # Stage 2: Production
 FROM node:20-alpine AS runner
