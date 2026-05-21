@@ -15,6 +15,8 @@ import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { EmployeesModule } from './modules/employees/employees.module';
 import { PrismaModule } from './database/prisma/prisma.module';
 import { RedisModule } from './database/redis/redis.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
@@ -48,6 +50,8 @@ import { HealthModule } from './modules/health/health.module';
     AnalyticsModule,
     WhatsappModule,
     OnboardingModule,
+    ExpensesModule,
+    EmployeesModule,
   ],
   providers: [
     {

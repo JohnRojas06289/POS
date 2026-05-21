@@ -5,10 +5,12 @@ import {
   CallHandler,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 interface JwtPayload {
   sub: string;
@@ -16,15 +18,14 @@ interface JwtPayload {
   tenantId: string;
   schemaName: string;
   role: string;
-  branchId: string;
+  branchId: string | null;
+  terminalId?: string | null;
+  deviceFingerprint?: string | null;
 }
 
 const PUBLIC_ROUTES = [
   '/health',
-  '/auth/login',
-  '/auth/register-tenant',
-  '/auth/refresh',
-  '/auth/login-pin',
+  '/auth',
   '/api/docs',
 ];
 
@@ -33,6 +34,7 @@ export class TenantInterceptor implements NestInterceptor {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -42,11 +44,16 @@ export class TenantInterceptor implements NestInterceptor {
       user?: JwtPayload;
     }>();
 
-    const isPublic = PUBLIC_ROUTES.some((route) =>
-      request.path.startsWith(route),
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    const isPublicByPath = PUBLIC_ROUTES.some((route) =>
+      request.path === route || request.path.startsWith(`${route}/`),
     );
 
-    if (isPublic) {
+    if (isPublic || isPublicByPath) {
       return next.handle();
     }
 

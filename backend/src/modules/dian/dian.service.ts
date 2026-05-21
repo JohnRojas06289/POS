@@ -89,6 +89,23 @@ export class DianService {
       },
     });
 
+    await this.prisma.tenantConfig.upsert({
+      where: { key: 'dian_config' },
+      update: {
+        value: {
+          ...config,
+          currentInvoiceNumber: (config.currentInvoiceNumber ?? 1) + 1,
+        } as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      },
+      create: {
+        key: 'dian_config',
+        value: {
+          ...config,
+          currentInvoiceNumber: (config.currentInvoiceNumber ?? 1) + 1,
+        } as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      },
+    });
+
     if (!IS_DEV) {
       // TODO: transmit to DIAN via habilitador (Certicámara / etc)
       this.logger.log(`TODO: transmit to DIAN — CUFE ${cufe}`);
@@ -147,6 +164,39 @@ export class DianService {
     };
   }
 
+  async generateDebitNote(originalOrderId: string, debitOrderId: string, reason?: string) {
+    const originalDoc = await this.prisma.dianDocument.findFirst({
+      where: { orderId: originalOrderId, documentType: 'invoice' },
+    });
+    if (!originalDoc) throw new NotFoundException(`No invoice found for original order ${originalOrderId}`);
+
+    const now = new Date();
+    const debitNoteNumber = `ND${now.getTime().toString(36).toUpperCase()}`;
+
+    const doc = await this.prisma.dianDocument.create({
+      data: {
+        id: uuidv4(),
+        orderId: debitOrderId,
+        documentType: 'debit_note',
+        cufe: `DN-${originalDoc.cufe?.slice(0, 20)}`,
+        status: IS_DEV ? 'generated' : 'pending',
+        payload: {
+          debitNoteNumber,
+          originalCufe: originalDoc.cufe,
+          reason,
+          issueDate: now.toISOString().split('T')[0],
+        } as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      debitNoteNumber,
+      originalCufe: originalDoc.cufe,
+      status: doc.status,
+      isDev: IS_DEV,
+    };
+  }
+
   async getTaxSummary(from: string, to: string) {
     const orders = await this.prisma.order.findMany({
       where: {
@@ -193,5 +243,45 @@ export class DianService {
     }
 
     return summary;
+  }
+
+  async getSalesBook(from: string, to: string) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        status: 'completed',
+        createdAt: { gte: new Date(from), lte: new Date(to) },
+      },
+      include: { payments: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const rows = orders.map((order) => ({
+      date: order.createdAt.toISOString(),
+      orderId: order.id,
+      branchId: order.branchId,
+      subtotal: Number(order.subtotal),
+      taxTotal: Number(order.taxTotal),
+      total: Number(order.total),
+      paymentMethods: order.payments.map((payment) => payment.method).join('|'),
+    }));
+
+    const csv = [
+      'date,orderId,branchId,subtotal,taxTotal,total,paymentMethods',
+      ...rows.map((row) => [
+        row.date,
+        row.orderId,
+        row.branchId,
+        row.subtotal,
+        row.taxTotal,
+        row.total,
+        row.paymentMethods,
+      ].join(',')),
+    ].join('\n');
+
+    return {
+      period: { from, to },
+      rows,
+      csv,
+    };
   }
 }

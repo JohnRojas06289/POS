@@ -10,8 +10,8 @@ export default () => ({
   jwt: {
     secret: process.env.JWT_SECRET ?? 'dev-secret',
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret',
-    expiresIn: '1h',
-    refreshExpiresIn: '30d',
+    expiresIn: process.env.JWT_ACCESS_EXPIRES ?? '15m',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES ?? '30d',
   },
   wompi: {
     publicKey: process.env.WOMPI_PUBLIC_KEY ?? '',

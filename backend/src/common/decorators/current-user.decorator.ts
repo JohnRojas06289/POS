@@ -6,7 +6,9 @@ export interface CurrentUserData {
   tenantId: string;
   schemaName: string;
   role: string;
-  branchId: string;
+  branchId: string | null;
+  terminalId?: string | null;
+  deviceFingerprint?: string | null;
 }
 
 export const CurrentUser = createParamDecorator(

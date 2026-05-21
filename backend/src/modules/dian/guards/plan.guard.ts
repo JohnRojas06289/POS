@@ -20,21 +20,39 @@ export class PlanGuard implements CanActivate {
     const cached = await this.redis.get(cacheKey);
 
     let planSlug: string;
+    let killSwitch = false;
 
     if (cached) {
-      planSlug = cached;
+      try {
+        const parsed = JSON.parse(cached) as { planSlug: string; killSwitch?: boolean };
+        planSlug = parsed.planSlug;
+        killSwitch = Boolean(parsed.killSwitch);
+      } catch {
+        planSlug = cached;
+      }
     } else {
-      const subscription = await this.prisma.subscription.findFirst({
-        where: { tenantId, status: 'active' },
-        include: { plan: true },
-      });
+      const rows = await this.prisma.$queryRawUnsafe(
+        `SELECT s."killSwitch", p.slug as "planSlug"
+         FROM "public"."Subscription" s
+         JOIN "public"."Plan" p ON p.id = s."planId"
+         WHERE s."tenantId" = $1 AND s.status = 'active'
+         ORDER BY s."createdAt" DESC
+         LIMIT 1`,
+        tenantId,
+      ) as Array<{ killSwitch: boolean; planSlug: string }>;
 
+      const subscription = rows[0];
       if (!subscription) {
         throw new ForbiddenException('No active subscription found');
       }
 
-      planSlug = subscription.plan.slug;
-      await this.redis.set(cacheKey, planSlug, CACHE_TTL);
+      planSlug = subscription.planSlug;
+      killSwitch = Boolean(subscription.killSwitch);
+      await this.redis.set(cacheKey, JSON.stringify({ planSlug, killSwitch }), CACHE_TTL);
+    }
+
+    if (killSwitch) {
+      throw new ForbiddenException('Subscription is blocked by kill-switch');
     }
 
     if (!ALLOWED_PLANS.includes(planSlug)) {

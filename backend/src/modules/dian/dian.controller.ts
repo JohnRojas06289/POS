@@ -34,9 +34,25 @@ export class DianController {
     return this.dianService.generateCreditNote(originalOrderId, refundOrderId, reason);
   }
 
+  @Post('debit-notes')
+  @ApiOperation({ summary: 'Generate debit note (nota débito) for additional charges' })
+  debitNote(
+    @Body('originalOrderId') originalOrderId: string,
+    @Body('debitOrderId') debitOrderId: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.dianService.generateDebitNote(originalOrderId, debitOrderId, reason);
+  }
+
   @Get('tax-summary')
   @ApiOperation({ summary: 'Tax summary for a period (for quarterly declaration)' })
   taxSummary(@Query('from') from: string, @Query('to') to: string) {
     return this.dianService.getTaxSummary(from, to);
+  }
+
+  @Get('sales-book')
+  @ApiOperation({ summary: 'Sales book export for accounting software' })
+  salesBook(@Query('from') from: string, @Query('to') to: string) {
+    return this.dianService.getSalesBook(from, to);
   }
 }
