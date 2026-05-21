@@ -19,6 +19,7 @@ function processQueue(error: unknown, token: string | null): void {
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 45_000,
 });
 
 api.interceptors.request.use((config) => {

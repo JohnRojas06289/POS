@@ -25,7 +25,6 @@ interface JwtPayload {
 
 const PUBLIC_ROUTES = [
   '/health',
-  '/auth',
   '/api/docs',
 ];
 

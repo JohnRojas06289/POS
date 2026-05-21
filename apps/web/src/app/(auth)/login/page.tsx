@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Badge, Button, Card } from '../../../components/ui';
 import { ThemeToggle } from '../../../components/ui/ThemeToggle';
 import { useAuthStore } from '../../../stores/auth.store';
@@ -43,15 +44,20 @@ export default function LoginPage() {
   const [branchId, setBranchId] = useState('');
   const [pin, setPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [slowRequest, setSlowRequest] = useState(false);
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     clearError();
+    setSlowRequest(false);
+    const timer = setTimeout(() => setSlowRequest(true), 4000);
     try {
       await login(email, password, tenantEmail);
+      clearTimeout(timer);
       router.push('/');
     } catch {
-      // error handled by store
+      clearTimeout(timer);
+      setSlowRequest(false);
     }
   }
 
@@ -214,6 +220,20 @@ export default function LoginPage() {
                     <span>Acceso demo precargado para pruebas.</span>
                     <span className="font-mono-data">Ctrl + K en app</span>
                   </div>
+
+                  <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
+                    <span>¿Perdiste acceso?</span>
+                    <Link href="/forgot-password" className="font-medium text-[var(--text-primary)] underline decoration-[var(--gold-500)] underline-offset-4">
+                      Recuperar contraseña
+                    </Link>
+                  </div>
+
+                  {slowRequest && isLoading && (
+                    <div className="rounded-[var(--radius-md)] border border-[var(--gold-500)]/30 bg-[var(--gold-500)]/8 px-4 py-3 text-xs text-[var(--text-secondary)]">
+                      <p className="font-medium text-[var(--text-gold)]">El servidor está iniciando…</p>
+                      <p className="mt-0.5">El servidor gratuito tarda hasta 60 s en despertar. Espera un momento.</p>
+                    </div>
+                  )}
 
                   <Button type="submit" loading={isLoading} fullWidth size="lg" variant="gold" className="mt-2">
                     {isLoading ? 'Ingresando...' : 'Entrar al POS'}
