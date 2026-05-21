@@ -126,10 +126,23 @@ export class AuthService {
       },
     });
 
+    // Load business template config
+    const template = await this.prisma.businessTemplate.findUnique({
+      where: { slug: tenant.businessType },
+    });
+    const templateConfig = (template?.config ?? {}) as Record<string, unknown>;
+
     // Provision tenant schema and create owner user
     const passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
     const userId = uuidv4();
-    await this.provisionTenantSchema(schemaName, userId, dto.email, dto.ownerName ?? dto.tenantName, passwordHash);
+    await this.provisionTenantSchema(
+      schemaName,
+      userId,
+      dto.email,
+      dto.ownerName ?? dto.tenantName,
+      passwordHash,
+      templateConfig,
+    );
 
     return this.generateTokens(userId, dto.email, tenant.id, schemaName, 'owner', null);
   }
@@ -140,6 +153,7 @@ export class AuthService {
     email: string,
     name: string,
     passwordHash: string,
+    templateConfig: Record<string, unknown> = {},
   ): Promise<void> {
     assertValidSchemaName(schemaName);
 
@@ -182,11 +196,20 @@ export class AuthService {
       branchId,
     );
 
+    const posMode = (templateConfig.posMode as string | undefined) ?? 'retail';
+    const paymentMethods = (templateConfig.paymentMethods as string[] | undefined) ?? ['cash', 'nequi', 'daviplata'];
+    const defaultTaxRate = (templateConfig.defaultTaxRate as number | undefined) ?? 0.19;
+    const variantAttributes = (templateConfig.variantAttributes as string[] | undefined) ?? [];
+    const defaultSizes = (templateConfig.defaultSizes as string[] | undefined) ?? [];
+    const weightBased = (templateConfig.weightBased as boolean | undefined) ?? false;
+    const modules = (templateConfig.modules as string[] | undefined) ?? ['pos', 'inventory'];
+    const categories = (templateConfig.categories as Array<{ name: string; taxRate: number }> | undefined) ?? [];
+
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO "${schemaName}"."TenantConfig"
         (id, key, value, "posMode", "paymentMethods", "taxConfig", "dianConfig", "updatedAt")
        VALUES
-        ($1, 'default', $2::jsonb, 'retail', $3::jsonb, $4::jsonb, $5::jsonb, NOW())
+        ($1, 'default', $2::jsonb, $3, $4::jsonb, $5::jsonb, $6::jsonb, NOW())
        ON CONFLICT (key) DO UPDATE SET
         value = EXCLUDED.value,
         "posMode" = EXCLUDED."posMode",
@@ -200,9 +223,15 @@ export class AuthService {
         defaultBranchId: branchId,
         defaultTerminalId: terminalId,
         roles: DEFAULT_ROLE_CONFIGS,
+        variantAttributes,
+        defaultSizes,
+        weightBased,
+        modules,
+        categories,
       }),
-      JSON.stringify(['cash', 'nequi', 'daviplata']),
-      JSON.stringify({ defaultRate: 0.19 }),
+      posMode,
+      JSON.stringify(paymentMethods),
+      JSON.stringify({ defaultRate: defaultTaxRate }),
       JSON.stringify({ currentInvoiceNumber: 1 }),
     );
   }

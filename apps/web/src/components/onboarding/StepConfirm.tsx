@@ -11,12 +11,13 @@ interface Props {
 }
 
 const BUSINESS_TYPE_LABELS: Record<string, string> = {
-  retail: 'Tienda / Ropa',
-  food: 'Restaurante / Café',
-  supermarket: 'Supermercado',
-  services: 'Servicios',
-  pharmacy: 'Farmacia',
-  other: 'Otro',
+  retail_clothing: 'Tienda de Ropa / Boutique',
+  grocery: 'Supermercado / Abarrotes',
+  restaurant: 'Restaurante / Cafetería',
+  pharmacy: 'Farmacia / Droguería',
+  hardware_store: 'Ferretería / Materiales',
+  beauty_salon: 'Salón de Belleza / Spa',
+  stationery: 'Papelería / Miscelánea',
 };
 
 function formatPrice(price: number): string {

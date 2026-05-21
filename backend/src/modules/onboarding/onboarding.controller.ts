@@ -29,4 +29,11 @@ export class OnboardingController {
   status(@Param('tenantId') tenantId: string) {
     return this.onboardingService.getOnboardingStatus(tenantId);
   }
+
+  @Get('templates')
+  @Public()
+  @ApiOperation({ summary: 'List all business templates for onboarding' })
+  getTemplates() {
+    return this.onboardingService.getTemplates();
+  }
 }

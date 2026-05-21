@@ -151,6 +151,13 @@ export class OnboardingService {
     }
   }
 
+  async getTemplates() {
+    return this.prisma.businessTemplate.findMany({
+      select: { slug: true, name: true, description: true, config: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async checkSchemaAvailability(schemaName: string): Promise<{ available: boolean }> {
     if (!/^[a-z0-9_]+$/.test(schemaName) || schemaName.length < 3) {
       return { available: false };
