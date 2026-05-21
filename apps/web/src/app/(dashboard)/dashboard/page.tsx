@@ -63,14 +63,14 @@ function KpiCard({ title, value, format = 'number', delta, icon, color, loading 
   return (
     <Card variant="default" padding="lg" className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[--text-secondary]">{title}</span>
-        <span className={`w-9 h-9 rounded-[--radius-md] flex items-center justify-center ${color}`}>{icon}</span>
+        <span className="text-sm font-medium text-[var(--text-secondary)]">{title}</span>
+        <span className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center ${color}`}>{icon}</span>
       </div>
       <div>
-        <p className="text-2xl font-bold text-[--text-primary] tabular-nums">
+        <p className="text-2xl font-bold text-[var(--text-primary)] tabular-nums">
           {format === 'currency' ? formatCOP(animated) : animated.toLocaleString('es-CO')}
         </p>
-        <p className={`text-xs mt-1 flex items-center gap-1 ${positive ? 'text-[--success]' : 'text-[--danger]'}`}>
+        <p className={`text-xs mt-1 flex items-center gap-1 ${positive ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
           {positive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           {positive ? '+' : ''}{delta}% vs semana anterior
         </p>
@@ -82,9 +82,9 @@ function KpiCard({ title, value, format = 'number', delta, icon, color, loading 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[--bg-primary] border border-[--border] rounded-[--radius-md] px-3 py-2 shadow-[--shadow-md]">
-      <p className="text-xs font-medium text-[--text-secondary] mb-1">{label}</p>
-      <p className="text-sm font-bold text-[--text-primary]">{formatCOP(payload[0].value)}</p>
+    <div className="bg-[var(--bg-primary)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 shadow-[var(--shadow-md)]">
+      <p className="text-xs font-medium text-[var(--text-secondary)] mb-1">{label}</p>
+      <p className="text-sm font-bold text-[var(--text-primary)]">{formatCOP(payload[0].value)}</p>
     </div>
   );
 };

@@ -1,342 +1,468 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
-import { Badge, Card } from '../components/ui';
-import { ArrowRight, BarChart3, Boxes, CalendarRange, CloudOff, CreditCard, LayoutGrid, ShieldCheck, Sparkles, Store, Users, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BarChart3, Boxes, CheckCircle2, CloudOff, LayoutGrid, ShieldCheck, Store, Zap } from 'lucide-react';
 import { cn } from '../lib/cn';
 
 export const metadata = {
-  title: 'NEXUS POS | Comercio que opera rápido',
-  description: 'Un POS premium para vender, controlar inventario, administrar usuarios y operar incluso sin internet.',
+  title: 'NEXUS POS — El POS que tu negocio merece',
+  description: 'Punto de venta premium para negocios colombianos. Ventas, inventario, analíticas y operación offline desde una sola plataforma.',
 };
 
-const highlights = [
+const BUSINESS_TYPES = [
+  'Tienda de ropa', 'Supermercado', 'Restaurante', 'Farmacia',
+  'Ferretería', 'Salón de belleza', 'Cafetería', 'Papelería',
+  'Droguería', 'Distribuidora', 'Minimarket', 'Librería',
+  'Miscelánea', 'Panadería', 'Zapatería', 'Electrónica',
+];
+
+const PLANS = [
   {
-    title: 'Ventas rápidas',
-    description: 'Cobro ágil, POS claro y flujo pensado para caja real, no para demo.',
-    icon: CreditCard,
+    name: 'Lite',
+    badge: null as string | null,
+    price: 'Pago único',
+    description: 'Para empezar sin mensualidades.',
+    features: ['1 sucursal', '1 usuario admin', 'POS completo', 'Inventario básico', 'Soporte por email'],
+    cta: { label: 'Empezar', href: '/register' },
+    highlight: false,
   },
   {
-    title: 'Inventario vivo',
-    description: 'Productos, variantes, stock mínimo, kardex y control por sucursal.',
-    icon: Boxes,
+    name: 'Starter',
+    badge: 'Más popular' as string | null,
+    price: 'Mensual',
+    description: 'Para negocios con equipo y crecimiento.',
+    features: ['3 sucursales', '5 usuarios', 'POS + inventario', 'Analíticas avanzadas', 'Roles y permisos', 'Soporte prioritario'],
+    cta: { label: 'Elegir Starter', href: '/register' },
+    highlight: true,
   },
   {
-    title: 'Operación offline',
-    description: 'La caja sigue funcionando sin internet y sincroniza cuando regresa la conexión.',
-    icon: CloudOff,
-  },
-  {
-    title: 'Roles y permisos',
-    description: 'Usuarios del sistema con acceso exacto. Empleados separados de la nómina.',
-    icon: Users,
+    name: 'Pro',
+    badge: null as string | null,
+    price: 'Mensual',
+    description: 'Para operaciones grandes y exigentes.',
+    features: ['Sucursales ilimitadas', 'Usuarios ilimitados', 'Todo de Starter', 'Integración DIAN', 'API access', 'SLA 99.9%'],
+    cta: { label: 'Hablar con ventas', href: '/register' },
+    highlight: false,
   },
 ];
 
-const capabilities = [
-  'Onboarding guiado con negocio, plan, cuenta y activación',
-  'Planes claros: pago único o suscripción mensual según el negocio',
-  'Multi-sucursal, terminales y control de caja por punto de venta',
-  'Analíticas de ventas, inventario, clientes y rotación',
-  'DIAN, impuestos y ajustes por tipo de negocio',
-  'Recuperación de contraseña y acceso por email',
-];
-
-const modules = [
-  {
-    title: 'POS y caja',
-    description: 'Venta en segundos, suspensión de órdenes y operación fluida para el mostrador.',
-    icon: Store,
-  },
-  {
-    title: 'Inventario',
-    description: 'Variantes, entradas, bajo stock, kardex y trazabilidad por producto.',
-    icon: Boxes,
-  },
-  {
-    title: 'Analíticas',
-    description: 'Ventas, mix de pago, top productos, clientes y margen estimado.',
-    icon: BarChart3,
-  },
-  {
-    title: 'Sucursales',
-    description: 'Cada local con su terminal, sus límites y su configuración operativa.',
-    icon: LayoutGrid,
-  },
-  {
-    title: 'Calendario y turnos',
-    description: 'La base para controlar operación diaria, cambios y continuidad de equipo.',
-    icon: CalendarRange,
-  },
-  {
-    title: 'Seguridad',
-    description: 'Recuperación de acceso, roles y rotación segura de tokens.',
-    icon: ShieldCheck,
-  },
-];
-
-const businessTypes = [
-  'Tienda de ropa',
-  'Supermercado',
-  'Restaurante',
-  'Farmacia',
-  'Ferretería',
-  'Salón de belleza',
-];
-
-const planNotes = [
-  'Lite: pago único para arrancar sin suscripción mensual.',
-  'Starter y superiores: suscripción mensual con crecimiento por usuarios y sucursales.',
-  'El plan define límites reales y evita sorpresas al escalar.',
-];
-
-function SectionTitle({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
+function POSMock() {
   return (
-    <div className="max-w-2xl space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--text-gold)]">{eyebrow}</p>
-      <h2 className="text-3xl font-medium tracking-tight text-[var(--text-primary)] sm:text-4xl">{title}</h2>
-      <p className="text-sm leading-7 text-[var(--text-secondary)] sm:text-base">{description}</p>
-    </div>
-  );
-}
-
-function FeatureCard({ title, description, icon: Icon }: { title: string; description: string; icon: LucideIcon }) {
-  return (
-    <Card variant="interactive" className="group border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-all duration-200 hover:border-[var(--border-gold)]">
-      <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)] text-[var(--text-gold)] transition-transform duration-200 group-hover:scale-105">
-          <Icon size={18} />
+    <div className="rounded-2xl border border-white/10 bg-[#111111] p-5 shadow-[0_40px_80px_rgba(0,0,0,0.7)]">
+      <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-4">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">Caja principal</p>
+          <p className="mt-1 text-xl font-medium text-white" style={{ fontFamily: 'var(--font-display)' }}>Turno activo</p>
         </div>
-        <div className="space-y-2">
-          <h3 className="text-lg font-medium text-[var(--text-primary)]">{title}</h3>
-          <p className="text-sm leading-6 text-[var(--text-secondary)]">{description}</p>
+        <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+          <span className="text-[11px] font-medium text-emerald-400">En línea</span>
         </div>
       </div>
-    </Card>
-  );
-}
 
-function LinkButton({ href, className, children }: { href: string; className?: string; children: ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        'inline-flex h-12 items-center justify-center gap-2 rounded-[var(--radius-md)] border px-6 text-[15px] font-medium transition-all duration-150 active:scale-[0.98]',
-        className,
-      )}
-    >
-      {children}
-    </Link>
+      <div className="space-y-2">
+        {[
+          { name: 'Camiseta básica talla M', qty: 2, price: '$45.000' },
+          { name: 'Jean slim fit 32', qty: 1, price: '$89.900' },
+          { name: 'Cinturón cuero café', qty: 1, price: '$32.000' },
+        ].map((item, i) => (
+          <div key={i} className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.03] px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-6 w-6 flex-none items-center justify-center rounded-lg bg-[rgba(201,168,76,0.15)] text-[11px] font-bold text-[#C9A84C]">
+                {item.qty}
+              </div>
+              <p className="truncate text-[13px] text-white/75">{item.name}</p>
+            </div>
+            <p className="ml-3 flex-none text-[13px] font-semibold text-white">{item.price}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-xl border border-[rgba(201,168,76,0.22)] bg-[rgba(201,168,76,0.07)] px-4 py-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-white/50">Total a cobrar</p>
+          <p className="text-2xl font-bold text-[#C9A84C]" style={{ fontFamily: 'var(--font-mono)' }}>$166.900</p>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {['Efectivo', 'Tarjeta', 'Transferencia'].map((m, i) => (
+            <div
+              key={m}
+              className={cn(
+                'rounded-lg py-2 text-center text-[12px] font-medium transition-colors',
+                i === 0
+                  ? 'bg-[rgba(201,168,76,0.2)] text-[#C9A84C]'
+                  : 'bg-white/5 text-white/40',
+              )}
+            >
+              {m}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function HomePage() {
   return (
-    <main className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(201,168,76,0.18),transparent_26%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.08),transparent_22%),radial-gradient(circle_at_bottom_right,rgba(201,168,76,0.06),transparent_24%),var(--bg-base)]">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(0,0,0,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.04)_1px,transparent_1px)] [background-size:72px_72px]" />
+    <main className="relative min-h-screen overflow-x-hidden bg-[#0A0A0A] text-white">
 
-      <section className="relative mx-auto max-w-7xl px-6 pb-16 pt-6 sm:px-8 lg:px-10 lg:pb-24 lg:pt-8">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <p style={{ fontFamily: 'var(--font-display)' }} className="text-2xl font-medium tracking-tight text-[var(--text-primary)] sm:text-3xl">
-              NEXUS
+      {/* ── Ambient background ───────────────────── */}
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute inset-0 [background-image:linear-gradient(rgba(255,255,255,0.022)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.022)_1px,transparent_1px)] [background-size:72px_72px]" />
+        <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 bg-[radial-gradient(ellipse,rgba(201,168,76,0.09),transparent_65%)]" />
+        <div className="absolute bottom-0 right-0 h-[350px] w-[550px] bg-[radial-gradient(ellipse,rgba(201,168,76,0.04),transparent_65%)]" />
+      </div>
+
+      {/* ── Navbar ──────────────────────────────────── */}
+      <header className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-6 py-5 sm:px-8">
+        <div>
+          <p className="text-2xl font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
+            NEXUS
+          </p>
+          <p className="text-[10px] uppercase tracking-[0.28em] text-white/30">Premium POS</p>
+        </div>
+
+        <nav className="hidden items-center gap-6 sm:flex" aria-label="Navegación principal">
+          <Link href="#features" className="text-sm text-white/50 transition-colors hover:text-white">Producto</Link>
+          <Link href="#plans" className="text-sm text-white/50 transition-colors hover:text-white">Planes</Link>
+          <Link href="/login" className="text-sm text-white/50 transition-colors hover:text-white">Ingresar</Link>
+        </nav>
+
+        <Link
+          href="/register"
+          className="hidden h-9 items-center gap-2 rounded-full border border-[rgba(201,168,76,0.35)] bg-[rgba(201,168,76,0.08)] px-4 text-sm font-medium text-[#C9A84C] transition-all hover:border-[rgba(201,168,76,0.6)] hover:bg-[rgba(201,168,76,0.15)] sm:inline-flex"
+        >
+          Empezar gratis <ArrowRight size={12} />
+        </Link>
+
+        <Link
+          href="/register"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#C9A84C] px-4 text-sm font-semibold text-[#0A0A0A] sm:hidden"
+        >
+          Empezar
+        </Link>
+      </header>
+
+      {/* ── Hero ────────────────────────────────────── */}
+      <section className="relative z-10 mx-auto max-w-7xl px-6 pb-20 pt-10 sm:px-8 lg:pt-14">
+        <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-12">
+
+          {/* Copy */}
+          <div className="animate-fade-up">
+            <div className="badge-glow inline-flex items-center gap-2 rounded-full border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.07)] px-3.5 py-1.5 text-xs font-medium text-[#C9A84C]">
+              <Zap size={11} />
+              Offline-first · Multi-sucursal · DIAN ready
+            </div>
+
+            <h1
+              className="mt-6 text-5xl font-medium leading-[0.93] tracking-[-0.03em] sm:text-6xl xl:text-[72px]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              El POS que tu<br />
+              negocio{' '}
+              <span className="text-shimmer">merece.</span>
+            </h1>
+
+            <p className="mt-6 max-w-lg text-base leading-8 text-white/50 sm:text-lg">
+              Caja, inventario, sucursales, analíticas y operación sin internet — todo en una plataforma pensada para el comercio colombiano.
             </p>
-            <p className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[var(--text-tertiary)]">Premium POS</p>
-          </div>
 
-          <div className="hidden items-center gap-3 sm:flex">
-            <LinkButton href="/login" className="border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]">
-              Entrar
-            </LinkButton>
-            <LinkButton href="/register" className="border-transparent bg-[var(--gold-500)] text-[#1A1400] shadow-[var(--shadow-sm)] hover:bg-[var(--gold-400)] hover:shadow-[var(--shadow-md)]">
-              Empezar ahora <ArrowRight size={14} />
-            </LinkButton>
-          </div>
-        </header>
-
-        <div className="mt-14 grid items-center gap-10 lg:mt-20 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-8">
-            <div className="space-y-5">
-              <Badge variant="gold" dot pulse>Comercio serio, sin fricción</Badge>
-              <h1 className="max-w-4xl text-5xl font-medium leading-[0.94] tracking-tight text-[var(--text-primary)] sm:text-6xl xl:text-7xl">
-                Un POS premium para vender más, controlar mejor y operar sin interrupciones.
-              </h1>
-              <p className="max-w-2xl text-base leading-8 text-[var(--text-secondary)] sm:text-lg">
-                NEXUS reúne caja, inventario, roles, sucursales, analíticas, DIAN y recuperación de acceso en una experiencia clara, rápida y visualmente cuidada.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <LinkButton href="/register" className="border-transparent bg-[var(--gold-500)] text-[#1A1400] shadow-[var(--shadow-sm)] hover:bg-[var(--gold-400)] hover:shadow-[var(--shadow-md)]">
-                Crear mi cuenta <ArrowRight size={16} />
-              </LinkButton>
-              <LinkButton href="/login" className="border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/register"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-[12px] bg-[#C9A84C] px-7 text-[15px] font-semibold text-[#0A0A0A] shadow-[0_4px_24px_rgba(201,168,76,0.35)] transition-all hover:bg-[#E8C96A] hover:shadow-[0_6px_36px_rgba(201,168,76,0.5)] active:scale-[0.98]"
+              >
+                Crear mi cuenta <ArrowRight size={15} />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-[12px] border border-white/10 px-7 text-[15px] font-medium text-white/65 transition-all hover:border-white/20 hover:text-white active:scale-[0.98]"
+              >
                 Ya tengo cuenta
-              </LinkButton>
+              </Link>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/8 pt-6">
               {[
-                ['Offline-first', 'Sigue vendiendo aunque se caiga la red'],
-                ['Multi-sucursal', 'Límites claros por plan y por local'],
-                ['Acceso seguro', 'Login, recuperación y roles'],
-              ].map(([title, description]) => (
-                <div key={title} className="rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)]/85 p-4 shadow-[var(--shadow-sm)] backdrop-blur-sm">
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{title}</p>
-                  <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">{description}</p>
+                'Sin tarjeta de crédito',
+                'Configuración en minutos',
+                'Soporte en español',
+              ].map((text) => (
+                <div key={text} className="flex items-center gap-1.5 text-xs text-white/35">
+                  <CheckCircle2 size={11} className="text-[#C9A84C]" />
+                  {text}
                 </div>
               ))}
             </div>
           </div>
 
-          <Card className="relative overflow-hidden border-[var(--border-default)] bg-[linear-gradient(180deg,rgba(10,10,10,0.98),rgba(16,16,16,0.94))] p-6 text-white shadow-[0_30px_80px_rgba(0,0,0,0.24)] sm:p-8">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.18),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.08),transparent_30%)]" />
-            <div className="relative space-y-6">
-              <div className="flex items-center justify-between gap-4">
+          {/* POS visual */}
+          <div className="animate-fade-up animate-fade-up-2 lg:pl-4">
+            <POSMock />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Marquee ─────────────────────────────────── */}
+      <div className="relative z-10 overflow-hidden border-y border-white/[0.06] bg-white/[0.015] py-4">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-[linear-gradient(to_right,#0A0A0A,transparent)]" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-[linear-gradient(to_left,#0A0A0A,transparent)]" />
+        <div className="marquee-track">
+          {[...BUSINESS_TYPES, ...BUSINESS_TYPES].map((item, i) => (
+            <div key={i} className="flex flex-none items-center gap-4 px-6 text-sm text-white/30">
+              <span className="h-1 w-1 rounded-full bg-[#C9A84C]/40" />
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Bento features ──────────────────────────── */}
+      <section id="features" className="relative z-10 mx-auto max-w-7xl px-6 py-20 sm:px-8 lg:py-28">
+        <div className="mb-12 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">Producto</p>
+          <h2
+            className="mt-3 text-4xl font-medium tracking-tight sm:text-5xl"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Todo lo que necesitas<br />en una sola pantalla.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-white/45">
+            Diseñado para la caja real, no para la demo. Cada módulo tiene un propósito claro y un flujo pensado para operar bajo presión.
+          </p>
+        </div>
+
+        {/* Bento grid */}
+        <div className="grid gap-3 md:grid-cols-3 lg:gap-4">
+
+          {/* Card 1: POS — col-span-2 */}
+          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)] md:col-span-2">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="relative">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
+                  <Store size={20} className="text-[#C9A84C]" />
+                </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-white/45">Vista de operación</p>
-                  <p style={{ fontFamily: 'var(--font-display)' }} className="mt-2 text-3xl font-medium tracking-tight text-[var(--text-gold)]">Caja principal</p>
-                </div>
-                <div className="rounded-full border border-[rgba(201,168,76,0.25)] bg-[rgba(201,168,76,0.12)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-gold)]">
-                  Live
+                  <h3 className="text-lg font-semibold text-white">POS y sesiones de caja</h3>
+                  <p className="mt-1 max-w-sm text-sm leading-6 text-white/45">Cobrar es lo más importante. Flujo corto, órdenes en espera, F3 para retener y lector de código de barras.</p>
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[22px] border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Venta rápida</p>
-                  <p className="mt-2 text-2xl font-medium">Flujo corto, sin ruido.</p>
-                  <p className="mt-2 text-sm leading-6 text-white/65">Buscar, cobrar, imprimir y seguir. Sin pantallas interminables.</p>
+              <div className="mt-5 rounded-xl border border-[rgba(201,168,76,0.15)] bg-[rgba(201,168,76,0.05)] px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/35">Total en caja</span>
+                  <span className="font-mono text-xl font-bold text-[#C9A84C]">$247.500</span>
                 </div>
-                <div className="rounded-[22px] border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Estado</p>
-                  <p className="mt-2 text-2xl font-medium">Offline ready</p>
-                  <p className="mt-2 text-sm leading-6 text-white/65">La cola local espera y sincroniza cuando vuelve internet.</p>
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold">Qué incluye la plataforma</p>
-                  <span className="text-xs uppercase tracking-[0.22em] text-white/40">Resumen</span>
-                </div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {capabilities.slice(0, 4).map((item) => (
-                    <div key={item} className="rounded-[18px] border border-white/8 bg-black/10 p-3 text-sm text-white/78">
-                      {item}
+                <div className="mt-2.5 grid grid-cols-3 gap-2">
+                  {['Efectivo', 'Tarjeta', 'Transferencia'].map((m, i) => (
+                    <div
+                      key={m}
+                      className={cn(
+                        'rounded-lg py-2 text-center text-[12px] transition-colors',
+                        i === 0 ? 'bg-[rgba(201,168,76,0.18)] font-medium text-[#C9A84C]' : 'bg-white/5 text-white/35',
+                      )}
+                    >
+                      {m}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-          </Card>
-        </div>
-      </section>
-
-      <section className="relative mx-auto max-w-7xl px-6 pb-16 sm:px-8 lg:px-10 lg:pb-24">
-        <SectionTitle
-          eyebrow="Lo esencial"
-          title="Todo lo que prometimos, en una sola plataforma."
-          description="La landing tiene que dejar claro qué hace NEXUS y por qué vale la pena entrar: ventas, inventario, acceso, resiliencia, control y crecimiento."
-        />
-
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {highlights.map((item, index) => (
-            <div key={item.title} className="transition-all duration-300" style={{ animationDelay: `${index * 90}ms` }}>
-              <FeatureCard {...item} />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="relative mx-auto max-w-7xl px-6 pb-16 sm:px-8 lg:px-10 lg:pb-24">
-        <SectionTitle
-          eyebrow="Módulos"
-          title="La misma experiencia del producto, ordenada por tareas reales."
-          description="Desde caja hasta analíticas: cada módulo tiene una razón de existir y una ruta clara hacia operación diaria."
-        />
-
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {modules.map((module, index) => (
-            <div key={module.title} className="transition-all duration-300" style={{ animationDelay: `${index * 80}ms` }}>
-              <FeatureCard {...module} />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="relative mx-auto max-w-7xl px-6 pb-16 sm:px-8 lg:px-10 lg:pb-24">
-        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-          <div className="space-y-5">
-            <SectionTitle
-              eyebrow="Planes"
-              title="Lite, Starter, Pro y Enterprise, sin ambigüedad."
-              description="La suscripción debe hablar el idioma del negocio: un pago único para arrancar o un plan mensual cuando el crecimiento lo exige."
-            />
-
-            <div className="space-y-3">
-              {planNotes.map((note) => (
-                <div key={note} className="rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)]">
-                  <p className="text-sm leading-6 text-[var(--text-secondary)]">{note}</p>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <Card className="p-6 sm:p-8">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.26em] text-[var(--text-tertiary)]">A quién le sirve</p>
-                <h3 className="mt-2 text-2xl font-medium text-[var(--text-primary)]">Negocios que necesitan orden y velocidad.</h3>
+          {/* Card 2: Offline */}
+          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="relative">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
+                <CloudOff size={20} className="text-[#C9A84C]" />
               </div>
-              <Sparkles className="text-[var(--text-gold)]" size={22} />
+              <h3 className="mt-4 text-lg font-semibold text-white">Offline-first</h3>
+              <p className="mt-1 text-sm leading-6 text-white/45">Sin internet, la caja no para. SQLite local almacena las ventas y sincroniza cuando vuelve la conexión.</p>
+              <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/6 bg-white/[0.03] px-3 py-2.5">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                <span className="text-xs text-white/40">Cola local activa · 3 órdenes pendientes</span>
+              </div>
             </div>
+          </div>
 
-            <div className="mt-6 flex flex-wrap gap-2">
-              {businessTypes.map((item) => (
-                <Badge key={item} variant="neutral" className="px-3 py-1 text-xs">{item}</Badge>
-              ))}
+          {/* Card 3: Analytics */}
+          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="relative">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
+                <BarChart3 size={20} className="text-[#C9A84C]" />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-white">Analíticas en tiempo real</h3>
+              <p className="mt-1 text-sm leading-6 text-white/45">Ventas diarias, top productos, clientes frecuentes, margen estimado y rotación de inventario.</p>
+
+              {/* Mini chart */}
+              <div className="mt-5 flex h-10 items-end gap-1">
+                {[38, 62, 44, 78, 52, 88, 65, 71].map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-t-sm transition-all duration-500 group-hover:opacity-100"
+                    style={{ height: `${h}%`, background: `rgba(201,168,76,${0.12 + (h / 100) * 0.38})` }}
+                  />
+                ))}
+              </div>
             </div>
+          </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {[
-                'Recuperación de contraseña desde email',
-                'Usuarios del sistema separados de empleados',
-                'Roles editables y permisos claros',
-                'Configuración por sucursal y terminal',
-              ].map((item) => (
-                <div key={item} className="rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-subtle)] p-4 text-sm text-[var(--text-secondary)]">
-                  {item}
+          {/* Card 4: Inventory */}
+          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="relative">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
+                <Boxes size={20} className="text-[#C9A84C]" />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-white">Inventario completo</h3>
+              <p className="mt-1 text-sm leading-6 text-white/45">Productos, variantes, kardex, stock mínimo, recepción de mercancía e imágenes por Cloudinary.</p>
+
+              <div className="mt-5 space-y-1.5">
+                {[['Camiseta M / Azul', '42 uds'], ['Jean 32 / Negro', '8 uds'], ['Cinturón café', '⚠ 2 uds']].map(([name, stock]) => (
+                  <div key={name as string} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.03] px-2.5 py-1.5 text-[12px]">
+                    <span className="text-white/55">{name as string}</span>
+                    <span className={cn('font-mono', (stock as string).startsWith('⚠') ? 'text-amber-400' : 'text-white/40')}>{stock as string}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 5: Multi-branch + Security — col-span-2 */}
+          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)] md:col-span-2">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="relative grid gap-8 sm:grid-cols-2">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
+                  <LayoutGrid size={20} className="text-[#C9A84C]" />
                 </div>
-              ))}
+                <h3 className="mt-4 text-lg font-semibold text-white">Multi-sucursal</h3>
+                <p className="mt-1 text-sm leading-6 text-white/45">Cada local con su terminal, sus límites de plan y su configuración operativa independiente.</p>
+              </div>
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
+                  <ShieldCheck size={20} className="text-[#C9A84C]" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-white">Roles y seguridad</h3>
+                <p className="mt-1 text-sm leading-6 text-white/45">Usuarios del sistema separados de empleados. Roles editables, recuperación de acceso y JWT rotado.</p>
+              </div>
             </div>
-          </Card>
+          </div>
+
         </div>
       </section>
 
-      <section className="relative mx-auto max-w-7xl px-6 pb-16 sm:px-8 lg:px-10 lg:pb-24">
-        <Card className="overflow-hidden border-[var(--border-default)] bg-[linear-gradient(135deg,rgba(10,10,10,0.98),rgba(24,24,24,0.94))] p-6 text-white sm:p-8">
-          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <div className="space-y-4">
-              <Badge variant="gold">Listo para operar</Badge>
-              <h2 className="max-w-2xl text-3xl font-medium tracking-tight sm:text-4xl">
-                La primera pantalla de NEXUS tiene que dejar una sola idea: esto está hecho para vender y crecer.
-              </h2>
-              <p className="max-w-2xl text-sm leading-7 text-white/68 sm:text-base">
-                Si el usuario llega aquí, debe entender el valor, confiar en el producto y tomar acción sin leer un manual.
-              </p>
-            </div>
+      {/* ── Plans ───────────────────────────────────── */}
+      <section id="plans" className="relative z-10 mx-auto max-w-7xl px-6 pb-20 sm:px-8 lg:pb-28">
+        <div className="mb-12 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">Planes</p>
+          <h2
+            className="mt-3 text-4xl font-medium tracking-tight sm:text-5xl"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Sin sorpresas al pagar.
+          </h2>
+          <p className="mx-auto mt-4 max-w-lg text-base leading-7 text-white/45">
+            Planes que escalan con tu operación. Empieza con lo que necesitas y crece sin fricciones ni costos ocultos.
+          </p>
+        </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
-              <LinkButton href="/register" className="border-transparent bg-[var(--gold-500)] text-[#1A1400] shadow-[var(--shadow-sm)] hover:bg-[var(--gold-400)] hover:shadow-[var(--shadow-md)]">
-                Crear cuenta <ArrowRight size={16} />
-              </LinkButton>
-              <LinkButton href="/login" className="border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]">
-                Ingresar
-              </LinkButton>
+        <div className="grid gap-4 md:grid-cols-3">
+          {PLANS.map((plan) => (
+            <div
+              key={plan.name}
+              className={cn(
+                'relative rounded-2xl border p-6 transition-all duration-300',
+                plan.highlight
+                  ? 'border-[rgba(201,168,76,0.35)] bg-[rgba(201,168,76,0.05)] shadow-[0_0_50px_rgba(201,168,76,0.07)]'
+                  : 'border-white/[0.07] bg-[#111111] hover:border-white/15',
+              )}
+            >
+              {plan.badge && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full border border-[rgba(201,168,76,0.5)] bg-[#C9A84C] px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0A0A0A]">
+                  {plan.badge}
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm font-semibold text-[#C9A84C]">{plan.name}</p>
+                <p className="mt-1 text-2xl font-medium text-white">{plan.price}</p>
+                <p className="mt-2 text-sm leading-6 text-white/45">{plan.description}</p>
+              </div>
+
+              <ul className="mt-6 space-y-2.5">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-center gap-2.5 text-sm text-white/65">
+                    <CheckCircle2 size={14} className="flex-none text-[#C9A84C]" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                href={plan.cta.href}
+                className={cn(
+                  'mt-8 flex h-11 w-full items-center justify-center rounded-[10px] text-sm font-semibold transition-all active:scale-[0.98]',
+                  plan.highlight
+                    ? 'bg-[#C9A84C] text-[#0A0A0A] shadow-[0_4px_20px_rgba(201,168,76,0.28)] hover:bg-[#E8C96A] hover:shadow-[0_4px_28px_rgba(201,168,76,0.4)]'
+                    : 'border border-white/10 text-white hover:border-white/20 hover:bg-white/5',
+                )}
+              >
+                {plan.cta.label}
+              </Link>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Final CTA ───────────────────────────────── */}
+      <section className="relative z-10 mx-auto max-w-7xl px-6 pb-20 sm:px-8 lg:pb-28">
+        <div className="relative overflow-hidden rounded-3xl border border-[rgba(201,168,76,0.18)] bg-[linear-gradient(135deg,rgba(201,168,76,0.07),rgba(201,168,76,0.02))] px-8 py-16 text-center sm:px-12">
+          <div className="absolute inset-0 [background-image:linear-gradient(rgba(201,168,76,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(201,168,76,0.035)_1px,transparent_1px)] [background-size:48px_48px]" />
+          <div className="relative">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">Empieza hoy</p>
+            <h2
+              className="mx-auto mt-4 max-w-2xl text-4xl font-medium tracking-tight sm:text-5xl"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Tu negocio merece<br />una caja a la altura.
+            </h2>
+            <p className="mx-auto mt-5 max-w-md text-base leading-7 text-white/50">
+              Registro en minutos. Sin tarjeta de crédito. Sin fricción. Solo tú y tu negocio funcionando bien.
+            </p>
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href="/register"
+                className="inline-flex h-12 items-center gap-2 rounded-[12px] bg-[#C9A84C] px-8 text-[15px] font-semibold text-[#0A0A0A] shadow-[0_4px_28px_rgba(201,168,76,0.38)] transition-all hover:bg-[#E8C96A] hover:shadow-[0_6px_40px_rgba(201,168,76,0.55)] active:scale-[0.98]"
+              >
+                Crear mi cuenta <ArrowRight size={15} />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex h-12 items-center gap-2 rounded-[12px] border border-white/10 px-8 text-[15px] text-white/65 transition-all hover:border-white/20 hover:text-white active:scale-[0.98]"
+              >
+                Ya tengo cuenta
+              </Link>
             </div>
           </div>
-        </Card>
+        </div>
       </section>
+
+      {/* ── Footer ──────────────────────────────────── */}
+      <footer className="relative z-10 border-t border-white/[0.06] px-6 py-8 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
+          <p className="text-sm text-white/25">
+            © 2025 NEXUS POS · Hecho para el comercio colombiano
+          </p>
+          <div className="flex gap-6">
+            <Link href="/login" className="text-sm text-white/25 transition-colors hover:text-white/60">Ingresar</Link>
+            <Link href="/register" className="text-sm text-white/25 transition-colors hover:text-white/60">Registro</Link>
+          </div>
+        </div>
+      </footer>
+
     </main>
   );
 }

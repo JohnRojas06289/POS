@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${dmSans.variable} ${fraunces.variable} ${jetBrainsMono.variable}`}>
         <a href="#main-content" className="skip-link">Saltar al contenido principal</a>
         <Providers>
-          <ThemeProvider attribute="data-theme" defaultTheme="minimal" enableSystem themes={THEME_IDS}>
+          <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false} themes={THEME_IDS}>
             <div id="main-content">
               {children}
             </div>
