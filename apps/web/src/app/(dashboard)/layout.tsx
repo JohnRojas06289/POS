@@ -84,8 +84,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider>
-      <div className="flex h-screen overflow-hidden bg-[var(--bg-base)]">
-        <aside className="flex h-full w-[240px] flex-col bg-[#0A0A0A] text-white">
+      <div className="flex min-h-dvh flex-col overflow-hidden bg-[var(--bg-base)] lg:h-screen lg:flex-row">
+        <div className="border-b border-white/10 bg-[#0A0A0A] text-white lg:hidden">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div>
+              <div style={{ fontFamily: 'var(--font-display)' }} className="text-xl font-medium tracking-tight text-[var(--text-gold)]">
+                NEXUS
+              </div>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">Premium POS</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/profile" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--gold-500)] text-sm font-semibold text-[#1A1400]" aria-label="Ir al perfil">
+                {initials}
+              </Link>
+              <button onClick={() => void logout()} className="rounded-[var(--radius-md)] border border-white/10 px-3 py-2 text-xs font-medium text-white/80">
+                Salir
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto border-t border-white/10 px-4 py-3">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) ? 'page' : undefined}
+                className={cn(
+                  'inline-flex flex-none items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
+                  pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                    ? 'border-[var(--gold-500)] bg-[rgba(201,168,76,0.12)] text-[var(--text-gold)]'
+                    : 'border-white/10 bg-white/5 text-white/70',
+                )}
+              >
+                <item.icon size={14} aria-hidden />
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <aside className="hidden h-full w-[240px] flex-col bg-[#0A0A0A] text-white lg:flex">
           <div className="border-b border-white/10 px-5 py-5">
             <div style={{ fontFamily: 'var(--font-display)' }} className="text-2xl font-medium tracking-tight text-[var(--text-gold)]">
               NEXUS
@@ -117,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 items-center gap-4 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-6">
+          <header className="flex h-14 items-center gap-3 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 sm:px-6">
             <div className="min-w-0 flex-1">
               <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Panel</p>
               <h1 style={{ fontFamily: 'var(--font-display)' }} className="truncate text-lg font-medium italic text-[var(--text-primary)]">
@@ -136,7 +174,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           </header>
 
-          <main id="main-content" className="min-w-0 flex-1 overflow-y-auto p-6">
+          <main id="main-content" className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
             {children}
           </main>
         </div>

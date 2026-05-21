@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { StepPlans } from './StepPlans';
 import { StepBusiness } from './StepBusiness';
 import { StepAccount } from './StepAccount';
@@ -87,9 +88,9 @@ export function OnboardingFlow() {
 
         <div className="relative">
           <div className="mb-14">
-            <p className="text-2xl font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
+            <Link href="/" className="text-2xl font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
               NEXUS
-            </p>
+            </Link>
             <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-white/30">Premium POS</p>
           </div>
 
@@ -129,10 +130,13 @@ export function OnboardingFlow() {
       {/* Right panel — form */}
       <div className="flex min-h-screen flex-1 flex-col overflow-y-auto">
         {/* Mobile header */}
-        <div className="flex items-center border-b border-white/[0.06] bg-[#111111] px-6 py-4 lg:hidden">
-          <p className="text-lg font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
+        <div className="flex items-center justify-between border-b border-white/[0.06] bg-[#111111] px-6 py-4 lg:hidden">
+          <Link href="/" className="text-lg font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
             NEXUS <span className="text-[#C9A84C]">POS</span>
-          </p>
+          </Link>
+          <Link href="/" className="text-xs font-medium uppercase tracking-[0.18em] text-white/45 underline decoration-white/20 underline-offset-4">
+            Inicio
+          </Link>
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
@@ -226,6 +230,11 @@ export function OnboardingFlow() {
               Iniciar sesión
             </a>
           </span>
+          <div className="mt-3">
+            <Link href="/" className="text-xs font-medium text-white/40 underline decoration-white/20 underline-offset-4">
+              Volver al inicio
+            </Link>
+          </div>
         </div>
       </div>
     </div>

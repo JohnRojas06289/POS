@@ -129,7 +129,12 @@ export default function LoginPage() {
                 </p>
                 <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Premium POS</p>
               </div>
-              <ThemeToggle />
+              <div className="flex items-center gap-3">
+                <Link href="/" className="text-xs font-medium text-[var(--text-secondary)] underline decoration-[var(--gold-500)] underline-offset-4">
+                  Inicio
+                </Link>
+                <ThemeToggle />
+              </div>
             </div>
 
             <div className="mb-8 space-y-2 lg:hidden">
@@ -225,6 +230,12 @@ export default function LoginPage() {
                     <span>¿Perdiste acceso?</span>
                     <Link href="/forgot-password" className="font-medium text-[var(--text-primary)] underline decoration-[var(--gold-500)] underline-offset-4">
                       Recuperar contraseña
+                    </Link>
+                  </div>
+
+                  <div className="text-center text-xs text-[var(--text-tertiary)]">
+                    <Link href="/" className="font-medium text-[var(--text-primary)] underline decoration-[var(--gold-500)] underline-offset-4">
+                      Volver al inicio
                     </Link>
                   </div>
 

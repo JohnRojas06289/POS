@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Badge } from '../../components/ui';
+import { OfflineBanner } from '../../components/OfflineBanner';
 import { useAuthStore } from '../../stores/auth.store';
 import { useOfflineStore } from '../../stores/offline.store';
 import { useSessionStore } from '../../stores/session.store';
@@ -81,6 +82,7 @@ export default function PosLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastProvider>
+      <OfflineBanner />
       <div className="flex h-screen flex-col overflow-hidden bg-[var(--bg-base)]">
         <PosHeader />
         <main className="min-h-0 flex-1 overflow-hidden" id="main-content">

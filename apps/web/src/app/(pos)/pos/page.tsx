@@ -528,9 +528,9 @@ export default function POSPage() {
   }, [cartDiscountMode, cartDiscountValue, subtotalAfterItemDiscount, toast]);
 
   return (
-    <div className="grid h-full grid-cols-[minmax(0,3fr)_minmax(340px,2fr)] bg-[var(--bg-base)]">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--bg-base)] lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(340px,2fr)]">
       {/* Left: Catalog */}
-      <div className="flex min-w-0 flex-col border-r border-[var(--border-default)] bg-[var(--bg-base)]">
+      <div className="flex min-w-0 flex-1 flex-col border-b border-[var(--border-default)] bg-[var(--bg-base)] lg:border-b-0 lg:border-r">
         {/* Search */}
         <div className="space-y-3 border-b border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
           <SearchBar
@@ -604,7 +604,7 @@ export default function POSPage() {
       </div>
 
       {/* Right: Cart */}
-      <div className="flex min-w-[340px] flex-col bg-[var(--bg-surface)]">
+      <div className="flex min-w-0 flex-1 flex-col border-t border-[var(--border-default)] bg-[var(--bg-surface)] lg:min-w-[340px] lg:border-l lg:border-t-0">
         {/* Cart header */}
         <div className="flex items-center justify-between border-b border-[var(--border-default)] p-3">
           {/* Cash session indicator */}
