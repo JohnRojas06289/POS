@@ -8,6 +8,7 @@ import type { OnboardingData } from './OnboardingFlow';
 interface Props {
   data: Partial<OnboardingData>;
   onBack: () => void;
+  onPay: () => void;
 }
 
 const BUSINESS_TYPE_LABELS: Record<string, string> = {
@@ -53,13 +54,21 @@ function SummaryRow({ label, value, mono }: SummaryRowProps) {
   );
 }
 
-export function StepConfirm({ data, onBack }: Props) {
+export function StepConfirm({ data, onBack, onPay }: Props) {
   const router = useRouter();
   const setTokens = useAuthStore((s) => s.setTokens);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isFree = (data.planPrice ?? 0) === 0;
+
   const handleSubmit = async () => {
+    // Paid plans go to payment step
+    if (!isFree) {
+      onPay();
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -74,7 +83,7 @@ export function StepConfirm({ data, onBack }: Props) {
           email: data.email,
           password: data.password,
           ownerName: data.ownerName,
-          businessType: data.businessType ?? 'other',
+          businessType: data.businessType ?? 'retail_clothing',
           country: 'CO',
           timezone: 'America/Bogota',
           currency: 'COP',
@@ -96,26 +105,17 @@ export function StepConfirm({ data, onBack }: Props) {
       }
 
       const result = (await res.json()) as { accessToken: string; refreshToken: string };
-
-      // Persist tokens and update auth store
       setTokens(result.accessToken, result.refreshToken);
 
-      // Clear onboarding session data
-      try {
-        window.sessionStorage.removeItem('nexus-onboarding-v2');
-      } catch {
-        /* ignore */
-      }
+      try { window.sessionStorage.removeItem('nexus-onboarding-v2'); } catch { /* ignore */ }
 
-      router.push('/');
+      router.push('/pos');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
   };
-
-  const isFree = (data.planPrice ?? 0) === 0;
 
   return (
     <div>

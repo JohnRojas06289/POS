@@ -6,6 +6,7 @@ import { StepPlans } from './StepPlans';
 import { StepBusiness } from './StepBusiness';
 import { StepAccount } from './StepAccount';
 import { StepConfirm } from './StepConfirm';
+import { StepPayment } from './StepPayment';
 
 export interface OnboardingData {
   planId: string;
@@ -19,7 +20,7 @@ export interface OnboardingData {
   password: string;
 }
 
-const STEPS = ['plan', 'business', 'account', 'confirm'] as const;
+const STEPS = ['plan', 'business', 'account', 'confirm', 'payment'] as const;
 type Step = typeof STEPS[number];
 
 const STEP_LABELS: Record<Step, string> = {
@@ -27,6 +28,7 @@ const STEP_LABELS: Record<Step, string> = {
   business: 'Negocio',
   account: 'Cuenta',
   confirm: 'Confirmar',
+  payment: 'Pago',
 };
 
 const STORAGE_KEY = 'nexus-onboarding-v2';
@@ -228,7 +230,14 @@ export function OnboardingFlow() {
               />
             )}
             {currentStep === 'confirm' && (
-              <StepConfirm data={data} onBack={() => goTo('account')} />
+              <StepConfirm
+                data={data}
+                onBack={() => goTo('account')}
+                onPay={() => goTo('payment')}
+              />
+            )}
+            {currentStep === 'payment' && (
+              <StepPayment data={data} onBack={() => goTo('confirm')} />
             )}
           </div>
         </div>
