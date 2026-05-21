@@ -4,6 +4,38 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  const response = (err as { response?: { status?: number; data?: unknown } })?.response;
+  const data = response?.data;
+
+  if (!data) return fallback;
+
+  if (typeof data === 'string') return data;
+
+  const payload = data as { message?: unknown; error?: unknown };
+
+  if (Array.isArray(payload.message)) {
+    const message = payload.message
+      .filter((item): item is string => typeof item === 'string')
+      .join(', ');
+    return message || fallback;
+  }
+
+  if (typeof payload.message === 'string') {
+    return payload.message;
+  }
+
+  if (typeof payload.error === 'string') {
+    return payload.error;
+  }
+
+  if (response?.status === 500) {
+    return 'El servidor no pudo completar el ingreso. Intenta de nuevo o revisa la configuración del backend.';
+  }
+
+  return fallback;
+}
+
 interface UserInfo {
   id: string;
   name: string;
@@ -67,9 +99,7 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (err: unknown) {
-          const msg =
-            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-            'Error al iniciar sesión';
+          const msg = extractApiErrorMessage(err, 'Error al iniciar sesión');
           set({ error: msg, isLoading: false });
           throw err;
         }
@@ -87,9 +117,7 @@ export const useAuthStore = create<AuthState>()(
           localStorage.setItem('nexus_refresh_token', refreshToken);
           set({ accessToken, refreshToken, isAuthenticated: true, isLoading: false });
         } catch (err: unknown) {
-          const msg =
-            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-            'PIN inválido';
+          const msg = extractApiErrorMessage(err, 'PIN inválido');
           set({ error: msg, isLoading: false });
           throw err;
         }

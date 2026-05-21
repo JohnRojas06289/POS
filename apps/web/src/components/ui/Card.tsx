@@ -13,27 +13,14 @@ const paddingStyles = {
   lg: 'p-6',
 };
 
-export const Card = React.memo(function Card({
-  variant = 'default',
-  padding = 'md',
-  children,
-  className,
-  ...props
-}: CardProps) {
+export function Card({ variant = 'default', padding = 'md', children, className, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-[--radius-lg] bg-[--bg-primary] border border-[--border]',
-        'dark:bg-[--bg-secondary] dark:border-[--border]',
-        variant === 'default' && 'shadow-[--shadow-sm] dark:shadow-none',
-        variant === 'interactive' && [
-          'shadow-[--shadow-sm] cursor-pointer',
-          'transition-all duration-200',
-          'hover:shadow-[--shadow-md] hover:-translate-y-0.5',
-          'active:translate-y-0',
-          'dark:hover:bg-[--bg-tertiary]',
-        ],
-        variant === 'flat' && 'border-[--border] dark:border-[--border-strong]',
+        'rounded-[var(--radius-lg)] bg-[var(--bg-surface)] border border-[var(--border-default)]',
+        variant === 'default' && 'shadow-[var(--shadow-sm)]',
+        variant === 'interactive' && 'shadow-[var(--shadow-sm)] cursor-pointer transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 active:translate-y-0 hover:border-[var(--border-strong)]',
+        variant === 'flat' && 'border-[var(--border-default)]',
         paddingStyles[padding],
         className,
       )}
@@ -42,4 +29,4 @@ export const Card = React.memo(function Card({
       {children}
     </div>
   );
-});
+}

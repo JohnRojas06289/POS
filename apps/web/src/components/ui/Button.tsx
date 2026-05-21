@@ -1,89 +1,57 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { forwardRef } from 'react';
 import { cn } from '../../lib/cn';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
+type Variant = 'gold' | 'dark' | 'ghost' | 'danger' | 'outline' | 'primary' | 'secondary';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   loading?: boolean;
+  fullWidth?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
 }
 
 const variantStyles: Record<Variant, string> = {
-  primary: 'bg-[--nexus-500] text-white hover:bg-[#1d4ed8] active:bg-[#1e40af] shadow-sm hover:shadow-md dark:hover:bg-blue-400',
-  secondary: 'bg-[--bg-tertiary] text-[--text-primary] border border-[--border] hover:border-[--border-strong] hover:bg-[--border] dark:border-[--border-strong]',
-  ghost: 'text-[--text-secondary] hover:text-[--text-primary] hover:bg-[--bg-tertiary] dark:hover:bg-[--bg-secondary]',
-  danger: 'bg-[--danger] text-white hover:bg-red-600 active:bg-red-700 dark:hover:bg-red-400',
-  outline: 'border-2 border-[--nexus-500] text-[--nexus-500] hover:bg-[--nexus-500] hover:text-white dark:text-[--nexus-300] dark:border-[--nexus-300]',
+  gold: 'bg-[var(--gold-500)] border-transparent text-[#1A1400] hover:bg-[var(--gold-400)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]',
+  dark: 'bg-[#0A0A0A] border-[var(--border-gold)] text-[var(--text-gold)] hover:bg-[#141414] hover:border-[var(--gold-500)]',
+  ghost: 'bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)]',
+  danger: 'bg-transparent border-[rgba(227,75,74,0.3)] text-[var(--danger-text)] hover:bg-[var(--danger-bg)]',
+  outline: 'bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]',
+  primary: 'bg-[var(--gold-500)] border-transparent text-[#1A1400] hover:bg-[var(--gold-400)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]',
+  secondary: 'bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]',
 };
 
 const sizeStyles: Record<Size, string> = {
-  sm: 'h-8 px-3 text-sm gap-1.5',
-  md: 'h-10 px-4 text-sm gap-2',
-  lg: 'h-12 px-6 text-base gap-2',
+  sm: 'h-8 px-3 text-[13px]',
+  md: 'h-10 px-4 text-[14px]',
+  lg: 'h-12 px-6 text-[15px]',
 };
 
-export const Button = React.memo(function Button({
-  variant = 'primary',
-  size = 'md',
-  loading = false,
-  disabled,
-  leftIcon,
-  rightIcon,
-  children,
-  className,
-  onClick,
-  ...props
-}: ButtonProps) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    // Ripple effect
-    const btn = btnRef.current;
-    if (btn) {
-      const circle = document.createElement('span');
-      const diameter = Math.max(btn.clientWidth, btn.clientHeight);
-      const radius = diameter / 2;
-      const rect = btn.getBoundingClientRect();
-      circle.style.cssText = `
-        width:${diameter}px;height:${diameter}px;
-        left:${e.clientX - rect.left - radius}px;
-        top:${e.clientY - rect.top - radius}px;
-        position:absolute;border-radius:50%;
-        background:rgba(255,255,255,0.3);
-        animation:ripple 600ms linear;pointer-events:none;
-      `;
-      btn.appendChild(circle);
-      setTimeout(() => circle.remove(), 600);
-    }
-    onClick?.(e);
-  };
-
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = 'outline', size = 'md', loading = false, fullWidth = false, disabled, leftIcon, rightIcon, children, className, ...props },
+  ref,
+) {
   return (
     <button
-      ref={btnRef}
+      ref={ref}
       disabled={disabled || loading}
-      onClick={handleClick}
       className={cn(
-        'relative overflow-hidden inline-flex items-center justify-center font-medium rounded-[--radius-md]',
-        'transition-all duration-150 focus-visible:outline-2 focus-visible:outline-[--nexus-500] focus-visible:outline-offset-2',
-        'hover:scale-[1.01] active:scale-[0.99]',
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100',
+        'inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border font-medium transition-all duration-150 select-none cursor-pointer relative overflow-hidden active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed',
         variantStyles[variant],
         sizeStyles[size],
+        fullWidth && 'w-full',
         className,
       )}
       {...props}
     >
       {loading ? (
-        <svg className="animate-spin w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden>
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
         </svg>
       ) : leftIcon}
       {children}

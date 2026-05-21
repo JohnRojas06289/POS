@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, BarChart2, Package, Users, ShoppingCart, Settings } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { BarChart2, Briefcase, LayoutDashboard, LogOut, Package, Search, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { ToastProvider } from '../../components/ui/Toast';
@@ -14,129 +14,144 @@ const NAV = [
   { href: '/analytics', label: 'Analíticas', icon: BarChart2 },
   { href: '/inventory', label: 'Inventario', icon: Package },
   { href: '/customers', label: 'Clientes', icon: Users },
+  { href: '/employees', label: 'Empleados', icon: Briefcase },
+  { href: '/suppliers', label: 'Proveedores', icon: Truck },
   { href: '/pos', label: 'POS', icon: ShoppingCart },
   { href: '/settings', label: 'Configuración', icon: Settings },
 ] as const;
 
-function NavItem({ item, collapsed, active }: { item: typeof NAV[number]; collapsed: boolean; active: boolean }) {
+function NavItem({ item, active }: { item: typeof NAV[number]; active: boolean }) {
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-[--radius-md] transition-all duration-150 group',
-        'text-sm font-medium',
+        'flex items-center gap-3 rounded-[var(--radius-md)] border-l-2 px-3 py-2.5 text-sm font-medium transition-all duration-150',
         active
-          ? 'bg-[--nexus-500]/8 text-[--nexus-500] border-l-[3px] border-[--nexus-500] rounded-l-none'
-          : 'text-[--text-secondary] hover:text-[--text-primary] hover:bg-[--bg-tertiary]',
-        collapsed && 'justify-center px-2',
+          ? 'border-[var(--gold-500)] bg-[rgba(201,168,76,0.08)] text-[var(--text-gold)]'
+          : 'border-transparent text-[#8A887F] hover:bg-white/5 hover:text-white',
       )}
     >
       <Icon size={18} className="flex-shrink-0" aria-hidden />
-      {!collapsed && <span className="truncate">{item.label}</span>}
-      {collapsed && (
-        <span className="sr-only">{item.label}</span>
-      )}
+      <span>{item.label}</span>
     </Link>
   );
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
-  const [collapsed, setCollapsed] = useState(false);
+  const { user, logout, isAuthenticated } = useAuthStore();
+  const router = useRouter();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const activeLabel = NAV.find((item) => (item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)))?.label ?? 'Dashboard';
 
   useEffect(() => {
-    const saved = localStorage.getItem('nexus-sidebar-collapsed');
-    if (saved === 'true') setCollapsed(true);
+    if (!isAuthenticated) router.replace('/login');
+  }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    const handle = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((prev) => !prev);
+      }
+      if (event.key === 'Escape') setPaletteOpen(false);
+    };
+
+    window.addEventListener('keydown', handle);
+    return () => window.removeEventListener('keydown', handle);
   }, []);
 
-  const toggleCollapsed = () => {
-    setCollapsed((v) => {
-      localStorage.setItem('nexus-sidebar-collapsed', String(!v));
-      return !v;
-    });
-  };
+  if (!isAuthenticated) return null;
 
-  const isActive = (href: string) =>
-    href === '/' ? pathname === href : pathname.startsWith(href);
+  const initials = (user?.name ?? user?.email ?? 'N').slice(0, 1).toUpperCase();
 
   return (
     <ToastProvider>
-      <div className="flex h-screen bg-[--bg-secondary] overflow-hidden">
-        {/* Sidebar */}
-        <aside
-          className={cn(
-            'flex flex-col h-full bg-[--bg-primary] border-r border-[--border] transition-all duration-200 flex-shrink-0',
-            collapsed ? 'w-16' : 'w-[260px]',
-          )}
-        >
-          {/* Logo */}
-          <div className={cn('flex items-center gap-2 h-16 px-4 border-b border-[--border]', collapsed && 'justify-center px-2')}>
-            <span className="text-xl font-bold text-[--nexus-500]">N</span>
-            {!collapsed && (
-              <div>
-                <span className="text-base font-bold text-[--text-primary]">NEXUS</span>
-                <span className="ml-2 text-xs bg-[--nexus-500]/10 text-[--nexus-500] px-1.5 py-0.5 rounded-full font-semibold">Pro</span>
-              </div>
-            )}
+      <div className="flex h-screen overflow-hidden bg-[var(--bg-base)]">
+        <aside className="flex h-full w-[240px] flex-col bg-[#0A0A0A] text-white">
+          <div className="border-b border-white/10 px-5 py-5">
+            <div style={{ fontFamily: 'var(--font-display)' }} className="text-2xl font-medium tracking-tight text-[var(--text-gold)]">
+              NEXUS
+            </div>
+            <p className="mt-1 text-xs uppercase tracking-[0.28em] text-white/40">Premium POS</p>
           </div>
 
-          {/* Nav */}
-          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-1" aria-label="Navegación principal">
+          <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Navegación principal">
             {NAV.map((item) => (
-              <NavItem key={item.href} item={item} collapsed={collapsed} active={isActive(item.href)} />
+              <NavItem key={item.href} item={item} active={item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)} />
             ))}
           </nav>
 
-          {/* User + collapse toggle */}
-          <div className="border-t border-[--border] p-2 space-y-1">
-            {!collapsed && user && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-[--radius-md]">
-                <div className="w-8 h-8 rounded-full bg-[--nexus-500]/20 text-[--nexus-500] flex items-center justify-center text-sm font-bold flex-shrink-0">
-                  {(user.name ?? user.email ?? 'U').charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[--text-primary] truncate">{user.name ?? user.email}</p>
-                  <p className="text-xs text-[--text-tertiary] capitalize">{user.role}</p>
+          <div className="border-t border-white/10 p-4">
+            <div className="mb-4 flex items-center gap-3 rounded-[var(--radius-lg)] bg-white/5 p-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--gold-500)] font-semibold text-[#1A1400]">{initials}</div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">{user?.name ?? user?.email ?? 'Usuario'}</p>
+                <div className="mt-1 inline-flex rounded-full border border-[rgba(201,168,76,0.25)] bg-[rgba(201,168,76,0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-gold)]">
+                  Plan Pro
                 </div>
               </div>
-            )}
-            <button
-              onClick={() => void logout()}
-              className={cn(
-                'w-full flex items-center gap-2 px-3 py-2 rounded-[--radius-md] text-sm text-[--danger] hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors',
-                collapsed && 'justify-center',
-              )}
-              aria-label="Cerrar sesión"
-            >
-              <span aria-hidden>🚪</span>
-              {!collapsed && 'Cerrar sesión'}
-            </button>
-            <button
-              onClick={toggleCollapsed}
-              className="w-full flex items-center justify-center py-2 text-[--text-tertiary] hover:text-[--text-primary] hover:bg-[--bg-tertiary] rounded-[--radius-md] transition-colors"
-              aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
-            >
-              <span className={cn('text-sm transition-transform duration-200', collapsed ? 'rotate-180' : '')} aria-hidden>←</span>
+            </div>
+            <button onClick={() => void logout()} className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-white/10 px-3 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white" aria-label="Cerrar sesión">
+              <LogOut size={16} />
+              Cerrar sesión
             </button>
           </div>
         </aside>
 
-        {/* Main */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Topbar */}
-          <header className="h-16 flex-shrink-0 bg-[--bg-primary] border-b border-[--border] flex items-center px-6 gap-4">
-            <div className="flex-1" />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="flex h-14 items-center gap-4 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-6">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Panel</p>
+              <h1 style={{ fontFamily: 'var(--font-display)' }} className="truncate text-lg font-medium italic text-[var(--text-primary)]">
+                {activeLabel}
+              </h1>
+            </div>
+
+            <button onClick={() => setPaletteOpen(true)} className="hidden items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-gold)] hover:text-[var(--text-primary)] sm:inline-flex" aria-label="Abrir búsqueda global">
+              <Search size={14} />
+              Buscar
+              <kbd className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 text-xs text-[var(--text-tertiary)]">Cmd+K</kbd>
+            </button>
             <ThemeToggle />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--bg-subtle)] text-sm font-semibold text-[var(--text-primary)]">
+              {initials}
+            </div>
           </header>
 
-          <main id="main-content" className="flex-1 overflow-y-auto p-6">
+          <main id="main-content" className="min-w-0 flex-1 overflow-y-auto p-6">
             {children}
           </main>
         </div>
       </div>
+
+      {paletteOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/40 p-4 pt-24" role="dialog" aria-modal="true" aria-labelledby="command-palette-title" onClick={(event) => { if (event.target === event.currentTarget) setPaletteOpen(false); }}>
+          <div className="w-full max-w-xl rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
+            <div className="border-b border-[var(--border-default)] px-4 py-3">
+              <h2 id="command-palette-title" className="font-medium text-[var(--text-primary)]">Command palette</h2>
+              <p className="text-sm text-[var(--text-secondary)]">Navega rápido con Cmd+K / Ctrl+K</p>
+            </div>
+            <div className="p-2">
+              {NAV.map((item) => (
+                <button
+                  key={item.href}
+                  onClick={() => {
+                    router.push(item.href);
+                    setPaletteOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-3 text-left transition-colors hover:bg-[var(--bg-subtle)]"
+                >
+                  <item.icon size={18} className="text-[var(--text-secondary)]" />
+                  <span className="font-medium text-[var(--text-primary)]">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </ToastProvider>
   );
 }

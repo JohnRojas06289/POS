@@ -2,29 +2,54 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Badge, Button, Card } from '../../../components/ui';
+import { ThemeToggle } from '../../../components/ui/ThemeToggle';
 import { useAuthStore } from '../../../stores/auth.store';
 import { cn } from '../../../lib/cn';
+import { Building2, Eye, EyeOff, Lock, User } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 type Tab = 'email' | 'pin';
+
+function Field({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block space-y-2">
+      <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+        <span className="text-[var(--text-gold)]" aria-hidden>{icon}</span>
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, loginPin, isLoading, error, clearError } = useAuthStore();
 
   const [tab, setTab] = useState<Tab>('email');
-  const [tenantEmail, setTenantEmail] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [tenantEmail, setTenantEmail] = useState('demo@nexus.com');
+  const [email, setEmail] = useState('demo@nexus.com');
+  const [password, setPassword] = useState('demo1234');
   const [tenantId, setTenantId] = useState('');
   const [branchId, setBranchId] = useState('');
   const [pin, setPin] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     clearError();
     try {
       await login(email, password, tenantEmail);
-      router.push('/pos');
+      router.push('/');
     } catch {
       // error handled by store
     }
@@ -35,7 +60,7 @@ export default function LoginPage() {
     clearError();
     try {
       await loginPin(pin, tenantId, branchId);
-      router.push('/pos');
+      router.push('/');
     } catch {
       // error handled by store
     }
@@ -43,160 +68,222 @@ export default function LoginPage() {
 
   const handlePinKey = (digit: string) => {
     if (digit === '⌫') {
-      setPin((p) => p.slice(0, -1));
+      setPin((current) => current.slice(0, -1));
     } else if (pin.length < 4) {
-      setPin((p) => p + digit);
+      setPin((current) => current + digit);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">NEXUS POS</h1>
-          <p className="text-gray-500 mt-1">Sistema de punto de venta</p>
-        </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(201,168,76,0.15),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(201,168,76,0.08),transparent_28%),var(--bg-base)] px-4 py-6">
+      <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-6xl overflow-hidden rounded-[28px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)] lg:grid-cols-[1.1fr_0.9fr]">
+        <aside className="relative hidden overflow-hidden bg-[#0A0A0A] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p style={{ fontFamily: 'var(--font-display)' }} className="text-4xl font-medium tracking-tight text-[var(--text-gold)]">
+                  NEXUS
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.28em] text-white/40">Premium POS</p>
+              </div>
+              <ThemeToggle />
+            </div>
 
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          {/* Tabs */}
-          <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
-            {(['email', 'pin'] as Tab[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => { setTab(t); clearError(); }}
-                className={cn(
-                  'flex-1 py-2 text-sm font-medium rounded-md transition-colors',
-                  tab === t
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700',
-                )}
-              >
-                {t === 'email' ? 'Email' : 'PIN Cajero'}
-              </button>
-            ))}
+            <div className="mt-16 max-w-md space-y-6">
+              <Badge variant="gold">Editorial commerce</Badge>
+              <h1 style={{ fontFamily: 'var(--font-display)' }} className="text-5xl font-medium leading-[0.95] tracking-tight text-white">
+                Un login que se siente premium desde el primer segundo.
+              </h1>
+              <p className="max-w-lg text-base leading-7 text-white/72">
+                Acceso rápido para el equipo, con tipografía editorial, contraste alto y controles claros para operar sin fricción.
+              </p>
+            </div>
           </div>
 
-          {error && (
-            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            {[
+              ['Rapidez', 'Acceso inmediato'],
+              ['Claridad', 'UX directa'],
+              ['Confianza', 'Diseño consistente'],
+            ].map(([title, desc]) => (
+              <div key={title} className="rounded-[20px] border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                <p className="text-sm font-semibold text-white">{title}</p>
+                <p className="mt-1 text-xs text-white/55">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </aside>
 
-          {tab === 'email' ? (
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
+        <main className="flex items-center justify-center p-6 lg:p-10">
+          <div className="w-full max-w-md">
+            <div className="mb-8 flex items-center justify-between lg:hidden">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email del negocio
-                </label>
-                <input
-                  type="email"
-                  value={tenantEmail}
-                  onChange={(e) => setTenantEmail(e.target.value)}
-                  placeholder="negocio@ejemplo.com"
-                  required
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <p style={{ fontFamily: 'var(--font-display)' }} className="text-3xl font-medium tracking-tight text-[var(--text-primary)]">
+                  NEXUS
+                </p>
+                <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Premium POS</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tu email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
-                  required
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contraseña
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {isLoading ? 'Ingresando...' : 'Ingresar'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handlePinSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID del tenant
-                </label>
-                <input
-                  type="text"
-                  value={tenantId}
-                  onChange={(e) => setTenantId(e.target.value)}
-                  placeholder="tenant-uuid"
-                  required
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID de la sucursal
-                </label>
-                <input
-                  type="text"
-                  value={branchId}
-                  onChange={(e) => setBranchId(e.target.value)}
-                  placeholder="branch-uuid"
-                  required
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              {/* PIN display */}
-              <div className="flex justify-center gap-3 py-2">
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      'w-4 h-4 rounded-full border-2 transition-colors',
-                      pin.length > i
-                        ? 'bg-blue-600 border-blue-600'
-                        : 'border-gray-400',
-                    )}
-                  />
-                ))}
-              </div>
-              {/* PIN keypad */}
-              <div className="grid grid-cols-3 gap-2">
-                {['1','2','3','4','5','6','7','8','9','⌫','0','✓'].map((k) => (
+              <ThemeToggle />
+            </div>
+
+            <div className="mb-8 space-y-2 lg:hidden">
+              <Badge variant="gold">Acceso al sistema</Badge>
+              <h1 style={{ fontFamily: 'var(--font-display)' }} className="text-4xl font-medium tracking-tight text-[var(--text-primary)]">
+                Ingresar
+              </h1>
+              <p className="text-sm text-[var(--text-secondary)]">Usa tus credenciales para continuar al POS.</p>
+            </div>
+
+            <Card className="p-6 sm:p-8">
+              <div className="mb-6 flex rounded-[var(--radius-lg)] bg-[var(--bg-subtle)] p-1">
+                {(['email', 'pin'] as Tab[]).map((currentTab) => (
                   <button
-                    key={k}
-                    type={k === '✓' ? 'submit' : 'button'}
-                    onClick={k !== '✓' ? () => handlePinKey(k) : undefined}
-                    disabled={isLoading || (k === '✓' && pin.length !== 4)}
+                    key={currentTab}
+                    onClick={() => {
+                      setTab(currentTab);
+                      clearError();
+                    }}
                     className={cn(
-                      'py-3 rounded-lg text-lg font-medium transition-colors',
-                      k === '✓'
-                        ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40'
-                        : k === '⌫'
-                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        : 'bg-gray-100 text-gray-900 hover:bg-gray-200',
+                      'flex-1 rounded-[var(--radius-md)] px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                      tab === currentTab
+                        ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
                     )}
                   >
-                    {k}
+                    {currentTab === 'email' ? 'Email' : 'PIN Cajero'}
                   </button>
                 ))}
               </div>
-            </form>
-          )}
-        </div>
+
+              {error && (
+                <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger-text)] bg-[var(--danger-bg)] p-4 text-sm text-[var(--danger-text)]">
+                  <p className="mb-1 font-medium">No pudimos iniciar sesión</p>
+                  <p className="leading-6">{error}</p>
+                </div>
+              )}
+
+              {tab === 'email' ? (
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                  <Field label="Email del negocio" icon={<Building2 size={14} />}>
+                    <input
+                      type="email"
+                      value={tenantEmail}
+                      onChange={(e) => setTenantEmail(e.target.value)}
+                      placeholder="demo@nexus.com"
+                      required
+                      autoComplete="email"
+                      className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-3 text-sm text-[var(--text-primary)] outline-none transition-all duration-150 placeholder:text-[var(--text-tertiary)] focus:border-[var(--gold-500)] focus:shadow-[var(--shadow-gold)]"
+                    />
+                  </Field>
+
+                  <Field label="Tu email" icon={<User size={14} />}>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="demo@nexus.com"
+                      required
+                      autoComplete="username"
+                      className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-3 text-sm text-[var(--text-primary)] outline-none transition-all duration-150 placeholder:text-[var(--text-tertiary)] focus:border-[var(--gold-500)] focus:shadow-[var(--shadow-gold)]"
+                    />
+                  </Field>
+
+                  <Field label="Contraseña" icon={<Lock size={14} />}>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        autoComplete="current-password"
+                        className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-3 pr-12 text-sm text-[var(--text-primary)] outline-none transition-all duration-150 placeholder:text-[var(--text-tertiary)] focus:border-[var(--gold-500)] focus:shadow-[var(--shadow-gold)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </Field>
+
+                  <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
+                    <span>Acceso demo precargado para pruebas.</span>
+                    <span className="font-mono-data">Ctrl + K en app</span>
+                  </div>
+
+                  <Button type="submit" loading={isLoading} fullWidth size="lg" variant="gold" className="mt-2">
+                    {isLoading ? 'Ingresando...' : 'Entrar al POS'}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handlePinSubmit} className="space-y-4">
+                  <Field label="ID del tenant" icon={<Building2 size={14} />}>
+                    <input
+                      type="text"
+                      value={tenantId}
+                      onChange={(e) => setTenantId(e.target.value)}
+                      placeholder="tenant-uuid"
+                      required
+                      className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-3 text-sm text-[var(--text-primary)] outline-none transition-all duration-150 placeholder:text-[var(--text-tertiary)] focus:border-[var(--gold-500)] focus:shadow-[var(--shadow-gold)]"
+                    />
+                  </Field>
+
+                  <Field label="ID de la sucursal" icon={<Building2 size={14} />}>
+                    <input
+                      type="text"
+                      value={branchId}
+                      onChange={(e) => setBranchId(e.target.value)}
+                      placeholder="branch-uuid"
+                      required
+                      className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-3 text-sm text-[var(--text-primary)] outline-none transition-all duration-150 placeholder:text-[var(--text-tertiary)] focus:border-[var(--gold-500)] focus:shadow-[var(--shadow-gold)]"
+                    />
+                  </Field>
+
+                  <div className="flex justify-center gap-3 py-2">
+                    {[0, 1, 2, 3].map((index) => (
+                      <div
+                        key={index}
+                        className={cn(
+                          'h-4 w-4 rounded-full border-2 transition-colors',
+                          pin.length > index ? 'border-[var(--gold-500)] bg-[var(--gold-500)]' : 'border-[var(--border-strong)]',
+                        )}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '✓'].map((key) => (
+                      <button
+                        key={key}
+                        type={key === '✓' ? 'submit' : 'button'}
+                        onClick={key !== '✓' ? () => handlePinKey(key) : undefined}
+                        disabled={isLoading || (key === '✓' && pin.length !== 4)}
+                        className={cn(
+                          'rounded-[var(--radius-md)] py-3 text-lg font-medium transition-all duration-150',
+                          key === '✓'
+                            ? 'bg-[var(--gold-500)] text-[#1A1400] hover:bg-[var(--gold-400)] disabled:cursor-not-allowed disabled:opacity-40'
+                            : key === '⌫'
+                            ? 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            : 'bg-[var(--bg-subtle)] text-[var(--text-primary)] hover:bg-[var(--bg-muted)]',
+                        )}
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                </form>
+              )}
+            </Card>
+
+            <p className="mt-6 text-center text-xs text-[var(--text-tertiary)]">
+              Diseñado para operación diaria. Claro, rápido y confiable.
+            </p>
+          </div>
+        </main>
       </div>
     </div>
   );

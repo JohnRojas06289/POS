@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useCallback } from 'react';
+import Image from 'next/image';
+import { Badge } from '../ui';
 import { cn } from '../../lib/cn';
 
 interface ProductVariant {
@@ -24,47 +26,22 @@ interface ProductCardProps {
   onSelectVariant: (product: Product) => void;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  food: 'from-orange-100 to-amber-50',
-  drink: 'from-blue-100 to-cyan-50',
-  clothing: 'from-purple-100 to-pink-50',
-  electronics: 'from-slate-100 to-gray-50',
-  default: 'from-[--nexus-300]/20 to-[--nexus-400]/10',
-};
-
 function StockBadge({ stock }: { stock: number }) {
-  if (stock === 0) return (
-    <span className="text-xs text-[--danger] font-medium flex items-center gap-0.5">
-      <span aria-hidden>✗</span> Agotado
-    </span>
-  );
-  if (stock <= 5) return (
-    <span className="text-xs text-[--warning] font-medium flex items-center gap-0.5">
-      <span aria-hidden>⚠</span> {stock}
-    </span>
-  );
-  return (
-    <span className="text-xs text-[--success] font-medium flex items-center gap-0.5">
-      <span aria-hidden>✓</span> {stock}
-    </span>
-  );
+  if (stock === 0) return <Badge variant="danger">Agotado</Badge>;
+  if (stock <= 5) return <Badge variant="warning" dot>Stock bajo</Badge>;
+  return <Badge variant="success" dot>Disponible</Badge>;
 }
 
-export const ProductCard = React.memo(function ProductCard({
-  product, onAdd, onSelectVariant,
-}: ProductCardProps) {
+export const ProductCard = React.memo(function ProductCard({ product, onAdd, onSelectVariant }: ProductCardProps) {
   const primaryVariant = product.variants[0];
-  const isOutOfStock = product.variants.every((v) => v.stock === 0);
+  const isOutOfStock = product.variants.every((variant) => variant.stock === 0);
   const hasVariants = product.variants.length > 1;
 
   const handleClick = useCallback(() => {
     if (isOutOfStock) return;
-    if (hasVariants) {
-      onSelectVariant(product);
-    } else {
-      onAdd(product, 0);
-    }
-  }, [isOutOfStock, hasVariants, product, onAdd, onSelectVariant]);
+    if (hasVariants) onSelectVariant(product);
+    else onAdd(product, 0);
+  }, [hasVariants, isOutOfStock, onAdd, onSelectVariant, product]);
 
   const price = primaryVariant?.price ?? 0;
   const stock = primaryVariant?.stock ?? 0;
@@ -75,52 +52,38 @@ export const ProductCard = React.memo(function ProductCard({
       disabled={isOutOfStock}
       aria-label={`${product.name}, ${isOutOfStock ? 'sin stock' : `$${price.toLocaleString('es-CO')}`}`}
       className={cn(
-        'relative flex flex-col rounded-[--radius-lg] border border-[--border] bg-[--bg-primary]',
-        'text-left overflow-hidden transition-all duration-150',
-        'focus-visible:outline-2 focus-visible:outline-[--nexus-500] focus-visible:outline-offset-2',
+        'group relative flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] text-left shadow-[var(--shadow-sm)] transition-all duration-150',
         isOutOfStock
-          ? 'opacity-50 cursor-not-allowed grayscale-[80%]'
-          : 'hover:border-[--nexus-500] hover:shadow-[--shadow-md] hover:scale-[1.02] active:scale-[0.98] cursor-pointer',
-        'shadow-[--shadow-sm]',
+          ? 'opacity-50 grayscale-[70%] cursor-not-allowed'
+          : 'cursor-pointer hover:-translate-y-0.5 hover:border-[var(--border-gold)] hover:shadow-[var(--shadow-md)]',
       )}
     >
-      {/* Image / Placeholder */}
-      <div className={cn(
-        'w-full aspect-square flex items-center justify-center overflow-hidden',
-        !product.imageUrl && `bg-gradient-to-br ${CATEGORY_COLORS[product.categoryId ?? 'default']}`,
-      )}>
+      <div className={cn('relative aspect-square overflow-hidden', !product.imageUrl && 'bg-gradient-to-br from-[rgba(201,168,76,0.18)] via-[rgba(201,168,76,0.08)] to-[var(--bg-subtle)]')}>
         {product.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            loading="lazy"
-            className="w-full h-full object-cover"
-          />
+          <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 20vw" className="object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
-          <span className="text-3xl opacity-40" aria-hidden>🛒</span>
-        )}
-        {isOutOfStock && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-[--radius-lg]">
-            <span className="text-xs font-bold text-white bg-black/60 px-2 py-0.5 rounded-full">Sin stock</span>
+          <div className="flex h-full w-full items-center justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(201,168,76,0.25)] bg-[rgba(255,255,255,0.08)] text-3xl text-[var(--text-gold)]">
+              🛒
+            </div>
           </div>
         )}
+        <div className="absolute left-3 top-3">
+          <Badge variant={isOutOfStock ? 'danger' : stock <= 5 ? 'warning' : 'success'} dot>
+            {isOutOfStock ? 'Sin stock' : `${stock} uds`}
+          </Badge>
+        </div>
+        {isOutOfStock && <div className="absolute inset-0 flex items-center justify-center bg-black/30 text-xs font-semibold uppercase tracking-[0.2em] text-white">Sin stock</div>}
       </div>
 
-      {/* Info */}
-      <div className="p-2.5 flex flex-col gap-1 flex-1">
-        <p className="text-xs font-medium text-[--text-primary] line-clamp-2 leading-tight">
-          {product.name}
-        </p>
-        <div className="mt-auto flex items-end justify-between gap-1">
-          <span className="text-sm font-bold text-[--text-primary] font-mono" data-price>
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <p className="line-clamp-2 text-sm font-medium leading-tight text-[var(--text-primary)]">{product.name}</p>
+        <div className="mt-auto flex items-end justify-between gap-2">
+          <span style={{ fontFamily: 'var(--font-mono)' }} className="text-[15px] font-medium text-[var(--text-gold-bright)]">
             ${price.toLocaleString('es-CO')}
           </span>
-          <StockBadge stock={stock} />
+          {hasVariants && !isOutOfStock && <span className="text-[11px] font-medium text-[var(--text-tertiary)]">Elegir variante</span>}
         </div>
-        {hasVariants && !isOutOfStock && (
-          <span className="text-xs text-[--nexus-500] font-medium">Elige variante ›</span>
-        )}
       </div>
     </button>
   );

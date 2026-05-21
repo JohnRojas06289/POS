@@ -1,8 +1,13 @@
 import type { Metadata } from 'next';
+import { DM_Sans, Fraunces, JetBrains_Mono } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { Providers } from './providers';
 import '../styles/tokens.css';
 import './globals.css';
+
+const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-body' });
+const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-display' });
+const jetBrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
   title: 'NEXUS POS',
@@ -12,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body>
+      <body className={`${dmSans.variable} ${fraunces.variable} ${jetBrainsMono.variable}`}>
         <a href="#main-content" className="skip-link">Saltar al contenido principal</a>
         <Providers>
           <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
