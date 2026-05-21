@@ -1,6 +1,6 @@
 # NEXUS POS
 
-Sistema de punto de venta multi-tenant para negocios colombianos. Construido como monorepo con NestJS (backend), Next.js 14 (web) y PostgreSQL schema-per-tenant.
+Sistema de punto de venta multi-tenant para negocios colombianos. Construido como monorepo con NestJS (backend), Next.js 14 (web), React Native (mobile) y PostgreSQL schema-per-tenant.
 
 ---
 
@@ -9,12 +9,14 @@ Sistema de punto de venta multi-tenant para negocios colombianos. Construido com
 | Capa | Tecnología |
 |------|-----------|
 | Backend | NestJS 10, Prisma ORM, JWT (access + refresh), bcrypt |
-| Base de datos | PostgreSQL 16, schema-per-tenant |
-| Caché | Redis 7 (con fallback en memoria si no está disponible) |
+| Base de datos | PostgreSQL 16 en Neon, schema-per-tenant |
+| Caché / tokens | Redis 7 con fallback en memoria si no está disponible |
 | Frontend web | Next.js 14 App Router, React 18, Zustand, TanStack Query v5 |
-| Estilos | Tailwind CSS + Design tokens (CSS custom properties) |
+| Frontend mobile | React Native (Expo), SQLite local, sync offline |
+| Estilos | Tailwind CSS + Design tokens (CSS custom properties), 5 temas visuales |
+| Imágenes | Cloudinary (upload de productos) |
 | Monorepo | Turborepo + pnpm workspaces |
-| Deploy | Vercel (web) + Railway (backend + postgres) |
+| Deploy | Vercel (web) + Render (backend) + Neon (PostgreSQL) |
 
 ---
 
@@ -22,29 +24,61 @@ Sistema de punto de venta multi-tenant para negocios colombianos. Construido com
 
 ### Backend (`/backend`)
 
-- **Auth** — registro de tenant (`POST /auth/register-tenant`), login email+contraseña (`POST /auth/login`), login PIN (`POST /auth/login-pin`), refresh token, logout, perfil (`GET /auth/me`)
-- **Tenants** — gestión de configuración del tenant, crear usuarios (`POST /tenants/users`), crear sucursales (`POST /tenants/branches`)
-- **Analytics** — resumen de ventas, ventas por día, órdenes recientes, ingresos por sucursal (`GET /analytics/summary`)
-- **Inventory** — productos con variantes, stock, movimientos
-- **POS** — sesiones de caja, órdenes, items, pagos
-- **Customers** — CRUD de clientes, crédito, abonos
-- **Billing** — planes de suscripción (`GET /billing/plans`)
-- **Suppliers, Expenses, Employees, DIAN** — módulos base
+| Módulo | Endpoints principales |
+|--------|-----------------------|
+| **Auth** | `POST /auth/register-tenant`, `POST /auth/login`, `POST /auth/login-pin`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/request-password-reset`, `POST /auth/reset-password` |
+| **Tenants** | `GET /tenants/config`, `PATCH /tenants/config`, `GET /tenants/branches`, `POST /tenants/branches`, `GET /tenants/users`, `POST /tenants/users`, `GET /tenants/terminals`, `POST /tenants/terminals`, `PATCH /tenants/terminals/:id/block` |
+| **POS** | `POST /pos/orders`, `GET /pos/orders`, `GET /pos/orders/:id`, `PATCH /pos/orders/:id/hold`, `PATCH /pos/orders/:id/resume`, `POST /pos/orders/:id/refund` |
+| **Inventory** | `GET /inventory/products`, `PATCH /inventory/products/:id`, `POST /inventory/stock/receive`, `POST /inventory/stock/adjust`, `GET /inventory/stock/:variantId/kardex`, `GET /inventory/stock/low` |
+| **Customers** | `GET /customers`, `GET /customers/:id`, `POST /customers/:id/credit/payment` |
+| **Analytics** | `GET /analytics/sales/summary`, `GET /analytics/products/performance`, `GET /analytics/inventory/valuation`, `GET /analytics/customers/insights` |
+| **Employees** | `GET /employees`, `POST /employees`, `POST /employees/:id/payments`, `GET /employees/payroll/summary` |
+| **Expenses** | `GET /expenses`, `POST /expenses`, `GET /expenses/summary` |
+| **Suppliers** | `GET /suppliers`, `POST /suppliers`, `GET /suppliers/:id/purchase-orders`, `POST /suppliers/:id/purchase-orders`, `PATCH /suppliers/:id/purchase-orders/:orderId/receive` |
+| **Cash** | `POST /cash/sessions/open`, `GET /cash/sessions/current`, `POST /cash/sessions/:id/close` |
+| **Billing** | `GET /billing/plans`, `GET /billing/subscription` |
+| **Sync** | `POST /sync/push`, `POST /sync/pull` |
+| **DIAN** | Base implementada |
+| **Onboarding** | Wizard de activación de tenant con plantillas por tipo de negocio |
 
 ### Frontend web (`/apps/web`)
 
 **Rutas públicas**
-- `/onboarding` — wizard de registro (4 pasos: plan → negocio → cuenta → confirmar)
-- `/login` — autenticación con email y contraseña
+| Ruta | Descripción |
+|------|-------------|
+| `/` | Landing page — presentación del producto, módulos, planes y CTAs |
+| `/login` | Autenticación con email/contraseña o PIN de cajero |
+| `/register` | Alias del wizard de onboarding |
+| `/onboarding` | Wizard de registro (4 pasos: plan → negocio → cuenta → confirmar) |
+| `/onboarding/success` | Confirmación de registro exitoso |
+| `/forgot-password` | Solicitud de enlace de recuperación de contraseña |
+| `/reset-password` | Formulario para nueva contraseña con token |
 
-**Dashboard** (`/(dashboard)`)
-- `/` — KPIs (ventas, órdenes, clientes, ticket promedio) + gráfica de ventas 7 días + órdenes recientes
-- `/inventory` — tabla de productos con variantes, modal para crear producto
-- `/customers` — lista de clientes, crédito, modal nuevo cliente, modal registrar abono
-- `/settings` — configuración del tenant, modal nuevo usuario, modal nueva sucursal
+**Dashboard** (`/(dashboard)`) — requiere autenticación
+| Ruta | Descripción |
+|------|-------------|
+| `/dashboard` | KPIs (ventas, órdenes, clientes), gráfica de ventas 7 días, órdenes recientes |
+| `/inventory` | Productos con variantes, stock, kardex paginado, recepción de stock, edición con imagen |
+| `/customers` | Lista de clientes, crédito pendiente, modal nuevo cliente, modal registrar abono |
+| `/orders` | Historial de órdenes |
+| `/analytics` | Ventas, mix de pago, top productos, clientes, margen estimado |
+| `/employees` | Lista de empleados, registro de pagos, resumen de nómina |
+| `/expenses` | Gastos por categoría con filtros de fecha y gráfica de distribución |
+| `/suppliers` | Proveedores, órdenes de compra, recepción de mercancía |
+| `/settings` | Configuración del tenant, usuarios, sucursales, terminales |
+| `/profile` | Perfil del usuario autenticado |
 
 **POS** (`/(pos)`)
-- `/pos` — punto de venta completo: búsqueda de productos, carrito, descuentos por ítem y globales, modo consulta de precios, carrito retenido (F3), deshacer (Ctrl+Z), lector de código de barras
+| Ruta | Descripción |
+|------|-------------|
+| `/pos` | Punto de venta completo: búsqueda, carrito, descuentos, carrito retenido (F3), lector de código de barras, modo consulta de precios |
+
+### Frontend mobile (`/apps/mobile`)
+
+App React Native (Expo) con operación offline-first:
+- Login con email/contraseña y PIN de cajero
+- SQLite local para operar sin conexión
+- Hook `useOfflinePOS` para sincronización diferida con el backend
 
 ---
 
@@ -53,19 +87,22 @@ Sistema de punto de venta multi-tenant para negocios colombianos. Construido com
 Cada negocio registrado obtiene un schema propio en PostgreSQL:
 
 ```
-PostgreSQL
-├── public          ← schema global (Tenant, Plan, etc.)
-└── tenant_{slug}_{uid}  ← schema por negocio
+PostgreSQL (Neon)
+├── public              ← schema global (Tenant, Plan, BusinessTemplate, etc.)
+└── tenant_{slug}_{uid} ← schema por negocio (generado en registro)
     ├── Branch
     ├── Terminal
     ├── User
     ├── Product / ProductVariant / StockEntry
     ├── Order / OrderItem / Payment
     ├── Customer / CreditTransaction
-    └── ... (23 tablas clonadas de "tenant" template)
+    ├── Employee / PayrollPayment
+    ├── Expense
+    ├── Supplier / PurchaseOrder
+    └── ... (23 tablas clonadas del schema "tenant" template)
 ```
 
-El schema se provisiona automáticamente en `POST /auth/register-tenant` usando `CREATE SCHEMA LIKE "tenant"."<tabla>" INCLUDING ALL`.
+El schema se provisiona automáticamente en `POST /auth/register-tenant`. El `TenantInterceptor` verifica el JWT en cada request autenticado y expone `request.user` con `tenantId`, `schemaName` y `role`. Todos los servicios usan nombres de schema explícitos en sus queries (`"${schemaName}"."Tabla"`).
 
 ---
 
@@ -75,7 +112,7 @@ El schema se provisiona automáticamente en `POST /auth/register-tenant` usando 
 
 - Node.js >= 20
 - pnpm >= 9
-- Docker (para PostgreSQL y Redis) o una instancia de PostgreSQL accesible
+- Docker (para PostgreSQL y Redis locales)
 - PostgreSQL con extensiones `uuid-ossp` y `pgcrypto`
 
 ### 1. Clonar e instalar dependencias
@@ -92,7 +129,7 @@ pnpm install
 docker compose up -d
 ```
 
-Esto levanta:
+Levanta:
 - PostgreSQL 16 en `localhost:5432` (usuario: `postgres`, contraseña: `postgres`, db: `nexus_global`)
 - Redis 7 en `localhost:6379`
 
@@ -102,17 +139,22 @@ Esto levanta:
 cp backend/.env.example backend/.env
 ```
 
-Edita `backend/.env`:
+Edita `backend/.env` con los valores mínimos para desarrollo local:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/nexus_global"
 JWT_SECRET="cambia-esto-por-algo-random"
 JWT_REFRESH_SECRET="cambia-esto-tambien"
-REDIS_URL="redis://localhost:6379"
-NODE_ENV=development
+JWT_ACCESS_EXPIRES="15m"
+JWT_REFRESH_EXPIRES="30d"
+REDIS_HOST="localhost"
+REDIS_PORT="6379"
+NODE_ENV="development"
+PORT="3001"
+ALLOWED_ORIGINS="http://localhost:3000"
 ```
 
-> **Nota:** Redis es opcional. Si no está disponible, el backend usa un Map en memoria como fallback automático.
+> Redis es opcional. Si no está disponible, el backend usa un Map en memoria con soporte de TTL. Las sesiones no persisten entre reinicios del servidor en ese modo.
 
 ### 4. Sincronizar el schema de base de datos
 
@@ -127,12 +169,11 @@ pnpm prisma:push
 pnpm seed
 ```
 
-Esto crea:
+Crea:
 - Schema `tenant_demo` con todas las tablas
-- Usuario demo: **admin@nexus.com** / **Admin123!**
-- 2 productos con variantes (SHIRT-001, JEAN-001)
-- 2 clientes
-- 10 órdenes distribuidas en los últimos 7 días
+- Tenant demo: email `demo@nexus.com`
+- Usuario demo: `demo@nexus.com` / `demo1234`
+- Productos, clientes y órdenes de ejemplo
 
 ### 6. Configurar el frontend
 
@@ -144,28 +185,20 @@ Edita `apps/web/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
+# Opcional: necesario para subida de imágenes de productos
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=tu-cloud-name
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=tu-upload-preset
 ```
 
 ### 7. Correr en desarrollo
 
-Desde la raíz del monorepo:
-
 ```bash
+# Desde la raíz del monorepo (backend + frontend en paralelo)
 pnpm dev
-```
 
-Esto corre en paralelo:
-- Backend en `http://localhost:3001`
-- Frontend en `http://localhost:3000`
-
-O por separado:
-
-```bash
-# Backend
-cd backend && pnpm dev
-
-# Frontend
-cd apps/web && pnpm dev
+# O por separado
+cd backend && pnpm dev     # http://localhost:3001
+cd apps/web && pnpm dev    # http://localhost:3000
 ```
 
 ---
@@ -174,22 +207,9 @@ cd apps/web && pnpm dev
 
 | Campo | Valor |
 |-------|-------|
-| Email | `admin@nexus.com` |
-| Contraseña | `Admin123!` |
-| Tenant email | `admin@nexus.com` (mismo) |
-
----
-
-## Registro de un nuevo negocio
-
-Ir a `/onboarding` o `/register`. El wizard guía en 4 pasos:
-
-1. **Plan** — seleccionar plan de suscripción (cargado desde la API)
-2. **Negocio** — tipo de negocio (tarjetas visuales) + nombre + teléfono
-3. **Cuenta** — nombre del responsable + email + contraseña con medidor de fortaleza
-4. **Confirmar** — resumen + submit a `POST /auth/register-tenant`
-
-Al completar el registro, los tokens JWT se persisten en `localStorage` y en el store de Zustand, y el usuario es redirigido directamente al dashboard.
+| Email del negocio | `demo@nexus.com` |
+| Email del usuario | `demo@nexus.com` |
+| Contraseña | `demo1234` |
 
 ---
 
@@ -202,15 +222,25 @@ Al completar el registro, los tokens JWT se persisten en `localStorage` y en el 
 | `DATABASE_URL` | Conexión a PostgreSQL | Sí |
 | `JWT_SECRET` | Secreto para access tokens | Sí |
 | `JWT_REFRESH_SECRET` | Secreto para refresh tokens | Sí |
-| `REDIS_URL` | Conexión a Redis | No (fallback en memoria) |
+| `JWT_ACCESS_EXPIRES` | Duración del access token (ej. `15m`) | No (default: `15m`) |
+| `JWT_REFRESH_EXPIRES` | Duración del refresh token (ej. `30d`) | No (default: `30d`) |
+| `REDIS_HOST` | Host de Redis | No (default: `localhost`) |
+| `REDIS_PORT` | Puerto de Redis | No (default: `6379`) |
+| `ALLOWED_ORIGINS` | Orígenes CORS permitidos, separados por coma | No (default: `http://localhost:3000`) |
+| `PORT` | Puerto del servidor | No (default: `3001`) |
 | `NODE_ENV` | `development` o `production` | No |
-| `PORT` | Puerto del servidor (default: 3001) | No |
+| `RESEND_API_KEY` | API key de Resend para emails de recuperación | No |
+| `EMAIL_FROM` | Dirección remitente de emails | No |
+| `CLOUDINARY_CLOUD_NAME` | Cloud name de Cloudinary | No |
+| `WOMPI_PUBLIC_KEY` / `WOMPI_PRIVATE_KEY` | Claves de pasarela de pagos Wompi | No |
 
-### Frontend
+### Frontend web
 
 | Variable | Descripción | Requerida |
 |----------|-------------|-----------|
 | `NEXT_PUBLIC_API_URL` | URL base del backend | Sí |
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | Cloud name de Cloudinary | Solo si se usan imágenes de productos |
+| `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` | Upload preset sin firma de Cloudinary | Solo si se usan imágenes de productos |
 
 ---
 
@@ -221,15 +251,17 @@ Al completar el registro, los tokens JWT se persisten en `localStorage` y en el 
 pnpm dev          # Backend + frontend en paralelo
 pnpm build        # Build de todos los paquetes
 pnpm lint         # Lint en todos los paquetes
-pnpm format       # Prettier en todo el repo
 
 # Backend (cd backend)
-pnpm prisma:push   # Sincronizar schema con la DB (sin migraciones)
-pnpm prisma:studio # Abrir Prisma Studio en el navegador
-pnpm seed          # Cargar datos de demo
-pnpm dev           # Nest en modo watch
+pnpm dev               # NestJS en modo watch
+pnpm build             # Build de producción
+pnpm prisma:push       # Sincronizar schema con la DB (sin migraciones)
+pnpm prisma:migrate    # Crear migración nueva
+pnpm prisma:generate   # Regenerar el cliente de Prisma
+pnpm prisma:studio     # Abrir Prisma Studio en el navegador
+pnpm seed              # Cargar datos de demo
 
-# Frontend (cd apps/web)
+# Frontend web (cd apps/web)
 pnpm dev           # Next.js en modo desarrollo
 pnpm build         # Build de producción
 ```
@@ -241,46 +273,65 @@ pnpm build         # Build de producción
 ```
 nexus/
 ├── apps/
-│   └── web/                    # Next.js 14 App Router
+│   ├── web/                        # Next.js 14 App Router
+│   │   └── src/
+│   │       ├── app/
+│   │       │   ├── page.tsx        # Landing page (/)
+│   │       │   ├── (auth)/         # Login, register, forgot/reset-password
+│   │       │   ├── (dashboard)/    # Dashboard, inventory, customers, analytics,
+│   │       │   │                   # employees, expenses, suppliers, settings, orders
+│   │       │   ├── (pos)/          # Punto de venta (/pos)
+│   │       │   └── onboarding/     # Wizard de registro
+│   │       ├── components/
+│   │       │   ├── onboarding/     # StepPlans, StepBusiness, StepAccount,
+│   │       │   │                   # StepConfirm, StepPayment
+│   │       │   └── ui/             # Card, Badge, Button, Toast, Skeleton,
+│   │       │                       # KPICard, ThemeToggle, ImageUpload
+│   │       ├── stores/             # Zustand (auth.store.ts)
+│   │       ├── lib/                # api.ts (axios + interceptors), cn.ts, themes.ts
+│   │       └── styles/             # tokens.css (design system, 5 temas)
+│   └── mobile/                     # React Native (Expo)
 │       └── src/
-│           ├── app/
-│           │   ├── (auth)/     # Login, register
-│           │   ├── (dashboard)/# Dashboard, inventory, customers, settings
-│           │   ├── (pos)/      # Punto de venta
-│           │   └── onboarding/ # Wizard de registro
-│           ├── components/
-│           │   ├── onboarding/ # StepPlans, StepBusiness, StepAccount, StepConfirm
-│           │   └── ui/         # Toast, ThemeToggle, etc.
-│           ├── stores/         # Zustand (auth.store.ts)
-│           ├── lib/            # api.ts (axios), cn.ts
-│           └── styles/         # tokens.css (design system)
+│           ├── database/           # local.db.ts (SQLite)
+│           ├── hooks/              # useOfflinePOS.ts
+│           └── app/
+│               └── (auth)/         # Login, PIN login
 ├── backend/
 │   └── src/
 │       ├── modules/
-│       │   ├── auth/           # JWT, register-tenant, login
-│       │   ├── analytics/      # KPIs y reportes
-│       │   ├── inventory/      # Productos y stock
-│       │   ├── pos/            # Sesiones de caja y órdenes
-│       │   ├── customers/      # Clientes y crédito
-│       │   ├── billing/        # Planes
-│       │   └── tenants/        # Config del tenant, usuarios, sucursales
+│       │   ├── auth/               # JWT, register-tenant, login, password reset
+│       │   ├── analytics/          # KPIs y reportes
+│       │   ├── inventory/          # Productos, variantes, stock, kardex
+│       │   ├── pos/                # Sesiones de caja y órdenes
+│       │   ├── customers/          # Clientes y crédito
+│       │   ├── employees/          # Empleados y nómina
+│       │   ├── expenses/           # Gastos por categoría
+│       │   ├── suppliers/          # Proveedores y órdenes de compra
+│       │   ├── cash/               # Sesiones de caja
+│       │   ├── billing/            # Planes y suscripciones
+│       │   ├── tenants/            # Config, usuarios, sucursales, terminales
+│       │   ├── sync/               # Push/pull para sincronización offline
+│       │   └── onboarding/         # Wizard de activación con plantillas
 │       ├── common/
-│       │   └── utils/          # tenant-schema.util.ts (TENANT_TEMPLATE_TABLES)
+│       │   ├── interceptors/       # TenantInterceptor (auth + schema context)
+│       │   ├── decorators/         # @Public(), @CurrentUser()
+│       │   ├── security/           # Rate limiting, hardening
+│       │   └── utils/              # tenant-schema.util.ts, resilience.util.ts
 │       └── database/
-│           ├── prisma/         # schema.prisma, seed.ts
-│           └── redis/          # RedisService (con fallback en memoria)
-├── docker/
-│   └── postgres/init.sql       # Extensiones uuid-ossp, pgcrypto
-├── docker-compose.yml          # PostgreSQL + Redis
-└── turbo.json                  # Pipeline de Turborepo
+│           ├── prisma/             # schema.prisma, seed.ts
+│           └── redis/              # RedisService (con fallback en memoria)
+├── docker-compose.yml              # PostgreSQL 16 + Redis 7
+├── turbo.json                      # Pipeline de Turborepo
+└── vercel.json                     # Config de deploy para Vercel
 ```
 
 ---
 
-## Notas de diseño
+## Diseño
 
-- **Design system**: tokens CSS en `styles/tokens.css` — paleta dorada (`--gold-*`), fondos (`--bg-*`), texto (`--text-*`), bordes (`--border-*`), sombras, radios.
-- **Tema oscuro**: soportado vía `[data-theme="dark"]` en tokens.css.
+- **Design system**: tokens CSS en `styles/tokens.css` — paleta dorada (`--gold-*`), fondos (`--bg-*`), textos (`--text-*`), bordes, sombras y radios.
+- **Temas**: 5 temas visuales (minimal, dark, warm, professional, editorial) seleccionables desde el `ThemeToggle`.
 - **Fuentes**: Fraunces (display/headings), DM Sans (cuerpo), JetBrains Mono (datos/código).
-- **Redis fallback**: si Redis no está disponible al iniciar, el backend registra una advertencia y usa un `Map` en memoria con soporte de TTL. Las sesiones no persisten entre reinicios del servidor en este modo.
+- **Redis fallback**: si Redis no está disponible al iniciar, el backend usa un `Map` en memoria con soporte de TTL.
 - **Schema-per-tenant**: el schema se genera como `tenant_{slug}_{timestamp_base36}` para garantizar unicidad sin exponer el nombre del negocio en identificadores internos.
+- **Imágenes**: upload directo al cliente de Cloudinary con preset sin firma. El backend solo almacena la URL resultante.
