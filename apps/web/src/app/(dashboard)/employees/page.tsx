@@ -56,8 +56,23 @@ function NewEmployeeModal({
   const [documentNumber, setDocumentNumber] = useState('');
   const [saving, setSaving] = useState(false);
 
+  React.useEffect(() => {
+    if (branches.length === 0) return;
+    const currentExists = branches.some((branch) => branch.id === branchId);
+    if (!branchId || !currentExists) {
+      setBranchId(branches[0].id);
+    }
+  }, [branches, branchId]);
+
   const handleSave = async () => {
-    if (!name || !branchId) return;
+    if (!branches.length) {
+      toast('Primero crea una sucursal', 'error');
+      return;
+    }
+    if (!name || !branchId) {
+      toast('Selecciona una sucursal para continuar', 'error');
+      return;
+    }
     setSaving(true);
     try {
       await employeesApi.createEmployee({
@@ -91,9 +106,13 @@ function NewEmployeeModal({
           <div>
             <label className="mb-1 block text-xs font-medium text-[--text-secondary]">Sucursal *</label>
             <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="w-full rounded-[--radius-md] border border-[--border] bg-[--bg-primary] px-3 py-2 text-sm text-[--text-primary]">
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>{branch.name}</option>
-              ))}
+              {branches.length === 0 ? (
+                <option value="">No hay sucursales</option>
+              ) : (
+                branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>{branch.name}</option>
+                ))
+              )}
             </select>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

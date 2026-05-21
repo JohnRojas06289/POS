@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, BarChart3, Boxes, CheckCircle2, CloudOff, LayoutGrid, ShieldCheck, Store, Zap } from 'lucide-react';
+import { ArrowRight, BarChart3, Boxes, CheckCircle2, CloudOff, Infinity, LayoutGrid, MapPin, ShieldCheck, Store, WifiOff, Zap } from 'lucide-react';
 import { cn } from '../lib/cn';
 
 export const metadata = {
@@ -14,31 +14,84 @@ const BUSINESS_TYPES = [
   'Miscelánea', 'Panadería', 'Zapatería', 'Electrónica',
 ];
 
+const QUALITIES = [
+  {
+    icon: Zap,
+    title: 'Velocidad real',
+    description: 'Cobro en 3 pasos. Búsqueda, carrito, cobrar. Sin pantallas intermedias ni clics innecesarios.',
+  },
+  {
+    icon: WifiOff,
+    title: 'Offline-first',
+    description: 'Sin internet, la caja no para. SQLite local almacena cada venta y sincroniza en cuanto vuelve la conexión.',
+  },
+  {
+    icon: MapPin,
+    title: '100% colombiano',
+    description: 'COP, IVA colombiano, DIAN. No es un sistema adaptado — nació aquí para negocios como el tuyo.',
+  },
+  {
+    icon: LayoutGrid,
+    title: 'Control total',
+    description: 'Cada sucursal con su terminal, su caja y su inventario. Centralizado desde un solo dashboard.',
+  },
+];
+
 const PLANS = [
   {
     name: 'Lite',
-    badge: null as string | null,
-    price: 'Pago único',
-    description: 'Para empezar sin mensualidades.',
-    features: ['1 sucursal', '1 usuario admin', 'POS completo', 'Inventario básico', 'Soporte por email'],
-    cta: { label: 'Empezar', href: '/register' },
+    billing: 'Pago único',
+    badge: 'Vitalicio ∞',
+    badgeStyle: 'lifetime' as const,
+    description: 'Un solo pago, sin mensualidades nunca.',
+    callout: 'Sin mensualidad. Para siempre.',
+    features: [
+      '1 sucursal',
+      '1 usuario administrador',
+      'POS completo (ventas, carrito, barcode)',
+      'Inventario con variantes y kardex',
+      'Clientes y crédito básico',
+      'Gastos por categoría',
+      'Soporte por email',
+    ],
+    cta: { label: 'Empezar con Lite', href: '/register' },
     highlight: false,
   },
   {
     name: 'Starter',
-    badge: 'Más popular' as string | null,
-    price: 'Mensual',
+    billing: 'Mensual',
+    badge: 'Más popular',
+    badgeStyle: 'popular' as const,
     description: 'Para negocios con equipo y crecimiento.',
-    features: ['3 sucursales', '5 usuarios', 'POS + inventario', 'Analíticas avanzadas', 'Roles y permisos', 'Soporte prioritario'],
+    callout: null as string | null,
+    features: [
+      '3 sucursales',
+      '5 usuarios del sistema',
+      'Todo lo de Lite',
+      'Analíticas (ventas, top productos, margen)',
+      'Empleados y nómina',
+      'Proveedores y órdenes de compra',
+      'Soporte prioritario',
+    ],
     cta: { label: 'Elegir Starter', href: '/register' },
     highlight: true,
   },
   {
     name: 'Pro',
+    billing: 'Mensual',
     badge: null as string | null,
-    price: 'Mensual',
-    description: 'Para operaciones grandes y exigentes.',
-    features: ['Sucursales ilimitadas', 'Usuarios ilimitados', 'Todo de Starter', 'Integración DIAN', 'API access', 'SLA 99.9%'],
+    badgeStyle: null as null,
+    description: 'Para operaciones exigentes y equipos grandes.',
+    callout: null as string | null,
+    features: [
+      'Sucursales ilimitadas',
+      'Usuarios ilimitados',
+      'Todo lo de Starter',
+      'Integración DIAN',
+      'API access',
+      'SLA 99.9% garantizado',
+      'Soporte dedicado',
+    ],
     cta: { label: 'Hablar con ventas', href: '/register' },
     highlight: false,
   },
@@ -216,6 +269,40 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* ── ¿Por qué NEXUS? ─────────────────────────── */}
+      <section className="relative z-10 mx-auto max-w-7xl px-6 py-20 sm:px-8 lg:py-28">
+        <div className="mb-12 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">Diseño con propósito</p>
+          <h2
+            className="mt-3 text-4xl font-medium tracking-tight sm:text-5xl"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Construido para operar<br />bajo presión.
+          </h2>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {QUALITIES.map((q) => {
+            const Icon = q.icon;
+            return (
+              <div
+                key={q.title}
+                className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)]"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="relative">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
+                    <Icon size={20} className="text-[#C9A84C]" />
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold text-white">{q.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-white/45">{q.description}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* ── Bento features ──────────────────────────── */}
       <section id="features" className="relative z-10 mx-auto max-w-7xl px-6 py-20 sm:px-8 lg:py-28">
         <div className="mb-12 text-center">
@@ -380,17 +467,31 @@ export default function HomePage() {
                   : 'border-white/[0.07] bg-[#111111] hover:border-white/15',
               )}
             >
-              {plan.badge && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full border border-[rgba(201,168,76,0.5)] bg-[#C9A84C] px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0A0A0A]">
+              {/* Badge */}
+              {plan.badge && plan.badgeStyle === 'lifetime' && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#C9A84C] px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0A0A0A]">
+                  {plan.badge}
+                </div>
+              )}
+              {plan.badge && plan.badgeStyle === 'popular' && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/80 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0A0A0A]">
                   {plan.badge}
                 </div>
               )}
 
               <div>
                 <p className="text-sm font-semibold text-[#C9A84C]">{plan.name}</p>
-                <p className="mt-1 text-2xl font-medium text-white">{plan.price}</p>
+                <p className="mt-1 text-2xl font-medium text-white">{plan.billing}</p>
                 <p className="mt-2 text-sm leading-6 text-white/45">{plan.description}</p>
               </div>
+
+              {/* Lite callout */}
+              {plan.callout && (
+                <div className="mt-4 flex items-center gap-2 rounded-xl border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.06)] px-3 py-2">
+                  <Infinity size={13} className="flex-none text-[#C9A84C]" />
+                  <span className="text-xs text-[#C9A84C]">{plan.callout}</span>
+                </div>
+              )}
 
               <ul className="mt-6 space-y-2.5">
                 {plan.features.map((f) => (

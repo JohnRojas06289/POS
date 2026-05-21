@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useMemo } from 'react';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Package, AlertTriangle, TrendingDown, Plus, ArrowUpDown, Download, Upload, Loader2 } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
@@ -11,7 +11,6 @@ import { inventoryApi, tenantsApi, api } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
 import { ImageUpload } from '../../../components/ui/ImageUpload';
 
-// Mock data — kept as fallback so the page is never empty during development
 interface Product {
   id: string;
   productId: string;
@@ -25,16 +24,6 @@ interface Product {
   imageUrl?: string | null;
 }
 
-const mockProducts: Product[] = [
-  { id: '1', productId: '1', name: 'Coca-Cola 350ml', sku: 'BEB-001', category: 'Bebidas', stock: 48, minStock: 12, cpp: 2100, price: 3500, imageUrl: null },
-  { id: '2', productId: '2', name: 'Agua Cristal 500ml', sku: 'BEB-002', category: 'Bebidas', stock: 5, minStock: 20, cpp: 800, price: 1500, imageUrl: null },
-  { id: '3', productId: '3', name: 'Empanada de Pipián', sku: 'COM-001', category: 'Comidas', stock: 18, minStock: 10, cpp: 1800, price: 3000, imageUrl: null },
-  { id: '4', productId: '4', name: 'Brownie Chocolate', sku: 'POS-001', category: 'Postres', stock: 0, minStock: 5, cpp: 2500, price: 4500, imageUrl: null },
-  { id: '5', productId: '5', name: 'Papas Fritas', sku: 'SNA-001', category: 'Snacks', stock: 32, minStock: 15, cpp: 1200, price: 2000, imageUrl: null },
-  { id: '6', productId: '6', name: 'Jugo Natural Naranja', sku: 'BEB-003', category: 'Bebidas', stock: 8, minStock: 10, cpp: 2800, price: 5000, imageUrl: null },
-  { id: '7', productId: '7', name: 'Sándwich Club', sku: 'COM-002', category: 'Comidas', stock: 22, minStock: 8, cpp: 4200, price: 8500, imageUrl: null },
-  { id: '8', productId: '8', name: 'Cheesecake Frutos Rojos', sku: 'POS-002', category: 'Postres', stock: 3, minStock: 5, cpp: 5500, price: 9000, imageUrl: null },
-];
 type SortField = 'name' | 'stock' | 'cpp' | 'price';
 
 function getStockBadge(stock: number, minStock: number) {
@@ -190,6 +179,7 @@ function KardexModal({ product, onClose }: { product: Product; onClose: () => vo
 }
 
 function NewProductModal({ onClose, onSave, branchId }: { onClose: () => void; onSave: () => void; branchId: string }) {
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('');
@@ -218,6 +208,10 @@ function NewProductModal({ onClose, onSave, branchId }: { onClose: () => void; o
 
   const handleSave = async () => {
     if (!name || !sku || !price) return;
+    if (Number(initialStock) > 0 && !branchId) {
+      toast('No hay sucursal activa para recibir stock inicial', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const payloadVariants = hasVariants
@@ -255,6 +249,7 @@ function NewProductModal({ onClose, onSave, branchId }: { onClose: () => void; o
         });
       }
       toast('Producto creado exitosamente', 'success');
+      await queryClient.invalidateQueries({ queryKey: ['inventory-products'] });
       onSave();
     } catch {
       toast('Error al crear el producto', 'error');
@@ -341,15 +336,24 @@ function NewProductModal({ onClose, onSave, branchId }: { onClose: () => void; o
 }
 
 function ReceiveStockModal({ product, onClose, onSave }: { product: Product; onClose: () => void; onSave: (qty: number, cost: number, invoiceNumber: string) => void }) {
+  const queryClient = useQueryClient();
   const [qty, setQty] = useState('');
   const [cost, setCost] = useState(product.cpp.toString());
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const q = parseInt(qty);
     const c = parseInt(cost);
     if (!q || q <= 0 || !c || c <= 0) return;
-    onSave(q, c, invoiceNumber);
+
+    setSaving(true);
+    try {
+      await Promise.resolve(onSave(q, c, invoiceNumber));
+      await queryClient.invalidateQueries({ queryKey: ['inventory-products'] });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -403,7 +407,7 @@ function ReceiveStockModal({ product, onClose, onSave }: { product: Product; onC
         </div>
         <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium hover:bg-[--border] transition-colors">Cancelar</button>
-          <button onClick={handleSave} disabled={!qty || !cost} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors">Guardar entrada</button>
+          <button onClick={() => void handleSave()} disabled={!qty || !cost || saving} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors">{saving ? 'Guardando...' : 'Guardar entrada'}</button>
         </div>
       </div>
     </div>
@@ -411,6 +415,7 @@ function ReceiveStockModal({ product, onClose, onSave }: { product: Product; onC
 }
 
 function EditProductModal({ product, onClose, onSave }: { product: Product; onClose: () => void; onSave: () => void }) {
+  const queryClient = useQueryClient();
   const [name, setName] = useState(product.name.split(' — ')[0] ?? product.name);
   const [price, setPrice] = useState(String(product.price));
   const [imageUrl, setImageUrl] = useState(product.imageUrl ?? '');
@@ -427,6 +432,7 @@ function EditProductModal({ product, onClose, onSave }: { product: Product; onCl
         imageUrl: imageUrl || undefined,
       });
       toast('Producto actualizado', 'success');
+      await queryClient.invalidateQueries({ queryKey: ['inventory-products'] });
       onSave();
     } catch {
       toast('Error al actualizar el producto', 'error');
@@ -479,6 +485,7 @@ function EditProductModal({ product, onClose, onSave }: { product: Product; onCl
 }
 
 export default function InventoryPage() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [onlyLowStock, setOnlyLowStock] = useState(false);
@@ -518,7 +525,7 @@ export default function InventoryPage() {
     const raw: unknown[] = Array.isArray((productsData as { data?: unknown[] })?.data)
       ? (productsData as { data: unknown[] }).data
       : Array.isArray(productsData) ? productsData as unknown[] : [];
-    if (raw.length === 0) return mockProducts;
+    if (raw.length === 0) return [];
 
     const result: Product[] = [];
     for (const p of raw as Array<Record<string, unknown>>) {
@@ -874,17 +881,30 @@ export default function InventoryPage() {
         <ReceiveStockModal
           product={receiveProduct}
           onClose={() => setReceiveProduct(null)}
-          onSave={(qty, cost, invoiceNumber) => {
-            void api.post('/inventory/stock/receive', {
-              variantId: receiveProduct.id,
-              branchId,
-              quantity: qty,
-              unitCost: cost,
-              invoiceNumber: invoiceNumber || undefined,
-            }).finally(() => {
-              void refetch();
+          onSave={async (qty, cost, invoiceNumber) => {
+            if (!branchId) {
+              toast('No hay sucursal activa para recibir stock', 'error');
+              return;
+            }
+
+            try {
+              await api.post('/inventory/stock/receive', {
+                variantId: receiveProduct.id,
+                branchId,
+                quantity: qty,
+                unitCost: cost,
+                invoiceNumber: invoiceNumber || undefined,
+              });
+              toast('Stock actualizado', 'success');
+              await Promise.all([
+                refetch(),
+                queryClient.invalidateQueries({ queryKey: ['inventory-products'] }),
+              ]);
+            } catch {
+              toast('No se pudo actualizar el stock', 'error');
+            } finally {
               setReceiveProduct(null);
-            });
+            }
           }}
         />
       )}
