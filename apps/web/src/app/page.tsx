@@ -1,149 +1,118 @@
 import Link from 'next/link';
-import { ArrowRight, BarChart3, Boxes, CheckCircle2, CloudOff, Infinity, LayoutGrid, MapPin, ShieldCheck, Store, WifiOff, Zap } from 'lucide-react';
-import { cn } from '../lib/cn';
+import { LandingNav } from '../components/landing/LandingNav';
+import { FaqAccordion } from '../components/landing/FaqAccordion';
 
 export const metadata = {
-  title: 'NEXUS POS — El POS que tu negocio merece',
-  description: 'Punto de venta premium para negocios colombianos. Ventas, inventario, analíticas y operación offline desde una sola plataforma.',
+  title: 'NEXUS POS — El sistema operativo de tu negocio',
+  description: 'POS, inventario, analíticas y agente IA en una sola plataforma. Diseñado para el comercio colombiano. Empieza gratis.',
 };
 
-const BUSINESS_TYPES = [
-  'Tienda de ropa', 'Supermercado', 'Restaurante', 'Farmacia',
-  'Ferretería', 'Salón de belleza', 'Cafetería', 'Papelería',
-  'Droguería', 'Distribuidora', 'Minimarket', 'Librería',
-  'Miscelánea', 'Panadería', 'Zapatería', 'Electrónica',
-];
+// ─── Shared helpers ──────────────────────────────────────────────────────────
 
-const QUALITIES = [
-  {
-    icon: Zap,
-    title: 'Velocidad real',
-    description: 'Cobro en 3 pasos. Búsqueda, carrito, cobrar. Sin pantallas intermedias ni clics innecesarios.',
-  },
-  {
-    icon: WifiOff,
-    title: 'Offline-first',
-    description: 'Sin internet, la caja no para. SQLite local almacena cada venta y sincroniza en cuanto vuelve la conexión.',
-  },
-  {
-    icon: MapPin,
-    title: '100% colombiano',
-    description: 'COP, IVA colombiano, DIAN. No es un sistema adaptado — nació aquí para negocios como el tuyo.',
-  },
-  {
-    icon: LayoutGrid,
-    title: 'Control total',
-    description: 'Cada sucursal con su terminal, su caja y su inventario. Centralizado desde un solo dashboard.',
-  },
-];
-
-const PLANS = [
-  {
-    name: 'Lite',
-    billing: 'Pago único',
-    badge: 'Vitalicio ∞',
-    badgeStyle: 'lifetime' as const,
-    description: 'Un solo pago, sin mensualidades nunca.',
-    callout: 'Sin mensualidad. Para siempre.',
-    features: [
-      '1 sucursal',
-      '1 usuario administrador',
-      'POS completo (ventas, carrito, barcode)',
-      'Inventario con variantes y kardex',
-      'Clientes y crédito básico',
-      'Gastos por categoría',
-      'Soporte por email',
-    ],
-    cta: { label: 'Empezar con Lite', href: '/register' },
-    highlight: false,
-  },
-  {
-    name: 'Starter',
-    billing: 'Mensual',
-    badge: 'Más popular',
-    badgeStyle: 'popular' as const,
-    description: 'Para negocios con equipo y crecimiento.',
-    callout: null as string | null,
-    features: [
-      '3 sucursales',
-      '5 usuarios del sistema',
-      'Todo lo de Lite',
-      'Analíticas (ventas, top productos, margen)',
-      'Empleados y nómina',
-      'Proveedores y órdenes de compra',
-      'Soporte prioritario',
-    ],
-    cta: { label: 'Elegir Starter', href: '/register' },
-    highlight: true,
-  },
-  {
-    name: 'Pro',
-    billing: 'Mensual',
-    badge: null as string | null,
-    badgeStyle: null as null,
-    description: 'Para operaciones exigentes y equipos grandes.',
-    callout: null as string | null,
-    features: [
-      'Sucursales ilimitadas',
-      'Usuarios ilimitados',
-      'Todo lo de Starter',
-      'Integración DIAN',
-      'API access',
-      'SLA 99.9% garantizado',
-      'Soporte dedicado',
-    ],
-    cta: { label: 'Hablar con ventas', href: '/register' },
-    highlight: false,
-  },
-];
-
-function POSMock() {
+function GoldDot() {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#111111] p-5 shadow-[0_40px_80px_rgba(0,0,0,0.7)]">
-      <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">Caja principal</p>
-          <p className="mt-1 text-xl font-medium text-white" style={{ fontFamily: 'var(--font-display)' }}>Turno activo</p>
-        </div>
-        <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-          <span className="text-[11px] font-medium text-emerald-400">En línea</span>
-        </div>
-      </div>
+    <span
+      className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 mt-[5px]"
+      style={{ background: 'var(--gold-500)' }}
+    />
+  );
+}
 
-      <div className="space-y-2">
-        {[
-          { name: 'Camiseta básica talla M', qty: 2, price: '$45.000' },
-          { name: 'Jean slim fit 32', qty: 1, price: '$89.900' },
-          { name: 'Cinturón cuero café', qty: 1, price: '$32.000' },
-        ].map((item, i) => (
-          <div key={i} className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.03] px-3 py-2.5">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-6 w-6 flex-none items-center justify-center rounded-lg bg-[rgba(201,168,76,0.15)] text-[11px] font-bold text-[#C9A84C]">
-                {item.qty}
+function FeatureItem({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2.5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <GoldDot />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function SectionTag({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-full mb-4"
+      style={{
+        background: 'rgba(201,168,76,0.08)',
+        color: 'var(--gold-500)',
+        border: '1px solid var(--border-gold)',
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2
+      className="text-3xl md:text-4xl font-medium tracking-tight mb-4 leading-tight"
+      style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+function SectionSub({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-base leading-relaxed mb-8 max-w-sm" style={{ color: 'var(--text-secondary)' }}>
+      {children}
+    </p>
+  );
+}
+
+// ─── Mock UI Cards ────────────────────────────────────────────────────────────
+
+function PosMockup() {
+  const items = [
+    { name: 'Camiseta Negra Oversize', qty: 2, price: '$59.900' },
+    { name: 'Jean Slim Azul T32', qty: 1, price: '$89.900' },
+    { name: 'Cinturón Cuero Café', qty: 1, price: '$34.900' },
+  ];
+  return (
+    <div
+      className="rounded-2xl overflow-hidden shadow-2xl"
+      style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
+      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#0A0A0A' }}>
+        <div className="flex gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
+          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
+          <div className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
+        </div>
+        <span className="ml-2 text-xs text-white/20">NEXUS POS — Caja Principal</span>
+      </div>
+      <div className="p-4">
+        <div className="space-y-2 mb-4">
+          {items.map((item) => (
+            <div key={item.name} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <div>
+                <p className="text-xs font-medium text-white/80">{item.name}</p>
+                <p className="text-xs text-white/30">×{item.qty}</p>
               </div>
-              <p className="truncate text-[13px] text-white/75">{item.name}</p>
+              <span className="text-xs font-semibold" style={{ color: '#C9A84C' }}>{item.price}</span>
             </div>
-            <p className="ml-3 flex-none text-[13px] font-semibold text-white">{item.price}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-4 rounded-xl border border-[rgba(201,168,76,0.22)] bg-[rgba(201,168,76,0.07)] px-4 py-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-white/50">Total a cobrar</p>
-          <p className="text-2xl font-bold text-[#C9A84C]" style={{ fontFamily: 'var(--font-mono)' }}>$166.900</p>
+          ))}
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {['Efectivo', 'Tarjeta', 'Transferencia'].map((m, i) => (
+        <div className="px-3 py-2 rounded-lg mb-3" style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)' }}>
+          <div className="flex justify-between">
+            <span className="text-xs text-white/40">Subtotal</span>
+            <span className="text-xs text-white/60">$184.700</span>
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-xs font-semibold text-white/80">Total</span>
+            <span className="text-sm font-bold" style={{ color: '#C9A84C' }}>$184.700</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {['Efectivo', 'Nequi', 'Tarjeta'].map((m, i) => (
             <div
               key={m}
-              className={cn(
-                'rounded-lg py-2 text-center text-[12px] font-medium transition-colors',
-                i === 0
-                  ? 'bg-[rgba(201,168,76,0.2)] text-[#C9A84C]'
-                  : 'bg-white/5 text-white/40',
-              )}
+              className="py-2 rounded-lg text-center text-xs font-medium"
+              style={{
+                background: i === 0 ? '#C9A84C' : 'rgba(255,255,255,0.05)',
+                color: i === 0 ? '#0A0A0A' : 'rgba(255,255,255,0.5)',
+              }}
             >
               {m}
             </div>
@@ -154,416 +123,728 @@ function POSMock() {
   );
 }
 
-export default function HomePage() {
+function InventoryMockup() {
+  const products = [
+    { name: 'Camiseta Negra Oversize', sku: 'CAM-001', stock: 24, cpp: '$28.000', status: 'ok' },
+    { name: 'Jean Slim Azul T32', sku: 'JEA-032', stock: 7, cpp: '$54.000', status: 'low' },
+    { name: 'Blusa Floral Manga Corta', sku: 'BLU-014', stock: 0, cpp: '$22.000', status: 'out' },
+    { name: 'Cinturón Cuero Café', sku: 'CIN-007', stock: 15, cpp: '$18.500', status: 'ok' },
+  ];
+  const statusColor = (s: string) => s === 'ok' ? '#34D399' : s === 'low' ? '#EF9F27' : '#F09595';
+  const statusLabel = (s: string) => s === 'ok' ? 'Disponible' : s === 'low' ? 'Stock bajo' : 'Agotado';
+
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[#0A0A0A] text-white">
-
-      {/* ── Ambient background ───────────────────── */}
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute inset-0 [background-image:linear-gradient(rgba(255,255,255,0.022)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.022)_1px,transparent_1px)] [background-size:72px_72px]" />
-        <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 bg-[radial-gradient(ellipse,rgba(201,168,76,0.09),transparent_65%)]" />
-        <div className="absolute bottom-0 right-0 h-[350px] w-[550px] bg-[radial-gradient(ellipse,rgba(201,168,76,0.04),transparent_65%)]" />
+    <div
+      className="rounded-2xl overflow-hidden shadow-2xl"
+      style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#0A0A0A' }}>
+        <span className="text-xs text-white/30 font-medium">Inventario · 4 productos</span>
+        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(201,168,76,0.1)', color: '#C9A84C' }}>+ Añadir</span>
       </div>
-
-      {/* ── Navbar ──────────────────────────────────── */}
-      <header className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-6 py-5 sm:px-8">
-        <div>
-          <p className="text-2xl font-medium tracking-tight text-white" style={{ fontFamily: 'var(--font-display)' }}>
-            NEXUS
-          </p>
-          <p className="text-[10px] uppercase tracking-[0.28em] text-white/30">Premium POS</p>
-        </div>
-
-        <nav className="hidden items-center gap-6 sm:flex" aria-label="Navegación principal">
-          <Link href="#features" className="text-sm text-white/50 transition-colors hover:text-white">Producto</Link>
-          <Link href="#plans" className="text-sm text-white/50 transition-colors hover:text-white">Planes</Link>
-          <Link href="/login" className="text-sm text-white/50 transition-colors hover:text-white">Ingresar</Link>
-        </nav>
-
-        <Link
-          href="/register"
-          className="hidden h-9 items-center gap-2 rounded-full border border-[rgba(201,168,76,0.35)] bg-[rgba(201,168,76,0.08)] px-4 text-sm font-medium text-[#C9A84C] transition-all hover:border-[rgba(201,168,76,0.6)] hover:bg-[rgba(201,168,76,0.15)] sm:inline-flex"
-        >
-          Empezar gratis <ArrowRight size={12} />
-        </Link>
-
-        <Link
-          href="/register"
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#C9A84C] px-4 text-sm font-semibold text-[#0A0A0A] sm:hidden"
-        >
-          Empezar
-        </Link>
-      </header>
-
-      {/* ── Hero ────────────────────────────────────── */}
-      <section className="relative z-10 mx-auto max-w-7xl px-6 pb-20 pt-10 sm:px-8 lg:pt-14">
-        <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-12">
-
-          {/* Copy */}
-          <div className="animate-fade-up">
-            <div className="badge-glow inline-flex items-center gap-2 rounded-full border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.07)] px-3.5 py-1.5 text-xs font-medium text-[#C9A84C]">
-              <Zap size={11} />
-              Offline-first · Multi-sucursal · DIAN ready
+      <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        {products.map((p) => (
+          <div key={p.sku} className="px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-white/80">{p.name}</p>
+              <p className="text-xs text-white/25 mt-0.5">{p.sku} · CPP {p.cpp}</p>
             </div>
-
-            <h1
-              className="mt-6 text-5xl font-medium leading-[0.93] tracking-[-0.03em] sm:text-6xl xl:text-[72px]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              El POS que tu<br />
-              negocio{' '}
-              <span className="text-shimmer">merece.</span>
-            </h1>
-
-            <p className="mt-6 max-w-lg text-base leading-8 text-white/50 sm:text-lg">
-              Caja, inventario, sucursales, analíticas y operación sin internet — todo en una plataforma pensada para el comercio colombiano.
-            </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/register"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-[12px] bg-[#C9A84C] px-7 text-[15px] font-semibold text-[#0A0A0A] shadow-[0_4px_24px_rgba(201,168,76,0.35)] transition-all hover:bg-[#E8C96A] hover:shadow-[0_6px_36px_rgba(201,168,76,0.5)] active:scale-[0.98]"
-              >
-                Crear mi cuenta <ArrowRight size={15} />
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-[12px] border border-white/10 px-7 text-[15px] font-medium text-white/65 transition-all hover:border-white/20 hover:text-white active:scale-[0.98]"
-              >
-                Ya tengo cuenta
-              </Link>
-            </div>
-
-            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/8 pt-6">
-              {[
-                'Sin tarjeta de crédito',
-                'Configuración en minutos',
-                'Soporte en español',
-              ].map((text) => (
-                <div key={text} className="flex items-center gap-1.5 text-xs text-white/35">
-                  <CheckCircle2 size={11} className="text-[#C9A84C]" />
-                  {text}
-                </div>
-              ))}
+            <div className="text-right">
+              <p className="text-xs font-semibold text-white/70">{p.stock} uds</p>
+              <p className="text-xs mt-0.5" style={{ color: statusColor(p.status) }}>{statusLabel(p.status)}</p>
             </div>
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-          {/* POS visual */}
-          <div className="animate-fade-up animate-fade-up-2 lg:pl-4">
-            <POSMock />
-          </div>
+function AnalyticsMockup() {
+  const bars = [42, 68, 55, 80, 95, 72, 88];
+  const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  return (
+    <div
+      className="rounded-2xl overflow-hidden shadow-2xl"
+      style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
+      <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#0A0A0A' }}>
+        <p className="text-xs text-white/30">Ventas — últimos 7 días</p>
+        <p className="text-lg font-bold mt-0.5" style={{ color: '#C9A84C' }}>$2.847.300</p>
+      </div>
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-end gap-2 h-24 mb-2">
+          {bars.map((h, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center">
+              <div
+                className="w-full rounded-t-sm"
+                style={{ height: `${h}%`, background: i === 6 ? '#C9A84C' : 'rgba(201,168,76,0.25)' }}
+              />
+            </div>
+          ))}
         </div>
-      </section>
-
-      {/* ── Marquee ─────────────────────────────────── */}
-      <div className="relative z-10 overflow-hidden border-y border-white/[0.06] bg-white/[0.015] py-4">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-[linear-gradient(to_right,#0A0A0A,transparent)]" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-[linear-gradient(to_left,#0A0A0A,transparent)]" />
-        <div className="marquee-track">
-          {[...BUSINESS_TYPES, ...BUSINESS_TYPES].map((item, i) => (
-            <div key={i} className="flex flex-none items-center gap-4 px-6 text-sm text-white/30">
-              <span className="h-1 w-1 rounded-full bg-[#C9A84C]/40" />
-              {item}
+        <div className="flex gap-2">
+          {days.map((d, i) => (
+            <div key={i} className="flex-1 text-center text-xs" style={{ color: i === 6 ? '#C9A84C' : 'rgba(255,255,255,0.2)' }}>
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          {[
+            { label: 'Ticket promedio', value: '$87.400' },
+            { label: 'Transacciones', value: '33' },
+            { label: 'Margen', value: '41%' },
+          ].map((k) => (
+            <div key={k.label} className="rounded-lg p-2" style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <p className="text-xs text-white/25 mb-0.5">{k.label}</p>
+              <p className="text-sm font-semibold text-white/80">{k.value}</p>
             </div>
           ))}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* ── ¿Por qué NEXUS? ─────────────────────────── */}
-      <section className="relative z-10 mx-auto max-w-7xl px-6 py-20 sm:px-8 lg:py-28">
-        <div className="mb-12 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">Diseño con propósito</p>
-          <h2
-            className="mt-3 text-4xl font-medium tracking-tight sm:text-5xl"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Construido para operar<br />bajo presión.
-          </h2>
+function AiMockup() {
+  const messages = [
+    { role: 'user', text: '¿Qué producto me deja más margen este mes?' },
+    { role: 'ai', text: 'La Camiseta Negra Oversize tiene el mayor margen: 58% con 24 unidades vendidas. Te genera $812.400 en utilidad bruta. ¿Quieres ver el detalle por semana?' },
+    { role: 'user', text: '¿Cuándo debo reabastecer el Jean Slim?' },
+    { role: 'ai', text: 'Con 7 unidades y rotación de 3 und/semana, tienes stock para 2 semanas. Haz el pedido esta semana para evitar quiebres de stock.' },
+  ];
+  return (
+    <div
+      className="rounded-2xl overflow-hidden shadow-2xl"
+      style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
+      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#0A0A0A' }}>
+        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.2)' }}>
+          <span className="text-xs">✦</span>
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {QUALITIES.map((q) => {
-            const Icon = q.icon;
-            return (
-              <div
-                key={q.title}
-                className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)]"
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                <div className="relative">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
-                    <Icon size={20} className="text-[#C9A84C]" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-semibold text-white">{q.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-white/45">{q.description}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ── Bento features ──────────────────────────── */}
-      <section id="features" className="relative z-10 mx-auto max-w-7xl px-6 py-20 sm:px-8 lg:py-28">
-        <div className="mb-12 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">Producto</p>
-          <h2
-            className="mt-3 text-4xl font-medium tracking-tight sm:text-5xl"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Todo lo que necesitas<br />en una sola pantalla.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-white/45">
-            Diseñado para la caja real, no para la demo. Cada módulo tiene un propósito claro y un flujo pensado para operar bajo presión.
-          </p>
-        </div>
-
-        {/* Bento grid */}
-        <div className="grid gap-3 md:grid-cols-3 lg:gap-4">
-
-          {/* Card 1: POS — col-span-2 */}
-          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)] md:col-span-2">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <div className="relative">
-              <div className="flex items-start gap-4">
-                <div className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
-                  <Store size={20} className="text-[#C9A84C]" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">POS y sesiones de caja</h3>
-                  <p className="mt-1 max-w-sm text-sm leading-6 text-white/45">Cobrar es lo más importante. Flujo corto, órdenes en espera, F3 para retener y lector de código de barras.</p>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-xl border border-[rgba(201,168,76,0.15)] bg-[rgba(201,168,76,0.05)] px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-white/35">Total en caja</span>
-                  <span className="font-mono text-xl font-bold text-[#C9A84C]">$247.500</span>
-                </div>
-                <div className="mt-2.5 grid grid-cols-3 gap-2">
-                  {['Efectivo', 'Tarjeta', 'Transferencia'].map((m, i) => (
-                    <div
-                      key={m}
-                      className={cn(
-                        'rounded-lg py-2 text-center text-[12px] transition-colors',
-                        i === 0 ? 'bg-[rgba(201,168,76,0.18)] font-medium text-[#C9A84C]' : 'bg-white/5 text-white/35',
-                      )}
-                    >
-                      {m}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Offline */}
-          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <div className="relative">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
-                <CloudOff size={20} className="text-[#C9A84C]" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-white">Offline-first</h3>
-              <p className="mt-1 text-sm leading-6 text-white/45">Sin internet, la caja no para. SQLite local almacena las ventas y sincroniza cuando vuelve la conexión.</p>
-              <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/6 bg-white/[0.03] px-3 py-2.5">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-                <span className="text-xs text-white/40">Cola local activa · 3 órdenes pendientes</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Analytics */}
-          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <div className="relative">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
-                <BarChart3 size={20} className="text-[#C9A84C]" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-white">Analíticas en tiempo real</h3>
-              <p className="mt-1 text-sm leading-6 text-white/45">Ventas diarias, top productos, clientes frecuentes, margen estimado y rotación de inventario.</p>
-
-              {/* Mini chart */}
-              <div className="mt-5 flex h-10 items-end gap-1">
-                {[38, 62, 44, 78, 52, 88, 65, 71].map((h, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-t-sm transition-all duration-500 group-hover:opacity-100"
-                    style={{ height: `${h}%`, background: `rgba(201,168,76,${0.12 + (h / 100) * 0.38})` }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Inventory */}
-          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <div className="relative">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
-                <Boxes size={20} className="text-[#C9A84C]" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-white">Inventario completo</h3>
-              <p className="mt-1 text-sm leading-6 text-white/45">Productos, variantes, kardex, stock mínimo, recepción de mercancía e imágenes por Cloudinary.</p>
-
-              <div className="mt-5 space-y-1.5">
-                {[['Camiseta M / Azul', '42 uds'], ['Jean 32 / Negro', '8 uds'], ['Cinturón café', '⚠ 2 uds']].map(([name, stock]) => (
-                  <div key={name as string} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.03] px-2.5 py-1.5 text-[12px]">
-                    <span className="text-white/55">{name as string}</span>
-                    <span className={cn('font-mono', (stock as string).startsWith('⚠') ? 'text-amber-400' : 'text-white/40')}>{stock as string}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 5: Multi-branch + Security — col-span-2 */}
-          <div className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] p-6 transition-all duration-300 hover:border-[rgba(201,168,76,0.22)] md:col-span-2">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(201,168,76,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <div className="relative grid gap-8 sm:grid-cols-2">
-              <div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
-                  <LayoutGrid size={20} className="text-[#C9A84C]" />
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-white">Multi-sucursal</h3>
-                <p className="mt-1 text-sm leading-6 text-white/45">Cada local con su terminal, sus límites de plan y su configuración operativa independiente.</p>
-              </div>
-              <div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.08)]">
-                  <ShieldCheck size={20} className="text-[#C9A84C]" />
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-white">Roles y seguridad</h3>
-                <p className="mt-1 text-sm leading-6 text-white/45">Usuarios del sistema separados de empleados. Roles editables, recuperación de acceso y JWT rotado.</p>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* ── Plans ───────────────────────────────────── */}
-      <section id="plans" className="relative z-10 mx-auto max-w-7xl px-6 pb-20 sm:px-8 lg:pb-28">
-        <div className="mb-12 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">Planes</p>
-          <h2
-            className="mt-3 text-4xl font-medium tracking-tight sm:text-5xl"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Sin sorpresas al pagar.
-          </h2>
-          <p className="mx-auto mt-4 max-w-lg text-base leading-7 text-white/45">
-            Planes que escalan con tu operación. Empieza con lo que necesitas y crece sin fricciones ni costos ocultos.
-          </p>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          {PLANS.map((plan) => (
+        <span className="text-xs text-white/40">Agente NEXUS</span>
+        <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(52,211,153,0.1)', color: '#34D399' }}>En línea</span>
+      </div>
+      <div className="p-4 space-y-3">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
-              key={plan.name}
-              className={cn(
-                'relative rounded-2xl border p-6 transition-all duration-300',
-                plan.highlight
-                  ? 'border-[rgba(201,168,76,0.35)] bg-[rgba(201,168,76,0.05)] shadow-[0_0_50px_rgba(201,168,76,0.07)]'
-                  : 'border-white/[0.07] bg-[#111111] hover:border-white/15',
-              )}
+              className="max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed"
+              style={{
+                background: m.role === 'user' ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.05)',
+                color: m.role === 'user' ? '#E8C96A' : 'rgba(255,255,255,0.7)',
+                border: `1px solid ${m.role === 'user' ? 'rgba(201,168,76,0.2)' : 'rgba(255,255,255,0.06)'}`,
+              }}
             >
-              {/* Badge */}
-              {plan.badge && plan.badgeStyle === 'lifetime' && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#C9A84C] px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0A0A0A]">
-                  {plan.badge}
-                </div>
-              )}
-              {plan.badge && plan.badgeStyle === 'popular' && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/80 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0A0A0A]">
-                  {plan.badge}
-                </div>
-              )}
+              {m.text}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-              <div>
-                <p className="text-sm font-semibold text-[#C9A84C]">{plan.name}</p>
-                <p className="mt-1 text-2xl font-medium text-white">{plan.billing}</p>
-                <p className="mt-2 text-sm leading-6 text-white/45">{plan.description}</p>
+// ─── Marquee ─────────────────────────────────────────────────────────────────
+
+const MARQUEE_ITEMS = [
+  '✦ Punto de venta offline', '✦ Inventario multi-variante', '✦ Cierre de caja diario',
+  '✦ Kardex automático', '✦ Analíticas en tiempo real', '✦ Agente IA',
+  '✦ Recibos digitales', '✦ Múltiples métodos de pago', '✦ Crédito de tienda',
+  '✦ CPP automático', '✦ Multi-sucursal', '✦ WhatsApp integrado',
+];
+
+function Marquee() {
+  const items = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
+  return (
+    <div
+      className="py-4 overflow-hidden"
+      style={{ borderTop: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}
+    >
+      <style>{`
+        @keyframes nexus-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .nexus-marquee-track { display: flex; width: max-content; animation: nexus-marquee 40s linear infinite; }
+        .nexus-marquee-track:hover { animation-play-state: paused; }
+      `}</style>
+      <div className="nexus-marquee-track">
+        {items.map((item, i) => (
+          <span
+            key={i}
+            className="text-xs font-medium mx-6 whitespace-nowrap"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Plans data ───────────────────────────────────────────────────────────────
+
+const PLANS = [
+  {
+    name: 'Starter',
+    price: 'Gratis',
+    sub: 'Para siempre',
+    description: 'Para empezar a organizar tu negocio sin ningún costo.',
+    features: ['50 productos', '1 usuario', 'POS básico', 'Inventario básico', 'Recibos digitales', '1 sucursal'],
+    cta: 'Empezar gratis',
+    href: '/onboarding',
+    highlight: false,
+  },
+  {
+    name: 'Growth',
+    price: '$89.900',
+    sub: '/ mes · COP',
+    description: 'Para negocios que quieren crecer con datos e inteligencia.',
+    features: [
+      'Productos ilimitados', 'Hasta 5 usuarios', 'Agente IA incluido',
+      'Analíticas avanzadas', 'Kardex y CPP automático', 'Hasta 3 sucursales',
+      'Cierre de caja digital', 'WhatsApp integrado',
+    ],
+    cta: 'Empezar Growth',
+    href: '/onboarding?plan=growth',
+    highlight: true,
+  },
+  {
+    name: 'Enterprise',
+    price: '$189.900',
+    sub: '/ mes · COP',
+    description: 'Para cadenas y comercios con operación compleja.',
+    features: [
+      'Todo lo de Growth', 'Usuarios ilimitados', 'Sucursales ilimitadas',
+      'Roles y permisos avanzados', 'API de integración', 'Soporte prioritario', 'Onboarding personalizado',
+    ],
+    cta: 'Contactar ventas',
+    href: '/onboarding?plan=enterprise',
+    highlight: false,
+  },
+];
+
+// ─── Page ────────────────────────────────────────────────────────────────────
+
+export default function LandingPage() {
+  return (
+    <div style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', minHeight: '100vh' }}>
+      <LandingNav />
+
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section className="relative pt-36 pb-24 px-6 overflow-hidden">
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at center top, rgba(201,168,76,0.08) 0%, transparent 70%)' }}
+        />
+        <div className="max-w-5xl mx-auto text-center relative">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-8"
+            style={{
+              background: 'rgba(201,168,76,0.08)',
+              border: '1px solid var(--border-gold)',
+              color: 'var(--gold-500)',
+            }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--gold-500)' }} />
+            Diseñado para el comercio colombiano
+          </div>
+
+          <h1
+            className="text-5xl md:text-7xl font-medium tracking-tight mb-6 leading-[1.05]"
+            style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+          >
+            El sistema operativo<br />
+            <span style={{ color: 'var(--gold-500)' }}>de tu negocio</span>
+          </h1>
+
+          <p
+            className="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            POS, inventario, analíticas y agente IA en una sola plataforma.
+            Diseñado para tiendas colombianas que quieren vender más y perder menos.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/onboarding"
+              className="px-7 py-3.5 rounded-xl text-base font-semibold transition-all active:scale-95"
+              style={{ background: 'var(--gold-500)', color: '#0A0A0A', boxShadow: '0 0 32px rgba(201,168,76,0.25)' }}
+            >
+              Empezar gratis — sin tarjeta
+            </Link>
+            <a
+              href="#pos"
+              className="px-7 py-3.5 rounded-xl text-base font-medium transition-colors"
+              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-secondary)' }}
+            >
+              Ver cómo funciona →
+            </a>
+          </div>
+          <p className="mt-5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            Gratis para siempre · Sin setup · Datos en Colombia
+          </p>
+
+          {/* Hero browser mockup */}
+          <div className="mt-16 max-w-2xl mx-auto">
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{ border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.06)' }}
+            >
+              <div className="px-4 py-3 flex items-center gap-2" style={{ background: '#0A0A0A', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#FF5F57' }} />
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#FEBC2E' }} />
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28C840' }} />
+                </div>
+                <span className="text-xs text-white/20 mx-auto">nexus.app — Punto de Venta</span>
               </div>
-
-              {/* Lite callout */}
-              {plan.callout && (
-                <div className="mt-4 flex items-center gap-2 rounded-xl border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.06)] px-3 py-2">
-                  <Infinity size={13} className="flex-none text-[#C9A84C]" />
-                  <span className="text-xs text-[#C9A84C]">{plan.callout}</span>
+              <div className="grid grid-cols-3 gap-0" style={{ background: '#111111' }}>
+                <div className="col-span-2 p-4" style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+                  <p className="text-xs text-white/30 mb-3">Productos recientes</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Camiseta', 'Jean', 'Blusa', 'Cinturón', 'Mochila', 'Sudadera'].map((p) => (
+                      <div key={p} className="rounded-lg p-2 text-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="w-8 h-8 rounded-md mx-auto mb-1.5" style={{ background: 'rgba(201,168,76,0.08)' }} />
+                        <p className="text-xs text-white/50">{p}</p>
+                        <p className="text-xs font-medium mt-0.5" style={{ color: '#C9A84C' }}>$59k</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )}
+                <div className="p-4" style={{ background: '#0D0D0D' }}>
+                  <p className="text-xs text-white/30 mb-3">Carrito</p>
+                  <div className="space-y-2">
+                    {['Camiseta ×2', 'Jean ×1'].map((item) => (
+                      <div key={item} className="flex justify-between text-xs py-1">
+                        <span className="text-white/50">{item}</span>
+                        <span style={{ color: '#C9A84C' }}>$118k</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="flex justify-between text-xs mb-3">
+                      <span className="font-medium text-white/80">Total</span>
+                      <span className="font-bold" style={{ color: '#C9A84C' }}>$207k</span>
+                    </div>
+                    <div className="py-2 rounded-lg text-center text-xs font-semibold" style={{ background: '#C9A84C', color: '#0A0A0A' }}>
+                      Cobrar
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-              <ul className="mt-6 space-y-2.5">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-sm text-white/65">
-                    <CheckCircle2 size={14} className="flex-none text-[#C9A84C]" />
-                    {f}
+      {/* ── Marquee ───────────────────────────────────────────────────────── */}
+      <Marquee />
+
+      {/* ── Why NEXUS ─────────────────────────────────────────────────────── */}
+      <section className="py-24 px-6" style={{ background: 'var(--bg-surface)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <SectionTag>Por qué NEXUS</SectionTag>
+            <h2
+              className="text-3xl md:text-4xl font-medium tracking-tight mb-4"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+            >
+              Construido para el comercio real
+            </h2>
+            <p className="max-w-xl mx-auto text-base" style={{ color: 'var(--text-secondary)' }}>
+              No es una adaptación de software extranjero. NEXUS nació pensando en las tiendas de barrio,
+              las boutiques y los negocios familiares colombianos.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: '⚡', title: 'Funciona sin internet', body: 'El POS sigue operando cuando se va la conexión. Las ventas se sincronizan al reconectarse automáticamente.' },
+              { icon: '🇨🇴', title: 'Hecho para Colombia', body: 'Pesos colombianos, Nequi, Daviplata, IVA colombiano y horarios de caja adaptados a la operación local.' },
+              { icon: '🔒', title: 'Tus datos, solo tuyos', body: 'Cada negocio tiene su base de datos aislada. Nadie más ve tu información, nunca, bajo ninguna circunstancia.' },
+              { icon: '✦', title: 'IA que entiende tu negocio', body: 'Pregunta en español natural. El agente responde con datos reales de tu operación, no respuestas genéricas.' },
+            ].map((card) => (
+              <div
+                key={card.title}
+                className="rounded-xl p-5"
+                style={{ background: 'var(--bg-base)', border: '1px solid var(--border-default)' }}
+              >
+                <span className="text-2xl mb-4 block">{card.icon}</span>
+                <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>{card.title}</h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{card.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── POS ──────────────────────────────────────────────────────────── */}
+      <section id="pos" className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div className="order-2 md:order-1">
+              <PosMockup />
+            </div>
+            <div className="order-1 md:order-2">
+              <SectionTag>Punto de venta</SectionTag>
+              <SectionHeading>Cobra en segundos,<br />sin complicaciones</SectionHeading>
+              <SectionSub>
+                Una interfaz diseñada para velocidad: busca por nombre o código de barras,
+                agrega al carrito y cobra en múltiples métodos sin perder el ritmo.
+              </SectionSub>
+              <ul className="space-y-3">
+                <FeatureItem>Búsqueda instantánea por nombre, referencia o código de barras</FeatureItem>
+                <FeatureItem>Pagos mixtos: efectivo + Nequi + tarjeta en una sola venta</FeatureItem>
+                <FeatureItem>Descuentos por ítem o sobre el total de la venta</FeatureItem>
+                <FeatureItem>Crédito de tienda (fiado) con registro de deuda por cliente</FeatureItem>
+                <FeatureItem>Recibo digital por WhatsApp o impresión térmica física</FeatureItem>
+                <FeatureItem>Apertura y cierre de caja con arqueo y diferencia de efectivo</FeatureItem>
+                <FeatureItem>Modo offline: sigue vendiendo sin conexión a internet</FeatureItem>
+                <FeatureItem>Múltiples terminales simultáneos por sucursal</FeatureItem>
+              </ul>
+              <Link href="/onboarding" className="inline-flex items-center gap-2 mt-8 text-sm font-medium" style={{ color: 'var(--gold-500)' }}>
+                Probar el POS gratis →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Inventory ────────────────────────────────────────────────────── */}
+      <section id="inventario" className="py-24 px-6" style={{ background: 'var(--bg-surface)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+              <SectionTag>Inventario</SectionTag>
+              <SectionHeading>Sabe exactamente qué<br />tienes y dónde</SectionHeading>
+              <SectionSub>
+                Inventario en tiempo real que se actualiza con cada venta, compra y ajuste.
+                Con variantes, lotes y trazabilidad completa de cada movimiento.
+              </SectionSub>
+              <ul className="space-y-3">
+                <FeatureItem>Variantes por talla, color o cualquier atributo personalizado</FeatureItem>
+                <FeatureItem>Costo Promedio Ponderado (CPP) calculado automáticamente con cada compra</FeatureItem>
+                <FeatureItem>Kardex: historial completo de movimientos por producto y fecha</FeatureItem>
+                <FeatureItem>Alertas de stock mínimo antes de quedarte sin existencias</FeatureItem>
+                <FeatureItem>Ajustes de inventario con motivo (merma, daño, conteo físico)</FeatureItem>
+                <FeatureItem>Recepción de compras con actualización automática de costo y stock</FeatureItem>
+                <FeatureItem>Valoración del inventario por CPP o precio de venta en tiempo real</FeatureItem>
+                <FeatureItem>Exportación a CSV para contabilidad, auditoría o proveedores</FeatureItem>
+              </ul>
+              <Link href="/onboarding" className="inline-flex items-center gap-2 mt-8 text-sm font-medium" style={{ color: 'var(--gold-500)' }}>
+                Ver inventario en acción →
+              </Link>
+            </div>
+            <div>
+              <InventoryMockup />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Analytics ────────────────────────────────────────────────────── */}
+      <section id="analiticas" className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div className="order-2 md:order-1">
+              <AnalyticsMockup />
+            </div>
+            <div className="order-1 md:order-2">
+              <SectionTag>Analíticas</SectionTag>
+              <SectionHeading>Toma decisiones con<br />datos, no con intuición</SectionHeading>
+              <SectionSub>
+                Dashboards que muestran lo que importa: ventas, márgenes, productos estrella
+                y clientes frecuentes — actualizados con cada transacción.
+              </SectionSub>
+              <ul className="space-y-3">
+                <FeatureItem>Resumen diario, semanal y mensual de ventas, ingresos y utilidad</FeatureItem>
+                <FeatureItem>Ticket promedio, número de transacciones y horas pico de venta</FeatureItem>
+                <FeatureItem>Ranking de productos por unidades vendidas, ingresos y margen</FeatureItem>
+                <FeatureItem>Análisis de métodos de pago más usados por tus clientes</FeatureItem>
+                <FeatureItem>Valoración del inventario y velocidad de rotación por producto</FeatureItem>
+                <FeatureItem>Análisis de clientes: frecuencia, ticket promedio y saldo de crédito</FeatureItem>
+                <FeatureItem>Comparativo período a período (esta semana vs. la anterior)</FeatureItem>
+                <FeatureItem>Actualización automática después de cada venta registrada</FeatureItem>
+              </ul>
+              <Link href="/onboarding" className="inline-flex items-center gap-2 mt-8 text-sm font-medium" style={{ color: 'var(--gold-500)' }}>
+                Ver mis analíticas →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── AI Agent ─────────────────────────────────────────────────────── */}
+      <section id="ia" className="py-24 px-6" style={{ background: 'var(--bg-surface)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+              <SectionTag>Agente IA</SectionTag>
+              <SectionHeading>Tu CFO personal<br />disponible 24/7</SectionHeading>
+              <SectionSub>
+                Pregunta lo que quieras sobre tu negocio en español natural. El Agente NEXUS
+                consulta tus datos en tiempo real y responde con precisión.
+              </SectionSub>
+              <ul className="space-y-3">
+                <FeatureItem>Responde preguntas sobre ventas, inventario y clientes en segundos</FeatureItem>
+                <FeatureItem>Detecta anomalías: caídas de venta, productos sin rotación, stock crítico</FeatureItem>
+                <FeatureItem>Proyecta cuándo se agota un producto según su rotación histórica</FeatureItem>
+                <FeatureItem>Identifica tus productos y clientes más rentables del mes</FeatureItem>
+                <FeatureItem>Sugiere precios de compra ideales para mantener tu margen objetivo</FeatureItem>
+                <FeatureItem>Disponible desde el panel web y por WhatsApp</FeatureItem>
+              </ul>
+              <div
+                className="mt-8 px-4 py-3 rounded-xl text-sm italic leading-relaxed"
+                style={{ background: 'var(--bg-base)', border: '1px solid var(--border-gold)', color: 'var(--text-secondary)' }}
+              >
+                "¿Cuánto vendí la semana pasada comparado con la anterior?" — el Agente
+                te responde con los números exactos, sin abrir ningún reporte.
+              </div>
+              <Link href="/onboarding" className="inline-flex items-center gap-2 mt-6 text-sm font-medium" style={{ color: 'var(--gold-500)' }}>
+                Activar el Agente IA →
+              </Link>
+            </div>
+            <div>
+              <AiMockup />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Stats strip ──────────────────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { number: '100%', label: 'Multi-tenant seguro' },
+              { number: '48h', label: 'Cache offline de productos' },
+              { number: '< 1s', label: 'Tiempo promedio de cobro' },
+              { number: '∞', label: 'Ventas por mes en planes pagos' },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p className="text-3xl font-bold mb-1" style={{ fontFamily: 'var(--font-display)', color: 'var(--gold-500)' }}>
+                  {stat.number}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Plans ──────────────────────────────────────────────────────── */}
+      <section id="planes" className="py-24 px-6" style={{ background: 'var(--bg-surface)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <SectionTag>Planes y precios</SectionTag>
+            <h2
+              className="text-3xl md:text-4xl font-medium tracking-tight mb-4"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+            >
+              Sin sorpresas, sin letras pequeñas
+            </h2>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              Empieza gratis. Crece cuando lo necesites. Cancela cuando quieras.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {PLANS.map((plan) => (
+              <div
+                key={plan.name}
+                className="rounded-2xl p-6 flex flex-col relative"
+                style={{
+                  background: 'var(--bg-base)',
+                  border: plan.highlight ? '1.5px solid var(--gold-500)' : '1px solid var(--border-default)',
+                  boxShadow: plan.highlight ? '0 0 40px rgba(201,168,76,0.1)' : 'none',
+                }}
+              >
+                {plan.highlight && (
+                  <div
+                    className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                    style={{ background: 'var(--gold-500)', color: '#0A0A0A' }}
+                  >
+                    Más popular
+                  </div>
+                )}
+                <div className="mb-6">
+                  <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{plan.name}</h3>
+                  <div className="flex items-baseline gap-1 mb-2">
+                    <span
+                      className="text-3xl font-bold"
+                      style={{ fontFamily: 'var(--font-display)', color: plan.highlight ? 'var(--gold-500)' : 'var(--text-primary)' }}
+                    >
+                      {plan.price}
+                    </span>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{plan.sub}</span>
+                  </div>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{plan.description}</p>
+                </div>
+                <ul className="space-y-2.5 flex-1 mb-8">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="var(--gold-500)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={plan.href}
+                  className="block text-center py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                  style={
+                    plan.highlight
+                      ? { background: 'var(--gold-500)', color: '#0A0A0A' }
+                      : { background: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }
+                  }
+                >
+                  {plan.cta}
+                </Link>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs mt-8" style={{ color: 'var(--text-tertiary)' }}>
+            Todos los planes incluyen actualizaciones de seguridad y nuevas funcionalidades sin costo adicional.
+          </p>
+        </div>
+      </section>
+
+      {/* ── FAQ ───────────────────────────────────────────────────────────── */}
+      <section id="faq" className="py-24 px-6">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-16">
+            <SectionTag>Preguntas frecuentes</SectionTag>
+            <h2
+              className="text-3xl md:text-4xl font-medium tracking-tight"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+            >
+              Todo lo que necesitas saber
+            </h2>
+          </div>
+          <FaqAccordion />
+          <div className="text-center mt-12">
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+              ¿Tienes otra pregunta? Escríbenos directamente.
+            </p>
+            <a
+              href="mailto:hola@nexuspos.co"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            >
+              hola@nexuspos.co
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ──────────────────────────────────────────────────────────── */}
+      <section className="py-24 px-6" style={{ background: 'var(--bg-surface)' }}>
+        <div className="max-w-3xl mx-auto text-center">
+          <div
+            className="rounded-2xl px-8 py-16 relative overflow-hidden"
+            style={{ background: 'var(--bg-base)', border: '1px solid var(--border-gold)', boxShadow: '0 0 64px rgba(201,168,76,0.06)' }}
+          >
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse at center, rgba(201,168,76,0.05) 0%, transparent 70%)' }}
+            />
+            <div className="relative">
+              <p className="text-4xl mb-6" style={{ fontFamily: 'var(--font-display)', color: 'var(--gold-500)' }}>✦</p>
+              <h2
+                className="text-3xl md:text-4xl font-medium tracking-tight mb-4"
+                style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+              >
+                Empieza hoy, gratis
+              </h2>
+              <p className="text-base mb-10 max-w-md mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                Configura tu negocio en menos de 5 minutos.
+                Sin tarjeta de crédito, sin contratos, sin límite de tiempo en el plan gratuito.
+              </p>
+              <Link
+                href="/onboarding"
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-base font-semibold transition-all active:scale-95"
+                style={{ background: 'var(--gold-500)', color: '#0A0A0A', boxShadow: '0 0 32px rgba(201,168,76,0.3)' }}
+              >
+                Crear mi cuenta gratis
+              </Link>
+              <p className="mt-5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                ¿Ya tienes cuenta?{' '}
+                <Link href="/login" style={{ color: 'var(--gold-500)' }}>
+                  Iniciar sesión →
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────────────────────── */}
+      <footer className="py-12 px-6" style={{ borderTop: '1px solid var(--border-default)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+            <div className="col-span-2 md:col-span-1">
+              <span className="text-xl font-bold tracking-tight mb-3 block" style={{ fontFamily: 'var(--font-display)', color: 'var(--gold-500)' }}>
+                NEXUS
+              </span>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                El sistema operativo del comercio colombiano.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-tertiary)' }}>Producto</p>
+              <ul className="space-y-2">
+                {[
+                  { label: 'Punto de Venta', href: '#pos' },
+                  { label: 'Inventario', href: '#inventario' },
+                  { label: 'Analíticas', href: '#analiticas' },
+                  { label: 'Agente IA', href: '#ia' },
+                  { label: 'Planes', href: '#planes' },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <a href={item.href} className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.label}</a>
                   </li>
                 ))}
               </ul>
-
-              <Link
-                href={plan.cta.href}
-                className={cn(
-                  'mt-8 flex h-11 w-full items-center justify-center rounded-[10px] text-sm font-semibold transition-all active:scale-[0.98]',
-                  plan.highlight
-                    ? 'bg-[#C9A84C] text-[#0A0A0A] shadow-[0_4px_20px_rgba(201,168,76,0.28)] hover:bg-[#E8C96A] hover:shadow-[0_4px_28px_rgba(201,168,76,0.4)]'
-                    : 'border border-white/10 text-white hover:border-white/20 hover:bg-white/5',
-                )}
-              >
-                {plan.cta.label}
-              </Link>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Final CTA ───────────────────────────────── */}
-      <section className="relative z-10 mx-auto max-w-7xl px-6 pb-20 sm:px-8 lg:pb-28">
-        <div className="relative overflow-hidden rounded-3xl border border-[rgba(201,168,76,0.18)] bg-[linear-gradient(135deg,rgba(201,168,76,0.07),rgba(201,168,76,0.02))] px-8 py-16 text-center sm:px-12">
-          <div className="absolute inset-0 [background-image:linear-gradient(rgba(201,168,76,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(201,168,76,0.035)_1px,transparent_1px)] [background-size:48px_48px]" />
-          <div className="relative">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">Empieza hoy</p>
-            <h2
-              className="mx-auto mt-4 max-w-2xl text-4xl font-medium tracking-tight sm:text-5xl"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              Tu negocio merece<br />una caja a la altura.
-            </h2>
-            <p className="mx-auto mt-5 max-w-md text-base leading-7 text-white/50">
-              Registro en minutos. Sin tarjeta de crédito. Sin fricción. Solo tú y tu negocio funcionando bien.
-            </p>
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Link
-                href="/register"
-                className="inline-flex h-12 items-center gap-2 rounded-[12px] bg-[#C9A84C] px-8 text-[15px] font-semibold text-[#0A0A0A] shadow-[0_4px_28px_rgba(201,168,76,0.38)] transition-all hover:bg-[#E8C96A] hover:shadow-[0_6px_40px_rgba(201,168,76,0.55)] active:scale-[0.98]"
-              >
-                Crear mi cuenta <ArrowRight size={15} />
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex h-12 items-center gap-2 rounded-[12px] border border-white/10 px-8 text-[15px] text-white/65 transition-all hover:border-white/20 hover:text-white active:scale-[0.98]"
-              >
-                Ya tengo cuenta
-              </Link>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-tertiary)' }}>Empresa</p>
+              <ul className="space-y-2">
+                {['Acerca de', 'Blog', 'Soporte', 'Contacto'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-tertiary)' }}>Legal</p>
+              <ul className="space-y-2">
+                {[
+                  { label: 'Términos de servicio', href: '/terms' },
+                  { label: 'Política de privacidad', href: '/privacy' },
+                  { label: 'Tratamiento de datos', href: '/privacy' },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.label}</Link>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── Footer ──────────────────────────────────── */}
-      <footer className="relative z-10 border-t border-white/[0.06] px-6 py-8 sm:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-sm text-white/25">
-            © 2025 NEXUS POS · Hecho para el comercio colombiano
-          </p>
-          <div className="flex gap-6">
-            <Link href="/login" className="text-sm text-white/25 transition-colors hover:text-white/60">Ingresar</Link>
-            <Link href="/register" className="text-sm text-white/25 transition-colors hover:text-white/60">Registro</Link>
+          <div
+            className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6"
+            style={{ borderTop: '1px solid var(--border-default)' }}
+          >
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              © {new Date().getFullYear()} NEXUS POS. Hecho con ♥ en Colombia.
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              Datos almacenados en Colombia · HTTPS cifrado
+            </p>
           </div>
         </div>
       </footer>
-
-    </main>
+    </div>
   );
 }

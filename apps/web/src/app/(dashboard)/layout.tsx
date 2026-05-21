@@ -5,7 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart2, Briefcase, ClipboardList, LayoutDashboard, LogOut, Package, Receipt, Search, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
+import { BarChart2, Briefcase, ChevronRight, ClipboardList, LayoutDashboard, LogOut, Menu, Package, Receipt, Search, Settings, ShoppingCart, Truck, Users, X } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { ToastProvider } from '../../components/ui/Toast';
@@ -54,6 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, logout, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { data: profile } = useQuery({
     queryKey: ['auth-me'],
     queryFn: authApi.me,
@@ -78,6 +79,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('keydown', handle);
   }, []);
 
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
   if (!isAuthenticated) return null;
 
   const initials = (profile?.name ?? user?.name ?? user?.email ?? 'N').slice(0, 1).toUpperCase();
@@ -97,31 +102,91 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link href="/profile" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--gold-500)] text-sm font-semibold text-[#1A1400]" aria-label="Ir al perfil">
                 {initials}
               </Link>
-              <button onClick={() => void logout()} className="rounded-[var(--radius-md)] border border-white/10 px-3 py-2 text-xs font-medium text-white/80">
-                Salir
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen(true)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white"
+                aria-label="Abrir navegación"
+                aria-expanded={mobileNavOpen}
+                aria-controls="mobile-dashboard-nav"
+              >
+                <Menu size={18} />
               </button>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto border-t border-white/10 px-4 py-3">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) ? 'page' : undefined}
-                className={cn(
-                  'inline-flex flex-none items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-                  pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-                    ? 'border-[var(--gold-500)] bg-[rgba(201,168,76,0.12)] text-[var(--text-gold)]'
-                    : 'border-white/10 bg-white/5 text-white/70',
-                )}
-              >
-                <item.icon size={14} aria-hidden />
-                {item.label}
-              </Link>
-            ))}
-          </div>
         </div>
+
+        {mobileNavOpen && (
+          <div
+            className="fixed inset-0 z-[1000] bg-black/55 lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navegación principal"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setMobileNavOpen(false);
+            }}
+          >
+            <div id="mobile-dashboard-nav" className="ml-auto flex h-full w-[min(88vw,320px)] flex-col bg-[#0A0A0A] text-white shadow-[var(--shadow-lg)]">
+              <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+                <div>
+                  <p style={{ fontFamily: 'var(--font-display)' }} className="text-2xl font-medium tracking-tight text-[var(--text-gold)]">
+                    NEXUS
+                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">Navegación</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileNavOpen(false)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white"
+                  aria-label="Cerrar navegación"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Navegación principal móvil">
+                {NAV.map((item) => {
+                  const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'mb-2 flex items-center justify-between rounded-[var(--radius-md)] border px-4 py-3 text-sm font-medium transition-colors',
+                        active
+                          ? 'border-[var(--gold-500)] bg-[rgba(201,168,76,0.12)] text-[var(--text-gold)]'
+                          : 'border-white/10 bg-white/5 text-white/80',
+                      )}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Icon size={16} aria-hidden />
+                        {item.label}
+                      </span>
+                      <ChevronRight size={14} className="opacity-60" aria-hidden />
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="border-t border-white/10 p-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileNavOpen(false);
+                    void logout();
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-white/10 px-3 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <LogOut size={16} />
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <aside className="hidden h-full w-[240px] flex-col bg-[#0A0A0A] text-white lg:flex">
           <div className="border-b border-white/10 px-5 py-5">
