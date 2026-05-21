@@ -9,6 +9,7 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { useToast } from '../../../components/ui/Toast';
 import { inventoryApi, api } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
+import { ImageUpload } from '../../../components/ui/ImageUpload';
 
 // Mock data — kept as fallback so the page is never empty during development
 interface Product {
@@ -194,7 +195,7 @@ function NewProductModal({ onClose, onSave }: { onClose: () => void; onSave: () 
           </div>
           <div>
             <label className="block text-xs font-medium text-[--text-secondary] mb-1">Imagen</label>
-            <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="https://..." />
+            <ImageUpload value={imageUrl} onChange={setImageUrl} />
           </div>
           <label className="flex items-center gap-2 text-sm text-[--text-secondary]">
             <input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} />
