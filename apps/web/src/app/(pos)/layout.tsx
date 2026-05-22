@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Badge } from '../../components/ui';
 import { OfflineBanner } from '../../components/OfflineBanner';
 import { useAuthStore } from '../../stores/auth.store';
 import { useOfflineStore } from '../../stores/offline.store';
 import { useSessionStore } from '../../stores/session.store';
 import { ToastProvider, useToast } from '../../components/ui/Toast';
+import { authApi } from '../../lib/api';
 
 function Clock() {
   const [time, setTime] = useState('');
@@ -76,7 +78,17 @@ function PosHeader() {
 }
 
 export default function PosLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, setProfile } = useAuthStore();
+  const { data: profile } = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: authApi.me,
+    retry: false,
+    enabled: isAuthenticated,
+  });
+
+  useEffect(() => {
+    if (profile) setProfile(profile);
+  }, [profile, setProfile]);
 
   if (!isAuthenticated) return null;
 

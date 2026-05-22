@@ -53,7 +53,7 @@ function NavItem({ item, active }: { item: typeof NAV[number]; active: boolean }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout, isAuthenticated } = useAuthStore();
+  const { user, logout, isAuthenticated, setProfile } = useAuthStore();
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -67,6 +67,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isAuthenticated) router.replace('/login');
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (profile) setProfile(profile);
+  }, [profile, setProfile]);
 
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {

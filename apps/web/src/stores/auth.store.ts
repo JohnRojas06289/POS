@@ -68,6 +68,7 @@ interface AuthState {
   logout: () => void;
   setTokens: (access: string, refresh: string) => void;
   clearError: () => void;
+  setProfile: (profile: { id: string; name: string; email: string; role: string; tenant: TenantInfo; branch: BranchInfo | null }) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -143,6 +144,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearError: () => set({ error: null }),
+
+      setProfile: (profile) => set({
+        user: { id: profile.id, name: profile.name, email: profile.email, role: profile.role },
+        tenant: profile.tenant,
+        branch: profile.branch,
+      }),
     }),
     {
       name: 'nexus-auth',
