@@ -632,7 +632,7 @@ export class AuthService {
       const subscriptions = await this.prisma.$queryRawUnsafe(
         `SELECT "killSwitch"
          FROM "public"."Subscription"
-         WHERE "tenantId" = $1::uuid AND status = 'active'
+         WHERE "tenantId" = $1 AND status = 'active'
          ORDER BY "createdAt" DESC
          LIMIT 1`,
         tenantId,

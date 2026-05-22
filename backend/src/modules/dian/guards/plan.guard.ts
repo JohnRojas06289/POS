@@ -35,7 +35,7 @@ export class PlanGuard implements CanActivate {
         `SELECT s."killSwitch", p.slug as "planSlug"
          FROM "public"."Subscription" s
          JOIN "public"."Plan" p ON p.id = s."planId"
-         WHERE s."tenantId" = $1::uuid AND s.status = 'active'
+         WHERE s."tenantId" = $1 AND s.status = 'active'
          ORDER BY s."createdAt" DESC
          LIMIT 1`,
         tenantId,
