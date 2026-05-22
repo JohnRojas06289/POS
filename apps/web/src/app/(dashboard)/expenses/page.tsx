@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Receipt, Plus, Search, TrendingDown, Calendar, X, Loader2, Filter,
@@ -86,10 +86,12 @@ function firstOfMonth() {
 // ─── NewExpenseModal ──────────────────────────────────────────
 
 function NewExpenseModal({
+  branches,
   branchId,
   onClose,
   onSave,
 }: {
+  branches: Array<{ id: string; name: string }>;
   branchId: string;
   onClose: () => void;
   onSave: () => void;
@@ -102,10 +104,11 @@ function NewExpenseModal({
 
   const handleSave = async () => {
     if (!amount || Number(amount) <= 0) return;
+    if (!branchId) return;
     setSaving(true);
     try {
       await expensesApi.createExpense({
-        branchId: branchId || undefined,
+        branchId,
         category,
         amount: Number(amount),
         description: description || undefined,
@@ -127,6 +130,12 @@ function NewExpenseModal({
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-[--radius-sm] hover:bg-[--bg-tertiary] text-[--text-tertiary]"><X size={16} /></button>
         </div>
         <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Sucursal *</label>
+            <div className="w-full rounded-[--radius-md] border border-[--border] bg-[--bg-secondary] px-3 py-2 text-sm text-[--text-primary]">
+              {branches.find((branch) => branch.id === branchId)?.name ?? 'No hay sucursales'}
+            </div>
+          </div>
           <div>
             <label className="block text-xs font-medium text-[--text-secondary] mb-1">Categoría</label>
             <select
@@ -183,6 +192,7 @@ export default function ExpensesPage() {
   const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(today());
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState('');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -194,11 +204,28 @@ export default function ExpensesPage() {
     retry: 1,
   });
 
-  const branchId: string = (() => {
+  const branches = useMemo(() => {
     const raw = branchesData as unknown;
     const arr = Array.isArray(raw) ? raw : Array.isArray((raw as { data?: unknown[] })?.data) ? (raw as { data: unknown[] }).data : [];
-    return (arr[0] as { id?: string })?.id ?? '';
-  })();
+    return arr
+      .map((branch) => ({
+        id: String((branch as { id?: unknown }).id ?? ''),
+        name: String((branch as { name?: unknown }).name ?? 'Sucursal'),
+      }))
+      .filter((branch) => Boolean(branch.id));
+  }, [branchesData]);
+
+  useEffect(() => {
+    if (branches.length === 0) {
+      setSelectedBranchId('');
+      return;
+    }
+
+    const currentExists = branches.some((branch) => branch.id === selectedBranchId);
+    if (!currentExists) setSelectedBranchId(branches[0].id);
+  }, [branches, selectedBranchId]);
+
+  const branchId = selectedBranchId;
 
   // Summary query (drives KPIs + chart)
   const summaryParams: Record<string, string> = { from, to };
@@ -243,13 +270,41 @@ export default function ExpensesPage() {
           <h1 className="text-2xl font-bold text-[--text-primary]">Gastos</h1>
           <p className="text-sm text-[--text-secondary] mt-0.5">Control de gastos operativos y hormiga</p>
         </div>
-        <button
-          onClick={() => setNewExpenseOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors"
-        >
-          <Plus size={16} /> Registrar gasto
-        </button>
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="min-w-[220px]">
+            <label className="mb-1 block text-xs font-medium text-[--text-tertiary]">Sucursal</label>
+            <select
+              value={branchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              disabled={branches.length === 0}
+              className="w-full rounded-[--radius-md] border border-[--border] bg-[--bg-primary] px-3 py-2 text-sm text-[--text-primary] focus:border-[--nexus-500] focus:outline-none disabled:opacity-60"
+            >
+              {branches.length === 0 ? (
+                <option value="">No hay sucursales</option>
+              ) : (
+                branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>{branch.name}</option>
+                ))
+              )}
+            </select>
+          </div>
+          <button
+            onClick={() => setNewExpenseOpen(true)}
+            disabled={!branchId}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus size={16} /> Registrar gasto
+          </button>
+        </div>
       </div>
+
+      {branches.length === 0 && (
+        <Card variant="default" padding="md">
+          <p className="text-sm text-[--text-secondary]">
+            No hay sucursales configuradas. Ve a <span className="font-medium text-[--text-primary]">Configuración &gt; Sucursales</span> y crea una antes de registrar gastos.
+          </p>
+        </Card>
+      )}
 
       {/* Date range filter */}
       <Card variant="default" padding="md">
@@ -450,6 +505,7 @@ export default function ExpensesPage() {
 
       {newExpenseOpen && (
         <NewExpenseModal
+          branches={branches}
           branchId={branchId}
           onClose={() => setNewExpenseOpen(false)}
           onSave={() => {
