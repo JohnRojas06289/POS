@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { LandingNav } from '../components/landing/LandingNav';
 import { FaqAccordion } from '../components/landing/FaqAccordion';
+import { SectorSelector } from '../components/landing/SectorSelector';
 
 export const metadata = {
   title: 'NEXUS POS — El sistema operativo de tu negocio',
@@ -502,72 +503,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Industry verticals ───────────────────────────────────────────── */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <SectionTag>Para tu tipo de negocio</SectionTag>
-            <h2
-              className="text-3xl md:text-4xl font-medium tracking-tight mb-4"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
-            >
-              Diseñado para el comercio real
-            </h2>
-            <p className="max-w-xl mx-auto text-base" style={{ color: 'var(--text-secondary)' }}>
-              No importa si vendes ropa, comida o servicios — NEXUS se adapta a cómo opera tu negocio.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              {
-                emoji: '👗',
-                title: 'Tiendas de ropa y accesorios',
-                points: ['Variantes por talla, color y referencia', 'Kardex por prenda con CPP automático', 'Márgenes reales en tiempo real'],
-              },
-              {
-                emoji: '🍔',
-                title: 'Restaurantes y cafeterías',
-                points: ['POS por mesa o mostrador', 'Control de mermas e ingredientes', 'Múltiples métodos de pago en mesa'],
-              },
-              {
-                emoji: '🛒',
-                title: 'Mercados y distribuidores',
-                points: ['Venta por unidad, peso o caja', 'Gestión de múltiples proveedores', 'Alertas de stock por producto'],
-              },
-              {
-                emoji: '✂️',
-                title: 'Servicios y peluquerías',
-                points: ['Registro de servicios y consumibles', 'Control de gastos e insumos', 'Cierre de caja por turno'],
-              },
-            ].map((vertical) => (
-              <div
-                key={vertical.title}
-                className="rounded-xl p-6 flex flex-col gap-4"
-                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
-              >
-                <span className="text-3xl">{vertical.emoji}</span>
-                <h3 className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
-                  {vertical.title}
-                </h3>
-                <ul className="space-y-2">
-                  {vertical.points.map((p) => (
-                    <li key={p} className="flex items-start gap-2 text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                      <GoldDot />
-                      <span>{p}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-xs mt-10" style={{ color: 'var(--text-tertiary)' }}>
-            ¿Tu negocio es diferente?{' '}
-            <a href="mailto:hola@nexuspos.co" style={{ color: 'var(--gold-500)' }}>
-              Escríbenos — lo configuramos juntos →
-            </a>
-          </p>
-        </div>
-      </section>
+      {/* ── Sector selector (interactive) ────────────────────────────────── */}
+      <SectorSelector />
 
       {/* ── POS ──────────────────────────────────────────────────────────── */}
       <section id="pos" className="py-24 px-6">
