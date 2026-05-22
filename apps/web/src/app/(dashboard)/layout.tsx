@@ -5,7 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart2, Briefcase, ChevronRight, ClipboardList, LayoutDashboard, LogOut, Menu, Package, Receipt, Search, Settings, ShoppingCart, Truck, Users, X } from 'lucide-react';
+import { BarChart2, Briefcase, ChevronRight, ClipboardList, FileText, Grid3X3, LayoutDashboard, LogOut, Menu, Package, Receipt, Search, Settings, ShoppingCart, Truck, Users, X } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { ToastProvider } from '../../components/ui/Toast';
@@ -26,6 +26,8 @@ const NAV = [
   { href: '/employees', label: 'Empleados', icon: Briefcase },
   { href: '/suppliers', label: 'Proveedores', icon: Truck },
   { href: '/expenses', label: 'Gastos', icon: Receipt },
+  { href: '/quotes', label: 'Cotizaciones', icon: FileText },
+  { href: '/tables', label: 'Mesas', icon: Grid3X3 },
   { href: '/pos', label: 'POS', icon: ShoppingCart },
   { href: '/settings', label: 'Configuración', icon: Settings },
 ] as const;

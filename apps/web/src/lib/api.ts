@@ -208,3 +208,19 @@ export const aiApi = {
   chat: (message: string) =>
     api.post<{ response: string; intent: string }>('/ai/chat', { message }).then((r) => r.data),
 };
+
+export const quotesApi = {
+  list: (params?: { status?: string; branchId?: string }) => api.get('/quotes', { params }).then((r) => r.data),
+  create: (data: unknown) => api.post('/quotes', data).then((r) => r.data),
+  getOne: (id: string) => api.get(`/quotes/${id}`).then((r) => r.data),
+  updateStatus: (id: string, status: string) => api.patch(`/quotes/${id}/status`, { status }).then((r) => r.data),
+  convert: (id: string) => api.post(`/quotes/${id}/convert`).then((r) => r.data),
+};
+
+export const tablesApi = {
+  list: (branchId?: string) => api.get('/tables', { params: { branchId } }).then((r) => r.data),
+  create: (data: unknown) => api.post('/tables', data).then((r) => r.data),
+  updateStatus: (id: string, status: string) => api.patch(`/tables/${id}/status`, { status }).then((r) => r.data),
+  release: (id: string) => api.patch(`/tables/${id}/release`).then((r) => r.data),
+  delete: (id: string) => api.delete(`/tables/${id}`).then((r) => r.data),
+};

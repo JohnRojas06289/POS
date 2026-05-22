@@ -513,6 +513,11 @@ export default function SettingsPage() {
   const [tipPercentage, setTipPercentage] = useState(10);
   const [hideOutOfStockProducts, setHideOutOfStockProducts] = useState(false);
 
+  // Print settings state
+  const [printerName, setPrinterName] = useState('');
+  const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>('80mm');
+  const [autoPrint, setAutoPrint] = useState(false);
+
   const { data: config, isLoading: loadingConfig } = useQuery({ queryKey: ['tenant-config'], queryFn: tenantsApi.getConfig, retry: false });
   const { data: subscription, isLoading: loadingSubscription } = useQuery({ queryKey: ['billing-subscription'], queryFn: billingApi.getSubscription, retry: false });
   const { data: branches, isLoading: loadingBranches, refetch: refetchBranches } = useQuery({ queryKey: ['tenant-branches'], queryFn: tenantsApi.getBranches, retry: false });
@@ -540,6 +545,9 @@ export default function SettingsPage() {
       setTipsEnabled(c.tipsEnabled ?? false);
       setTipPercentage(c.tipPercentage ?? 10);
       setHideOutOfStockProducts(c.hideOutOfStockProducts ?? false);
+      setPrinterName((c as { printerName?: string }).printerName ?? '');
+      setPaperWidth(((c as { paperWidth?: string }).paperWidth ?? '80mm') as '58mm' | '80mm');
+      setAutoPrint((c as { autoPrint?: boolean }).autoPrint ?? false);
     }
   }, [config]);
 
@@ -562,7 +570,7 @@ export default function SettingsPage() {
 
   const handleSavePosExtras = async () => {
     try {
-      await tenantsApi.updateConfig({ tipsEnabled, tipPercentage, hideOutOfStockProducts });
+      await tenantsApi.updateConfig({ tipsEnabled, tipPercentage, hideOutOfStockProducts, printerName, paperWidth, autoPrint });
       toast('Configuración POS guardada', 'success');
     } catch {
       toast('Error al guardar la configuración POS', 'error');
@@ -828,6 +836,58 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={hideOutOfStockProducts}
                       onChange={(e) => setHideOutOfStockProducts(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                      style={{ accentColor: 'var(--gold-500)' }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>Impresión</label>
+                <div className="space-y-4 rounded-xl p-4" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Nombre de impresora</label>
+                    <input
+                      type="text"
+                      value={printerName}
+                      onChange={(e) => setPrinterName(e.target.value)}
+                      placeholder="Ej: EPSON_TM20"
+                      className={inputCls}
+                      style={inputSty}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Ancho de papel</label>
+                    <div className="flex gap-2">
+                      {(['58mm', '80mm'] as const).map((w) => (
+                        <button
+                          key={w}
+                          type="button"
+                          onClick={() => setPaperWidth(w)}
+                          className="px-4 py-2 text-sm rounded-full border transition-all"
+                          style={{
+                            background: paperWidth === w ? 'var(--gold-500)' : 'var(--bg-surface)',
+                            color: paperWidth === w ? '#0A0A0A' : 'var(--text-secondary)',
+                            borderColor: paperWidth === w ? 'var(--gold-500)' : 'var(--border-default)',
+                          }}
+                        >
+                          {w}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Imprimir automáticamente al completar venta</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Envía el recibo a la impresora sin necesidad de confirmar</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={autoPrint}
+                      onChange={(e) => setAutoPrint(e.target.checked)}
                       className="w-4 h-4 rounded"
                       style={{ accentColor: 'var(--gold-500)' }}
                     />
