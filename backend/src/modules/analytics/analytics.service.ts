@@ -15,99 +15,143 @@ async function withSchema<T>(
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSalesSummary(params: { from?: string; to?: string; branchId?: string }) {
+  async getSalesSummary(schemaName: string, params: { from?: string; to?: string; branchId?: string }) {
     const fromDate = params.from ? new Date(params.from) : new Date(Date.now() - 7 * 86400000);
     const toDate = params.to ? new Date(params.to) : new Date();
 
-    // Guard against invalid dates
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
       return this.emptySalesSummary();
     }
 
-    const where: Prisma.OrderWhereInput = {
-      status: 'completed',
-      createdAt: { gte: fromDate, lte: toDate },
-    };
-    if (params.branchId) where.branchId = params.branchId;
+    return this.prisma.$transaction(async (tx) => {
+      return withSchema(tx, schemaName, async () => {
+        const rows = await tx.$queryRaw<Array<{
+          id: string;
+          branchId: string;
+          customerId: string | null;
+          total: string;
+          status: string;
+          createdAt: Date;
+          paymentMethod: string | null;
+          paymentAmount: string | null;
+        }>>`
+          SELECT
+            o.id,
+            o."branchId" AS "branchId",
+            o."customerId" AS "customerId",
+            o.total::text AS total,
+            o.status,
+            o."createdAt" AS "createdAt",
+            p.method AS "paymentMethod",
+            p.amount::text AS "paymentAmount"
+          FROM "Order" o
+          LEFT JOIN "Payment" p ON p."orderId" = o.id
+          WHERE o.status = 'completed'
+            AND o."createdAt" >= ${fromDate}
+            AND o."createdAt" <= ${toDate}
+            ${params.branchId ? Prisma.sql`AND o."branchId" = ${params.branchId}` : Prisma.empty}
+          ORDER BY o."createdAt" ASC
+        `;
 
-    const orders = await this.prisma.order.findMany({
-      where,
-      include: { payments: true },
-      orderBy: { createdAt: 'asc' },
-    });
+        const ordersMap = new Map<string, {
+          id: string;
+          branchId: string;
+          customerId: string | null;
+          total: number;
+          status: string;
+          createdAt: Date;
+          payments: Array<{ method: string; amount: number }>;
+        }>();
 
-    const totalRevenue = orders.reduce((s, o) => s + Number(o.total), 0);
-    const totalOrders = orders.length;
-    const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        for (const row of rows) {
+          const existing = ordersMap.get(row.id) ?? {
+            id: row.id,
+            branchId: row.branchId,
+            customerId: row.customerId,
+            total: Number(row.total),
+            status: row.status,
+            createdAt: row.createdAt,
+            payments: [],
+          };
 
-    // Revenue by day — formatted for the dashboard chart
-    const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const byDayMap = new Map<string, { ventas: number; ordenes: number; day: string }>();
-    for (const order of orders) {
-      const date = order.createdAt.toISOString().split('T')[0];
-      const dayName = DAY_NAMES[order.createdAt.getDay()];
-      const existing = byDayMap.get(date) ?? { ventas: 0, ordenes: 0, day: dayName };
-      existing.ventas += Number(order.total);
-      existing.ordenes++;
-      byDayMap.set(date, existing);
-    }
-    const salesByDay = Array.from(byDayMap.values());
+          if (row.paymentMethod && row.paymentAmount) {
+            existing.payments.push({
+              method: row.paymentMethod,
+              amount: Number(row.paymentAmount),
+            });
+          }
 
-    // Revenue by payment method
-    const byMethodMap = new Map<string, number>();
-    for (const order of orders) {
-      for (const payment of order.payments) {
-        const amount = Number(payment.amount);
-        if (amount > 0) {
-          byMethodMap.set(payment.method, (byMethodMap.get(payment.method) ?? 0) + amount);
+          ordersMap.set(row.id, existing);
         }
-      }
-    }
-    const revenueByPaymentMethod = Array.from(byMethodMap.entries()).map(([method, amount]) => ({
-      method,
-      amount,
-      percentage: totalRevenue > 0 ? Math.round((amount / totalRevenue) * 100) : 0,
-    }));
 
-    const byBranchMap = new Map<string, number>();
-    for (const order of orders) {
-      byBranchMap.set(
-        order.branchId,
-        (byBranchMap.get(order.branchId) ?? 0) + Number(order.total),
-      );
-    }
-    const revenueByBranch = Array.from(byBranchMap.entries()).map(([branchId, revenue]) => ({
-      branchId,
-      revenue,
-    }));
+        const orders = Array.from(ordersMap.values());
+        const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+        const totalOrders = orders.length;
+        const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    // Recent orders (last 10)
-    const recentOrders = orders.slice(-10).reverse().map((o) => ({
-      id: o.id,
-      customer: o.customerId ?? 'Cliente',
-      items: 0,
-      total: Number(o.total),
-      status: o.status,
-      time: o.createdAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-    }));
+        const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        const byDayMap = new Map<string, { ventas: number; ordenes: number; day: string }>();
+        for (const order of orders) {
+          const date = order.createdAt.toISOString().split('T')[0];
+          const dayName = DAY_NAMES[order.createdAt.getDay()];
+          const existing = byDayMap.get(date) ?? { ventas: 0, ordenes: 0, day: dayName };
+          existing.ventas += order.total;
+          existing.ordenes += 1;
+          byDayMap.set(date, existing);
+        }
+        const salesByDay = Array.from(byDayMap.values());
 
-    return {
-      totalRevenue: Math.round(totalRevenue),
-      totalSales: Math.round(totalRevenue),
-      totalOrders,
-      totalCustomers: 0,
-      totalProducts: 0,
-      salesDelta: 0,
-      ordersDelta: 0,
-      customersDelta: 0,
-      productsDelta: 0,
-      avgTicket: Math.round(avgTicket),
-      revenueByDay: salesByDay,
-      revenueByBranch,
-      salesByDay,
-      recentOrders,
-      revenueByPaymentMethod,
-    };
+        const byMethodMap = new Map<string, number>();
+        for (const order of orders) {
+          for (const payment of order.payments) {
+            if (payment.amount > 0) {
+              byMethodMap.set(payment.method, (byMethodMap.get(payment.method) ?? 0) + payment.amount);
+            }
+          }
+        }
+        const revenueByPaymentMethod = Array.from(byMethodMap.entries()).map(([method, amount]) => ({
+          method,
+          amount,
+          percentage: totalRevenue > 0 ? Math.round((amount / totalRevenue) * 100) : 0,
+        }));
+
+        const byBranchMap = new Map<string, number>();
+        for (const order of orders) {
+          byBranchMap.set(order.branchId, (byBranchMap.get(order.branchId) ?? 0) + order.total);
+        }
+        const revenueByBranch = Array.from(byBranchMap.entries()).map(([branchId, revenue]) => ({
+          branchId,
+          revenue,
+        }));
+
+        const recentOrders = orders.slice(-10).reverse().map((order) => ({
+          id: order.id,
+          customer: order.customerId ?? 'Cliente',
+          items: 0,
+          total: order.total,
+          status: order.status,
+          time: order.createdAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+        }));
+
+        return {
+          totalRevenue: Math.round(totalRevenue),
+          totalSales: Math.round(totalRevenue),
+          totalOrders,
+          totalCustomers: 0,
+          totalProducts: 0,
+          salesDelta: 0,
+          ordersDelta: 0,
+          customersDelta: 0,
+          productsDelta: 0,
+          avgTicket: Math.round(avgTicket),
+          revenueByDay: salesByDay,
+          revenueByBranch,
+          salesByDay,
+          recentOrders,
+          revenueByPaymentMethod,
+        };
+      });
+    });
   }
 
   private emptySalesSummary() {

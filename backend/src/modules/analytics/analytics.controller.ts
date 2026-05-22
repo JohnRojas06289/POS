@@ -15,13 +15,17 @@ export class AnalyticsController {
   @Get('sales/summary')
   @ApiOperation({ summary: 'Sales summary with daily breakdown and payment method split' })
   salesSummary(
+    @Request() req: AuthRequest,
     @Query('dateFrom') dateFrom: string,
     @Query('dateTo') dateTo: string,
     @Query('from') from: string,
     @Query('to') to: string,
     @Query('branchId') branchId?: string,
   ) {
-    return this.analyticsService.getSalesSummary({ from: dateFrom ?? from, to: dateTo ?? to, branchId });
+    return this.analyticsService.getSalesSummary(
+      req.user.schemaName,
+      { from: dateFrom ?? from, to: dateTo ?? to, branchId },
+    );
   }
 
   @Get('products/performance')
