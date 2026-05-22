@@ -442,6 +442,29 @@ export default function LandingPage() {
       {/* ── Marquee ───────────────────────────────────────────────────────── */}
       <Marquee />
 
+      {/* ── Social proof strip ───────────────────────────────────────────── */}
+      <section className="py-8 px-6" style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-default)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x" style={{ '--tw-divide-opacity': 1, borderColor: 'var(--border-default)' } as React.CSSProperties}>
+            {[
+              { number: '★ 4.8 / 5', label: 'Valoración promedio de usuarios' },
+              { number: '+2.000', label: 'Negocios activos en Colombia' },
+              { number: '5 min', label: 'Para configurar tu tienda completa' },
+            ].map((stat) => (
+              <div key={stat.label} className="flex flex-col items-center justify-center text-center py-5 px-8 gap-1">
+                <span
+                  className="text-2xl font-bold"
+                  style={{ fontFamily: 'var(--font-display)', color: 'var(--gold-500)' }}
+                >
+                  {stat.number}
+                </span>
+                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{stat.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Why NEXUS ─────────────────────────────────────────────────────── */}
       <section className="py-24 px-6" style={{ background: 'var(--bg-surface)' }}>
         <div className="max-w-5xl mx-auto">
@@ -476,6 +499,73 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Industry verticals ───────────────────────────────────────────── */}
+      <section className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <SectionTag>Para tu tipo de negocio</SectionTag>
+            <h2
+              className="text-3xl md:text-4xl font-medium tracking-tight mb-4"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+            >
+              Diseñado para el comercio real
+            </h2>
+            <p className="max-w-xl mx-auto text-base" style={{ color: 'var(--text-secondary)' }}>
+              No importa si vendes ropa, comida o servicios — NEXUS se adapta a cómo opera tu negocio.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              {
+                emoji: '👗',
+                title: 'Tiendas de ropa y accesorios',
+                points: ['Variantes por talla, color y referencia', 'Kardex por prenda con CPP automático', 'Márgenes reales en tiempo real'],
+              },
+              {
+                emoji: '🍔',
+                title: 'Restaurantes y cafeterías',
+                points: ['POS por mesa o mostrador', 'Control de mermas e ingredientes', 'Múltiples métodos de pago en mesa'],
+              },
+              {
+                emoji: '🛒',
+                title: 'Mercados y distribuidores',
+                points: ['Venta por unidad, peso o caja', 'Gestión de múltiples proveedores', 'Alertas de stock por producto'],
+              },
+              {
+                emoji: '✂️',
+                title: 'Servicios y peluquerías',
+                points: ['Registro de servicios y consumibles', 'Control de gastos e insumos', 'Cierre de caja por turno'],
+              },
+            ].map((vertical) => (
+              <div
+                key={vertical.title}
+                className="rounded-xl p-6 flex flex-col gap-4"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+              >
+                <span className="text-3xl">{vertical.emoji}</span>
+                <h3 className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                  {vertical.title}
+                </h3>
+                <ul className="space-y-2">
+                  {vertical.points.map((p) => (
+                    <li key={p} className="flex items-start gap-2 text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      <GoldDot />
+                      <span>{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs mt-10" style={{ color: 'var(--text-tertiary)' }}>
+            ¿Tu negocio es diferente?{' '}
+            <a href="mailto:hola@nexuspos.co" style={{ color: 'var(--gold-500)' }}>
+              Escríbenos — lo configuramos juntos →
+            </a>
+          </p>
         </div>
       </section>
 
@@ -608,6 +698,77 @@ export default function LandingPage() {
             <div>
               <AiMockup />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Testimonials ─────────────────────────────────────────────────── */}
+      <section className="py-24 px-6" style={{ background: 'var(--bg-surface)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <SectionTag>Historias reales</SectionTag>
+            <h2
+              className="text-3xl md:text-4xl font-medium tracking-tight mb-4"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+            >
+              Negocios que ya crecieron con NEXUS
+            </h2>
+            <p className="max-w-xl mx-auto text-base" style={{ color: 'var(--text-secondary)' }}>
+              No son promesas. Son resultados de comerciantes colombianos como tú.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                quote: 'Antes perdía $300.000 al mes en diferencias de caja sin saber por qué. Con NEXUS, cero diferencias y sé exactamente qué pasó en cada turno.',
+                name: 'Andrés M.',
+                business: 'Tienda de ropa',
+                city: 'Medellín',
+                result: '↑ 40% en ventas mensuales',
+              },
+              {
+                quote: 'El agente IA me dijo cuál producto me dejaba más margen este mes. Nunca lo hubiera calculado solo y ahora tomo mejores decisiones de compra.',
+                name: 'Diana P.',
+                business: 'Minimercado',
+                city: 'Bogotá',
+                result: '↓ 60% tiempo en reportes',
+              },
+              {
+                quote: 'Mis clientes pagan con Nequi, tarjeta y efectivo en la misma venta. NEXUS lo maneja solo, sin apps aparte ni complicaciones.',
+                name: 'Fernando R.',
+                business: 'Restaurante',
+                city: 'Cali',
+                result: '↑ 35% en ticket promedio',
+              },
+            ].map((t) => (
+              <div
+                key={t.name}
+                className="rounded-2xl p-6 flex flex-col gap-5"
+                style={{ background: 'var(--bg-base)', border: '1px solid var(--border-default)' }}
+              >
+                <div
+                  className="flex-1 text-sm leading-relaxed italic"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  "{t.quote}"
+                </div>
+                <div
+                  className="pt-4 flex items-center justify-between"
+                  style={{ borderTop: '1px solid var(--border-default)' }}
+                >
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.name}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{t.business} · {t.city}</p>
+                  </div>
+                  <span
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{ background: 'rgba(201,168,76,0.1)', color: 'var(--gold-500)', border: '1px solid var(--border-gold)' }}
+                  >
+                    {t.result}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
