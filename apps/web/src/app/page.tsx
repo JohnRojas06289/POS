@@ -639,6 +639,258 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Multi-platform ───────────────────────────────────────────────── */}
+      <section className="py-24 px-6 overflow-hidden" style={{ background: 'var(--bg-base)' }}>
+        <div className="max-w-6xl mx-auto">
+
+          {/* Header */}
+          <div className="text-center mb-16">
+            <SectionTag>Multiplataforma</SectionTag>
+            <h2
+              className="text-3xl md:text-4xl font-medium tracking-tight mb-4"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+            >
+              Tu negocio,{' '}
+              <span style={{ color: 'var(--gold-500)' }}>en cualquier pantalla</span>
+            </h2>
+            <p className="max-w-xl mx-auto text-base" style={{ color: 'var(--text-secondary)' }}>
+              La misma cuenta, el mismo inventario, en tiempo real.
+              Desde la caja del local, la tablet del mostrador o el celular de tu gerente.
+            </p>
+          </div>
+
+          {/* Devices composition */}
+          <div className="flex items-end justify-center gap-4 md:gap-6">
+
+            {/* ── Mobile ── */}
+            <div className="flex-shrink-0 self-end" style={{ marginBottom: '0px' }}>
+              <div
+                className="rounded-[28px] overflow-hidden relative"
+                style={{
+                  width: 130,
+                  border: '6px solid rgba(255,255,255,0.12)',
+                  background: '#0A0A0A',
+                  boxShadow: '-12px 20px 60px rgba(0,0,0,0.6)',
+                }}
+              >
+                {/* Notch */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-4 rounded-b-xl z-10" style={{ background: 'rgba(255,255,255,0.12)' }} />
+                {/* Screen */}
+                <div className="pt-6 pb-4 px-3" style={{ minHeight: 280 }}>
+                  <p className="text-center text-[9px] font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.3)' }}>NEXUS POS</p>
+                  <div className="px-1 py-1 rounded-lg mb-3" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <p className="text-[8px] text-center" style={{ color: 'rgba(255,255,255,0.25)' }}>🔍 Buscar…</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 mb-3">
+                    {[
+                      { n: 'Camiseta M', p: '$59k' },
+                      { n: 'Jean T32', p: '$89k' },
+                      { n: 'Blusa S', p: '$45k' },
+                      { n: 'Cinturón', p: '$35k' },
+                    ].map((item) => (
+                      <div key={item.n} className="rounded-md p-1.5 text-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="w-full h-5 rounded-sm mb-1" style={{ background: 'rgba(201,168,76,0.08)' }} />
+                        <p className="text-[7px]" style={{ color: 'rgba(255,255,255,0.5)' }}>{item.n}</p>
+                        <p className="text-[8px] font-bold" style={{ color: '#C9A84C' }}>{item.p}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-lg p-2 mb-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="flex justify-between mb-1">
+                      <p className="text-[7px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Jean T32 ×1</p>
+                      <p className="text-[7px]" style={{ color: '#C9A84C' }}>$89k</p>
+                    </div>
+                    <div className="flex justify-between">
+                      <p className="text-[8px] font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>Total</p>
+                      <p className="text-[9px] font-bold" style={{ color: '#C9A84C' }}>$89k</p>
+                    </div>
+                  </div>
+                  <div className="py-2 rounded-lg text-center text-[9px] font-bold" style={{ background: '#C9A84C', color: '#0A0A0A' }}>
+                    Cobrar
+                  </div>
+                </div>
+              </div>
+              <p className="text-center text-xs mt-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>📱 Celular</p>
+            </div>
+
+            {/* ── Desktop ── */}
+            <div className="flex-1 min-w-0">
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: '#0A0A0A',
+                  boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(201,168,76,0.06)',
+                }}
+              >
+                {/* Browser chrome */}
+                <div className="px-4 py-2.5 flex items-center gap-3" style={{ background: '#111', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#FF5F57' }} />
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#FEBC2E' }} />
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28C840' }} />
+                  </div>
+                  <div className="flex-1 mx-4 px-3 py-1 rounded-md text-xs text-center" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.2)' }}>
+                    nexus.app/dashboard
+                  </div>
+                </div>
+                {/* App shell */}
+                <div className="flex" style={{ minHeight: 320 }}>
+                  {/* Sidebar */}
+                  <div className="flex flex-col gap-1 py-4 px-2" style={{ width: 48, background: '#0D0D0D', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+                    {['◈', '⊞', '▤', '↗', '✦'].map((icon, i) => (
+                      <div key={i} className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                        style={{ background: i === 0 ? 'rgba(201,168,76,0.15)' : 'transparent', color: i === 0 ? '#C9A84C' : 'rgba(255,255,255,0.2)' }}>
+                        {icon}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Main content */}
+                  <div className="flex-1 p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>Dashboard</p>
+                        <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Hoy · Sucursal Principal</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="px-2.5 py-1 rounded-full text-[10px]" style={{ background: 'rgba(201,168,76,0.1)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.2)' }}>
+                          ● En línea
+                        </div>
+                      </div>
+                    </div>
+                    {/* KPI cards */}
+                    <div className="grid grid-cols-4 gap-2 mb-4">
+                      {[
+                        { label: 'Ventas hoy', value: '$2.8M', delta: '+12%' },
+                        { label: 'Transacciones', value: '33', delta: '+5' },
+                        { label: 'Ticket prom.', value: '$87.400', delta: '+8%' },
+                        { label: 'Margen', value: '41%', delta: '+2pp' },
+                      ].map((k) => (
+                        <div key={k.label} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <p className="text-[9px] mb-1" style={{ color: 'rgba(255,255,255,0.3)' }}>{k.label}</p>
+                          <p className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.85)' }}>{k.value}</p>
+                          <p className="text-[9px] mt-0.5" style={{ color: '#34D399' }}>{k.delta}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Chart */}
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>Ventas — últimos 7 días</p>
+                        <p className="text-xs font-bold" style={{ color: '#C9A84C' }}>$14.2M</p>
+                      </div>
+                      <div className="flex items-end gap-1.5 h-16">
+                        {[45, 62, 38, 78, 55, 90, 72].map((h, i) => (
+                          <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%`, background: i === 6 ? '#C9A84C' : 'rgba(201,168,76,0.2)' }} />
+                        ))}
+                      </div>
+                      <div className="flex gap-1.5 mt-1.5">
+                        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
+                          <div key={i} className="flex-1 text-center text-[8px]" style={{ color: i === 6 ? '#C9A84C' : 'rgba(255,255,255,0.2)' }}>{d}</div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-center text-xs mt-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>💻 Computador</p>
+            </div>
+
+            {/* ── Tablet ── */}
+            <div className="flex-shrink-0 self-end hidden md:block" style={{ marginBottom: '0px' }}>
+              <div
+                className="rounded-[20px] overflow-hidden"
+                style={{
+                  width: 200,
+                  border: '8px solid rgba(255,255,255,0.1)',
+                  background: '#0A0A0A',
+                  boxShadow: '12px 20px 60px rgba(0,0,0,0.6)',
+                }}
+              >
+                {/* Tablet top bar */}
+                <div className="px-3 py-2 flex items-center justify-between" style={{ background: '#111', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span className="text-[9px] font-semibold" style={{ color: '#C9A84C' }}>NEXUS</span>
+                  <span className="text-[8px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Inventario</span>
+                </div>
+                {/* Screen */}
+                <div className="p-3" style={{ minHeight: 300 }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[9px] font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>Productos · 4 refs</p>
+                    <span className="text-[8px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(201,168,76,0.1)', color: '#C9A84C' }}>+ Añadir</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {[
+                      { name: 'Camiseta Negra Oversize', sku: 'CAM-001', stock: 24, status: 'ok' },
+                      { name: 'Jean Slim Azul T32', sku: 'JEA-032', stock: 7, status: 'low' },
+                      { name: 'Blusa Floral Manga Corta', sku: 'BLU-014', stock: 0, status: 'out' },
+                      { name: 'Cinturón Cuero Café', sku: 'CIN-007', stock: 15, status: 'ok' },
+                    ].map((p) => (
+                      <div key={p.sku} className="flex items-center justify-between px-2.5 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        <div>
+                          <p className="text-[8px] font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{p.name}</p>
+                          <p className="text-[7px]" style={{ color: 'rgba(255,255,255,0.25)' }}>{p.sku}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[8px] font-semibold" style={{ color: 'rgba(255,255,255,0.6)' }}>{p.stock} uds</p>
+                          <p className="text-[7px]" style={{
+                            color: p.status === 'ok' ? '#34D399' : p.status === 'low' ? '#EF9F27' : '#F09595',
+                          }}>
+                            {p.status === 'ok' ? 'OK' : p.status === 'low' ? 'Bajo' : 'Agotado'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 rounded-lg p-2" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+                    <p className="text-[8px] font-medium" style={{ color: '#C9A84C' }}>⚠ 1 producto agotado · 1 bajo mínimo</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-center text-xs mt-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>📟 Tablet</p>
+            </div>
+
+          </div>
+
+          {/* Platform feature cards */}
+          <div className="grid md:grid-cols-3 gap-5 mt-16">
+            {[
+              {
+                icon: '📱',
+                device: 'Celular',
+                title: 'Cobra desde cualquier lugar',
+                body: 'El POS completo en tu bolsillo. Cobra en efectivo, Nequi o tarjeta aunque no tengas caja física ni internet estable.',
+              },
+              {
+                icon: '💻',
+                device: 'Computador',
+                title: 'Gestiona tu negocio completo',
+                body: 'Dashboard con analíticas, inventario, empleados, reportes y configuración. Todo desde el navegador, sin instalar nada.',
+              },
+              {
+                icon: '📟',
+                device: 'Tablet',
+                title: 'La caja perfecta en el mostrador',
+                body: 'Pantalla grande para el POS táctil, inventario en tiempo real y cierre de caja del turno — ideal para el punto de venta fijo.',
+              },
+            ].map((p) => (
+              <div
+                key={p.device}
+                className="rounded-xl p-5"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">{p.icon}</span>
+                  <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>{p.device}</span>
+                </div>
+                <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>{p.title}</h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{p.body}</p>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
       {/* ── Testimonials ─────────────────────────────────────────────────── */}
       <section className="py-24 px-6" style={{ background: 'var(--bg-surface)' }}>
         <div className="max-w-5xl mx-auto">
