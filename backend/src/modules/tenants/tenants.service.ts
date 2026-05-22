@@ -205,7 +205,7 @@ export class TenantsService {
       `SELECT u.id, u.name, u.email, u.role, u."branchId", u."isActive", u."createdAt", u."updatedAt",
               b.name as branch
        FROM "${tenant.schemaName}"."User" u
-       LEFT JOIN "${tenant.schemaName}"."Branch" b ON b.id = u."branchId"
+       LEFT JOIN "${tenant.schemaName}"."Branch" b ON b.id::text = u."branchId"::text
        ORDER BY u."createdAt" ASC
        LIMIT 100`,
     );
@@ -293,7 +293,7 @@ export class TenantsService {
               t.name, t.type, t."deviceFingerprint", t.settings, t."isBlocked", t."isActive",
               t."createdAt", t."updatedAt"
        FROM "${tenant.schemaName}"."Terminal" t
-       LEFT JOIN "${tenant.schemaName}"."Branch" b ON b.id = t."branchId"
+       LEFT JOIN "${tenant.schemaName}"."Branch" b ON b.id::text = t."branchId"::text
        ORDER BY t."createdAt" ASC
        LIMIT 100`,
     ) as TerminalRow[];
