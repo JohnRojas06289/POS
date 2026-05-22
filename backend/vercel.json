@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npx prisma generate --schema=src/database/prisma/schema.prisma && npx prisma migrate deploy --schema=src/database/prisma/schema.prisma && npx nest build",
+  "buildCommand": "npx prisma generate --schema=src/database/prisma/schema.prisma && npx prisma migrate deploy --schema=src/database/prisma/schema.prisma && ./node_modules/.bin/nest build",
   "installCommand": "npm install",
   "functions": {
     "api/index.js": {
