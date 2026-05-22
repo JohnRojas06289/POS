@@ -149,6 +149,10 @@ export const analyticsApi = {
   getProductPerformance: () => api.get('/analytics/products/performance').then((r) => r.data),
   getInventoryValuation: () => api.get('/analytics/inventory/valuation').then((r) => r.data),
   getCustomerInsights: () => api.get('/analytics/customers/insights').then((r) => r.data),
+  getExpensesSummary: (params: Record<string, string>) =>
+    api.get('/analytics/expenses', { params }).then((r) => r.data),
+  getEmployeePerformance: (params: Record<string, string>) =>
+    api.get('/analytics/employees', { params }).then((r) => r.data),
 };
 
 export const syncApi = {
@@ -186,6 +190,7 @@ export const expensesApi = {
   getExpenses: (params?: Record<string, string>) => api.get('/expenses', { params }).then((r) => r.data),
   createExpense: (data: unknown) => api.post('/expenses', data).then((r) => r.data),
   getSummary: (params?: Record<string, string>) => api.get('/expenses/summary', { params }).then((r) => r.data),
+  markAsPaid: (id: string) => api.patch(`/expenses/${id}/pay`).then((r) => r.data),
 };
 
 export const suppliersApi = {

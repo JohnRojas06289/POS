@@ -20,6 +20,7 @@ interface Expense {
   amount: number;
   description?: string | null;
   receiptUrl?: string | null;
+  isPaid: boolean;
   createdBy: string;
   createdAt: string;
 }
@@ -99,6 +100,7 @@ function NewExpenseModal({
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [isPaid, setIsPaid] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -112,6 +114,7 @@ function NewExpenseModal({
         category,
         amount: Number(amount),
         description: description || undefined,
+        isPaid,
       });
       toast('Gasto registrado', 'success');
       onSave();
@@ -168,6 +171,17 @@ function NewExpenseModal({
               placeholder="Factura luz, gasolina, etc."
             />
           </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-2">Estado del pago</label>
+            <button
+              type="button"
+              onClick={() => setIsPaid((prev) => !prev)}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${isPaid ? 'bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-400' : 'bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-900/20 dark:border-orange-700 dark:text-orange-400'}`}
+            >
+              <span className={`inline-block w-2 h-2 rounded-full ${isPaid ? 'bg-green-500' : 'bg-orange-500'}`} />
+              {isPaid ? 'Pagado' : 'En deuda'}
+            </button>
+          </div>
         </div>
         <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium hover:bg-[--border] transition-colors">Cancelar</button>
@@ -181,6 +195,69 @@ function NewExpenseModal({
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── ExpenseRow ───────────────────────────────────────────────
+
+function ExpenseRow({ expense, onMarkPaid }: { expense: Expense; onMarkPaid: () => void }) {
+  const [marking, setMarking] = useState(false);
+  const { toast } = useToast();
+
+  const handleMarkPaid = async () => {
+    setMarking(true);
+    try {
+      await expensesApi.markAsPaid(expense.id);
+      toast('Gasto marcado como pagado', 'success');
+      onMarkPaid();
+    } catch {
+      toast('Error al marcar el gasto como pagado', 'error');
+    } finally {
+      setMarking(false);
+    }
+  };
+
+  return (
+    <tr className="hover:bg-[--bg-secondary] transition-colors">
+      <td className="px-4 py-3 text-[--text-tertiary] text-xs tabular-nums whitespace-nowrap">
+        {new Date(expense.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getCategoryColor(expense.category)}`} />
+          <Badge variant="neutral">{expense.category}</Badge>
+        </div>
+      </td>
+      <td className="px-4 py-3 text-[--text-secondary]">
+        {expense.description ?? <span className="text-[--text-tertiary] italic">Sin descripción</span>}
+      </td>
+      <td className="px-4 py-3">
+        {expense.isPaid ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" />
+            Pagado
+          </span>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-500" />
+              En deuda
+            </span>
+            <button
+              onClick={handleMarkPaid}
+              disabled={marking}
+              className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-[--border] bg-[--bg-primary] px-2 py-1 text-xs text-[--text-secondary] hover:border-green-400 hover:text-green-600 disabled:opacity-50 transition-colors"
+            >
+              {marking ? <Loader2 size={10} className="animate-spin" /> : null}
+              Marcar como pagado
+            </button>
+          </div>
+        )}
+      </td>
+      <td className="px-4 py-3 text-right font-semibold text-[--danger] tabular-nums">
+        {fmt(expense.amount)}
+      </td>
+    </tr>
   );
 }
 
@@ -453,7 +530,7 @@ export default function ExpensesPage() {
                 {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} variant="text" lines={2} />)}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="py-12 text-center text-[--text-tertiary] text-sm">
+              <div className="py-12 text-center text-[--text-tertiary] text-sm" style={{ gridColumn: '1 / -1' }}>
                 <Receipt size={24} className="mx-auto mb-2 opacity-50" />
                 {search || categoryFilter ? 'Sin resultados con estos filtros' : 'No hay gastos en este período'}
               </div>
@@ -464,28 +541,17 @@ export default function ExpensesPage() {
                     <th className="px-4 py-3 font-medium">Fecha</th>
                     <th className="px-4 py-3 font-medium">Categoría</th>
                     <th className="px-4 py-3 font-medium">Descripción</th>
+                    <th className="px-4 py-3 font-medium">Estado</th>
                     <th className="px-4 py-3 font-medium text-right">Monto</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[--border]">
                   {filtered.map((expense) => (
-                    <tr key={expense.id} className="hover:bg-[--bg-secondary] transition-colors">
-                      <td className="px-4 py-3 text-[--text-tertiary] text-xs tabular-nums whitespace-nowrap">
-                        {new Date(expense.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getCategoryColor(expense.category)}`} />
-                          <Badge variant="neutral">{expense.category}</Badge>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-[--text-secondary]">
-                        {expense.description ?? <span className="text-[--text-tertiary] italic">Sin descripción</span>}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-[--danger] tabular-nums">
-                        {fmt(expense.amount)}
-                      </td>
-                    </tr>
+                    <ExpenseRow
+                      key={expense.id}
+                      expense={expense}
+                      onMarkPaid={invalidate}
+                    />
                   ))}
                 </tbody>
               </table>

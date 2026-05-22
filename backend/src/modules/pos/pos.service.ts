@@ -26,6 +26,7 @@ interface OrderFilters {
   dateFrom?: string;
   dateTo?: string;
   cashierId?: string;
+  origin?: string;
   limit?: number;
   cursor?: string;
   branchId: string;
@@ -76,32 +77,45 @@ export class PosService {
           if (existing) return { order: existing, changeDue: 0 };
         }
 
-        const variantIds = dto.items.map((i) => i.variantId);
-        const variants = await tx.productVariant.findMany({
-          where: { id: { in: variantIds }, isActive: true },
-        });
-
-        if (variants.length !== variantIds.length) {
-          throw new BadRequestException('One or more product variants not found or inactive');
-        }
-
-        for (const item of dto.items) {
-          const variant = variants.find((v) => v.id === item.variantId)!;
-          if (variant.stock < item.quantity) {
-            throw new BadRequestException(
-              `Insufficient stock for variant ${variant.sku}: available ${variant.stock}, requested ${item.quantity}`,
-            );
+        // Venta libre: no items, no stock checks
+        if (dto.isFreeEntry) {
+          if (dto.items && dto.items.length > 0) {
+            throw new BadRequestException('isFreeEntry orders must not contain items');
           }
         }
 
-        const itemsWithCost = dto.items.map((item) => {
-          const variant = variants.find((v) => v.id === item.variantId)!;
-          const lineSubtotal = item.unitPrice * item.quantity;
-          const lineDiscount = item.discount ?? 0;
-          const lineTax = 0; // tax rate from product config — kept for future use
-          const lineTotal = lineSubtotal - lineDiscount + lineTax;
-          return { item, variant, lineSubtotal, lineDiscount, lineTax, lineTotal, unitCost: Number(variant.unitCost) };
-        });
+        const variantIds = dto.isFreeEntry ? [] : dto.items.map((i) => i.variantId);
+        const variants = dto.isFreeEntry
+          ? []
+          : await tx.productVariant.findMany({
+              where: { id: { in: variantIds }, isActive: true },
+            });
+
+        if (!dto.isFreeEntry && variants.length !== variantIds.length) {
+          throw new BadRequestException('One or more product variants not found or inactive');
+        }
+
+        if (!dto.isFreeEntry) {
+          for (const item of dto.items) {
+            const variant = variants.find((v) => v.id === item.variantId)!;
+            if (variant.stock < item.quantity) {
+              throw new BadRequestException(
+                `Insufficient stock for variant ${variant.sku}: available ${variant.stock}, requested ${item.quantity}`,
+              );
+            }
+          }
+        }
+
+        const itemsWithCost = dto.isFreeEntry
+          ? []
+          : dto.items.map((item) => {
+              const variant = variants.find((v) => v.id === item.variantId)!;
+              const lineSubtotal = item.unitPrice * item.quantity;
+              const lineDiscount = item.discount ?? 0;
+              const lineTax = 0; // tax rate from product config — kept for future use
+              const lineTotal = lineSubtotal - lineDiscount + lineTax;
+              return { item, variant, lineSubtotal, lineDiscount, lineTax, lineTotal, unitCost: Number(variant.unitCost) };
+            });
 
         const subtotal = itemsWithCost.reduce((s, r) => s + r.lineSubtotal, 0);
         const discountTotal = (dto.discountTotal ?? 0) + itemsWithCost.reduce((s, r) => s + r.lineDiscount, 0);
@@ -152,6 +166,8 @@ export class PosService {
             cashierId,
             customerId: dto.customerId,
             status: 'completed',
+            isFreeEntry: dto.isFreeEntry ?? false,
+            origin: dto.origin ?? 'counter',
             subtotal,
             discountTotal,
             taxTotal,
@@ -185,25 +201,27 @@ export class PosService {
           include: { items: true, payments: true },
         });
 
-        // Deduct stock
-        for (const { item, variant } of itemsWithCost) {
-          const prevQty = variant.stock;
-          const newQty = prevQty - item.quantity;
+        // Deduct stock (skipped for free entries)
+        if (!dto.isFreeEntry) {
+          for (const { item, variant } of itemsWithCost) {
+            const prevQty = variant.stock;
+            const newQty = prevQty - item.quantity;
 
-          await tx.productVariant.update({ where: { id: item.variantId }, data: { stock: newQty } });
-          await tx.stockMovement.create({
-            data: {
-              id: uuidv4(),
-              variantId: item.variantId,
-              type: 'sale',
-              quantity: -item.quantity,
-              previousQty: prevQty,
-              newQty,
-              referenceId: orderId,
-              referenceType: 'order',
-              createdBy: cashierId,
-            },
-          });
+            await tx.productVariant.update({ where: { id: item.variantId }, data: { stock: newQty } });
+            await tx.stockMovement.create({
+              data: {
+                id: uuidv4(),
+                variantId: item.variantId,
+                type: 'sale',
+                quantity: -item.quantity,
+                previousQty: prevQty,
+                newQty,
+                referenceId: orderId,
+                referenceType: 'order',
+                createdBy: cashierId,
+              },
+            });
+          }
         }
 
         // Handle credit_store payments
@@ -243,6 +261,7 @@ export class PosService {
 
         if (filters.status) where.status = filters.status;
         if (filters.cashierId) where.cashierId = filters.cashierId;
+        if (filters.origin) where.origin = filters.origin;
         if (filters.dateFrom || filters.dateTo) {
           where.createdAt = {};
           if (filters.dateFrom) (where.createdAt as Prisma.DateTimeFilter).gte = new Date(filters.dateFrom);

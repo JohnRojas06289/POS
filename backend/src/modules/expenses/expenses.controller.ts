@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Post, Query, Request } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 
 interface AuthRequest {
-  user: { sub: string; branchId?: string | null };
+  user: { sub: string; branchId?: string | null; schemaName: string };
 }
 
 @ApiTags('expenses')
@@ -28,6 +28,12 @@ export class ExpensesController {
     @Query('to') to?: string,
   ) {
     return this.expensesService.findAll({ category, branchId, from, to });
+  }
+
+  @Patch(':id/pay')
+  @ApiOperation({ summary: 'Mark a pending expense as paid' })
+  markAsPaid(@Param('id') id: string, @Request() req: AuthRequest) {
+    return this.expensesService.markAsPaid(id, req.user.schemaName);
   }
 
   @Get('summary')

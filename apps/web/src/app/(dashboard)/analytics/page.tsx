@@ -28,9 +28,18 @@ function selectRangeDays(range: Range) {
   return RANGE_OPTIONS.find((option) => option.value === range)?.days ?? 30;
 }
 
+type AnalyticsTab = 'sales' | 'expenses' | 'employees';
+
+const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string }> = [
+  { id: 'sales', label: 'Ventas' },
+  { id: 'expenses', label: 'Gastos' },
+  { id: 'employees', label: 'Empleados' },
+];
+
 export default function AnalyticsPage() {
   const [range, setRange] = useState<Range>('30d');
   const [branchId, setBranchId] = useState('all');
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>('sales');
 
   const { data: branchesData } = useQuery({
     queryKey: ['tenant-branches-analytics'],
@@ -75,6 +84,20 @@ export default function AnalyticsPage() {
     retry: 1,
   });
 
+  const { data: expensesData, isLoading: loadingExpenses } = useQuery({
+    queryKey: ['analytics-expenses', range, branchId],
+    queryFn: () => analyticsApi.getExpensesSummary(analyticsParams),
+    retry: 1,
+    enabled: activeTab === 'expenses',
+  });
+
+  const { data: employeesData, isLoading: loadingEmployees } = useQuery({
+    queryKey: ['analytics-employees', range, branchId],
+    queryFn: () => analyticsApi.getEmployeePerformance(analyticsParams),
+    retry: 1,
+    enabled: activeTab === 'employees',
+  });
+
   const branches = Array.isArray(branchesData) ? branchesData : [];
   const sales = (salesData ?? {}) as {
     totalSales?: number;
@@ -101,6 +124,15 @@ export default function AnalyticsPage() {
     avgPurchaseFrequency?: number;
     topCustomers?: Array<{ customerId: string; name: string; totalPurchases: number; purchaseCount: number; creditBalance: number }>;
   };
+  const expenses = (expensesData ?? {}) as {
+    total?: number;
+    paid?: number;
+    pending?: number;
+    byCategory?: Array<{ category: string; total: number; count: number; paid: number; pending: number }>;
+  };
+  const employees = Array.isArray(employeesData)
+    ? (employeesData as Array<{ cashierId: string; totalSales: number; totalOrders: number; avgTicket: number }>)
+    : [];
 
   const chartRevenue = sales.salesByDay ?? [];
   const paymentMix = sales.revenueByPaymentMethod ?? [];
@@ -109,6 +141,7 @@ export default function AnalyticsPage() {
   const slowMovers = performance.bottomByRotation ?? [];
   const topCustomers = customers.topCustomers ?? [];
   const recentOrders = sales.recentOrders ?? [];
+  const expensesByCategory = expenses.byCategory ?? [];
 
   return (
     <div className="space-y-6 p-6">
@@ -143,201 +176,310 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <MetricCard icon={<TrendingUp size={18} />} label="Ventas" value={formatCOP(sales.totalSales ?? 0)} loading={loadingSales} />
-        <MetricCard icon={<ReceiptText size={18} />} label="Órdenes" value={(sales.totalOrders ?? 0).toLocaleString('es-CO')} loading={loadingSales} />
-        <MetricCard icon={<Banknote size={18} />} label="Ticket promedio" value={formatCOP(sales.avgTicket ?? 0)} loading={loadingSales} />
-        <MetricCard icon={<Package size={18} />} label="Valor inventario" value={formatCOP(inventory.totalRetailValue ?? 0)} loading={loadingInventory} />
-        <MetricCard icon={<Users size={18} />} label="Clientes" value={(customers.totalCustomers ?? 0).toLocaleString('es-CO')} loading={loadingCustomers} />
-        <MetricCard icon={<CreditCard size={18} />} label="Deuda" value={formatCOP(customers.totalDebtAmount ?? 0)} loading={loadingCustomers} />
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] p-1 w-fit">
+        {ANALYTICS_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card variant="default" padding="lg" className="xl:col-span-2">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">Ventas por día</h2>
-            <span className="rounded-full bg-[var(--bg-subtle)] px-2 py-1 text-xs text-[var(--text-secondary)]">{range}</span>
+      {/* Tab: Ventas */}
+      {activeTab === 'sales' && (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <MetricCard icon={<TrendingUp size={18} />} label="Ventas" value={formatCOP(sales.totalSales ?? 0)} loading={loadingSales} />
+            <MetricCard icon={<ReceiptText size={18} />} label="Órdenes" value={(sales.totalOrders ?? 0).toLocaleString('es-CO')} loading={loadingSales} />
+            <MetricCard icon={<Banknote size={18} />} label="Ticket promedio" value={formatCOP(sales.avgTicket ?? 0)} loading={loadingSales} />
+            <MetricCard icon={<Package size={18} />} label="Valor inventario" value={formatCOP(inventory.totalRetailValue ?? 0)} loading={loadingInventory} />
+            <MetricCard icon={<Users size={18} />} label="Clientes" value={(customers.totalCustomers ?? 0).toLocaleString('es-CO')} loading={loadingCustomers} />
+            <MetricCard icon={<CreditCard size={18} />} label="Deuda" value={formatCOP(customers.totalDebtAmount ?? 0)} loading={loadingCustomers} />
           </div>
-          {loadingSales ? (
-            <Skeleton variant="rect" height={260} className="w-full" />
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={chartRevenue} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id="nexus-revenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#C9A84C" stopOpacity={0.32} />
-                    <stop offset="100%" stopColor="#C9A84C" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" opacity={0.5} />
-                <XAxis dataKey="day" tick={{ fontSize: 12, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`} />
-                <Tooltip content={<ChartTooltip formatValue={formatCOP} />} />
-                <Area type="monotone" dataKey="ventas" stroke="#C9A84C" strokeWidth={2.5} fill="url(#nexus-revenue)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </Card>
 
-        <Card variant="default" padding="lg">
-          <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Mix de pago</h2>
-          {loadingSales ? (
-            <Skeleton variant="rect" height={260} className="w-full" />
-          ) : paymentMix.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={paymentMix} layout="vertical" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" opacity={0.5} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="method" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={90} />
-                <Tooltip content={<ChartTooltip formatValue={formatCOP} />} />
-                <Bar dataKey="amount" fill="#2563EB" radius={[0, 8, 8, 0]} maxBarSize={26} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin datos de pagos</div>
-          )}
-          <div className="mt-3 space-y-2">
-            {paymentMix.map((item) => (
-              <div key={item.method} className="flex items-center justify-between text-sm">
-                <span className="text-[var(--text-secondary)]">{item.method}</span>
-                <span className="font-medium text-[var(--text-primary)]">{item.percentage}%</span>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Card variant="default" padding="lg" className="xl:col-span-2">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">Ventas por día</h2>
+                <span className="rounded-full bg-[var(--bg-subtle)] px-2 py-1 text-xs text-[var(--text-secondary)]">{range}</span>
               </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+              {loadingSales ? (
+                <Skeleton variant="rect" height={260} className="w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={chartRevenue} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="nexus-revenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#C9A84C" stopOpacity={0.32} />
+                        <stop offset="100%" stopColor="#C9A84C" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" opacity={0.5} />
+                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`} />
+                    <Tooltip content={<ChartTooltip formatValue={formatCOP} />} />
+                    <Area type="monotone" dataKey="ventas" stroke="#C9A84C" strokeWidth={2.5} fill="url(#nexus-revenue)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card variant="default" padding="lg">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">Inventario por categoría</h2>
-            <span className="text-xs text-[var(--text-secondary)]">Margen estimado {inventory.estimatedMargin ?? 0}%</span>
-          </div>
-          {loadingInventory ? (
-            <Skeleton variant="rect" height={260} className="w-full" />
-          ) : inventoryByCategory.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={inventoryByCategory} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" opacity={0.5} />
-                <XAxis dataKey="category" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`} />
-                <Tooltip content={<ChartTooltip formatValue={formatCOP} />} />
-                <Legend />
-                <Bar dataKey="cost" name="Costo" fill="#8B5CF6" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                <Bar dataKey="retailValue" name="Retail" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={30} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin valuación de inventario</div>
-          )}
-        </Card>
-
-        <Card variant="default" padding="lg">
-          <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Top clientes</h2>
-          {loadingCustomers ? (
-            <Skeleton variant="text" lines={6} />
-          ) : topCustomers.length > 0 ? (
-            <div className="space-y-3">
-              {topCustomers.map((customer) => (
-                <div key={customer.customerId} className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 py-3">
-                  <div>
-                    <p className="font-medium text-[var(--text-primary)]">{customer.name}</p>
-                    <p className="text-xs text-[var(--text-secondary)]">{customer.purchaseCount} compras · deuda {formatCOP(customer.creditBalance)}</p>
+            <Card variant="default" padding="lg">
+              <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Mix de pago</h2>
+              {loadingSales ? (
+                <Skeleton variant="rect" height={260} className="w-full" />
+              ) : paymentMix.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={paymentMix} layout="vertical" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" opacity={0.5} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="method" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={90} />
+                    <Tooltip content={<ChartTooltip formatValue={formatCOP} />} />
+                    <Bar dataKey="amount" fill="#2563EB" radius={[0, 8, 8, 0]} maxBarSize={26} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin datos de pagos</div>
+              )}
+              <div className="mt-3 space-y-2">
+                {paymentMix.map((item) => (
+                  <div key={item.method} className="flex items-center justify-between text-sm">
+                    <span className="text-[var(--text-secondary)]">{item.method}</span>
+                    <span className="font-medium text-[var(--text-primary)]">{item.percentage}%</span>
                   </div>
-                  <p className="font-medium text-[var(--text-gold)]">{formatCOP(customer.totalPurchases)}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin datos de clientes</div>
-          )}
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <StatBox label="Con deuda" value={(customers.customersWithDebt ?? 0).toString()} />
-            <StatBox label="Frecuencia" value={(customers.avgPurchaseFrequency ?? 0).toString()} />
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card variant="default" padding="lg">
-          <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Top productos</h2>
-          {loadingPerformance ? (
-            <Skeleton variant="text" lines={6} />
-          ) : topByRevenue.length > 0 ? (
-            <div className="space-y-3">
-              {topByRevenue.map((item) => (
-                <div key={item.name} className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 py-3">
-                  <div>
-                    <p className="font-medium text-[var(--text-primary)]">{item.name}</p>
-                    <p className="text-xs text-[var(--text-secondary)]">{item.quantity} uds · {item.currentStock} en stock</p>
-                  </div>
-                  <p className="font-medium text-[var(--text-gold)]">{formatCOP(item.revenue)}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin ventas por producto</div>
-          )}
-        </Card>
-
-        <Card variant="default" padding="lg">
-          <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Productos de baja rotación</h2>
-          {loadingPerformance ? (
-            <Skeleton variant="text" lines={6} />
-          ) : slowMovers.length > 0 ? (
-            <div className="space-y-3">
-              {slowMovers.map((item) => (
-                <div key={item.name} className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 py-3">
-                  <div>
-                    <p className="font-medium text-[var(--text-primary)]">{item.name}</p>
-                    <p className="text-xs text-[var(--text-secondary)]">Última venta hace {item.daysSinceLastSale} días</p>
-                  </div>
-                  <p className="text-sm font-medium text-[var(--text-secondary)]">{item.currentStock} uds</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin datos de rotación</div>
-          )}
-        </Card>
-      </div>
-
-      <Card variant="default" padding="lg">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">Órdenes recientes</h2>
-          <span className="text-xs text-[var(--text-secondary)]">{recentOrders.length} últimas</span>
-        </div>
-        {loadingSales ? (
-          <Skeleton variant="text" lines={6} />
-        ) : recentOrders.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border-default)] text-left text-xs text-[var(--text-tertiary)]">
-                  <th className="px-4 py-3 font-medium">Orden</th>
-                  <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium">Total</th>
-                  <th className="px-4 py-3 font-medium">Hora</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-default)]">
-                {recentOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="px-4 py-3 font-medium text-[var(--text-primary)]">{order.id.slice(0, 8)}</td>
-                    <td className="px-4 py-3 text-[var(--text-secondary)]">{order.customer}</td>
-                    <td className="px-4 py-3 text-[var(--text-secondary)]">{order.status}</td>
-                    <td className="px-4 py-3 text-[var(--text-primary)]">{formatCOP(order.total)}</td>
-                    <td className="px-4 py-3 text-[var(--text-secondary)]">{order.time}</td>
-                  </tr>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </Card>
           </div>
-        ) : (
-          <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">No hay órdenes para mostrar</div>
-        )}
-      </Card>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card variant="default" padding="lg">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">Inventario por categoría</h2>
+                <span className="text-xs text-[var(--text-secondary)]">Margen estimado {inventory.estimatedMargin ?? 0}%</span>
+              </div>
+              {loadingInventory ? (
+                <Skeleton variant="rect" height={260} className="w-full" />
+              ) : inventoryByCategory.length > 0 ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={inventoryByCategory} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" opacity={0.5} />
+                    <XAxis dataKey="category" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`} />
+                    <Tooltip content={<ChartTooltip formatValue={formatCOP} />} />
+                    <Legend />
+                    <Bar dataKey="cost" name="Costo" fill="#8B5CF6" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                    <Bar dataKey="retailValue" name="Retail" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin valuación de inventario</div>
+              )}
+            </Card>
+
+            <Card variant="default" padding="lg">
+              <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Top clientes</h2>
+              {loadingCustomers ? (
+                <Skeleton variant="text" lines={6} />
+              ) : topCustomers.length > 0 ? (
+                <div className="space-y-3">
+                  {topCustomers.map((customer) => (
+                    <div key={customer.customerId} className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 py-3">
+                      <div>
+                        <p className="font-medium text-[var(--text-primary)]">{customer.name}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">{customer.purchaseCount} compras · deuda {formatCOP(customer.creditBalance)}</p>
+                      </div>
+                      <p className="font-medium text-[var(--text-gold)]">{formatCOP(customer.totalPurchases)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin datos de clientes</div>
+              )}
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <StatBox label="Con deuda" value={(customers.customersWithDebt ?? 0).toString()} />
+                <StatBox label="Frecuencia" value={(customers.avgPurchaseFrequency ?? 0).toString()} />
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card variant="default" padding="lg">
+              <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Top productos</h2>
+              {loadingPerformance ? (
+                <Skeleton variant="text" lines={6} />
+              ) : topByRevenue.length > 0 ? (
+                <div className="space-y-3">
+                  {topByRevenue.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 py-3">
+                      <div>
+                        <p className="font-medium text-[var(--text-primary)]">{item.name}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">{item.quantity} uds · {item.currentStock} en stock</p>
+                      </div>
+                      <p className="font-medium text-[var(--text-gold)]">{formatCOP(item.revenue)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin ventas por producto</div>
+              )}
+            </Card>
+
+            <Card variant="default" padding="lg">
+              <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Productos de baja rotación</h2>
+              {loadingPerformance ? (
+                <Skeleton variant="text" lines={6} />
+              ) : slowMovers.length > 0 ? (
+                <div className="space-y-3">
+                  {slowMovers.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 py-3">
+                      <div>
+                        <p className="font-medium text-[var(--text-primary)]">{item.name}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">Última venta hace {item.daysSinceLastSale} días</p>
+                      </div>
+                      <p className="text-sm font-medium text-[var(--text-secondary)]">{item.currentStock} uds</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin datos de rotación</div>
+              )}
+            </Card>
+          </div>
+
+          <Card variant="default" padding="lg">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">Órdenes recientes</h2>
+              <span className="text-xs text-[var(--text-secondary)]">{recentOrders.length} últimas</span>
+            </div>
+            {loadingSales ? (
+              <Skeleton variant="text" lines={6} />
+            ) : recentOrders.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border-default)] text-left text-xs text-[var(--text-tertiary)]">
+                      <th className="px-4 py-3 font-medium">Orden</th>
+                      <th className="px-4 py-3 font-medium">Cliente</th>
+                      <th className="px-4 py-3 font-medium">Estado</th>
+                      <th className="px-4 py-3 font-medium">Total</th>
+                      <th className="px-4 py-3 font-medium">Hora</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-default)]">
+                    {recentOrders.map((order) => (
+                      <tr key={order.id}>
+                        <td className="px-4 py-3 font-medium text-[var(--text-primary)]">{order.id.slice(0, 8)}</td>
+                        <td className="px-4 py-3 text-[var(--text-secondary)]">{order.customer}</td>
+                        <td className="px-4 py-3 text-[var(--text-secondary)]">{order.status}</td>
+                        <td className="px-4 py-3 text-[var(--text-primary)]">{formatCOP(order.total)}</td>
+                        <td className="px-4 py-3 text-[var(--text-secondary)]">{order.time}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">No hay órdenes para mostrar</div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* Tab: Gastos */}
+      {activeTab === 'expenses' && (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <MetricCard icon={<Banknote size={18} />} label="Total gastos" value={formatCOP(expenses.total ?? 0)} loading={loadingExpenses} />
+            <MetricCard icon={<TrendingUp size={18} />} label="Pagados" value={formatCOP(expenses.paid ?? 0)} loading={loadingExpenses} />
+            <MetricCard icon={<ReceiptText size={18} />} label="En deuda" value={formatCOP(expenses.pending ?? 0)} loading={loadingExpenses} />
+          </div>
+
+          <Card variant="default" padding="lg">
+            <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Gastos por categoría</h2>
+            {loadingExpenses ? (
+              <Skeleton variant="text" lines={6} />
+            ) : expensesByCategory.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border-default)] text-left text-xs text-[var(--text-tertiary)]">
+                      <th className="px-4 py-3 font-medium">Categoría</th>
+                      <th className="px-4 py-3 font-medium text-right">Total</th>
+                      <th className="px-4 py-3 font-medium text-right">Pagados</th>
+                      <th className="px-4 py-3 font-medium text-right">En deuda</th>
+                      <th className="px-4 py-3 font-medium text-right"># Transacciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-default)]">
+                    {expensesByCategory.map((row) => (
+                      <tr key={row.category} className="hover:bg-[var(--bg-subtle)] transition-colors">
+                        <td className="px-4 py-3 font-medium text-[var(--text-primary)]">{row.category}</td>
+                        <td className="px-4 py-3 text-right text-[var(--text-primary)] tabular-nums">{formatCOP(row.total)}</td>
+                        <td className="px-4 py-3 text-right text-[var(--success-text,#16a34a)] tabular-nums">{formatCOP(row.paid)}</td>
+                        <td className="px-4 py-3 text-right text-[var(--danger-text,#dc2626)] tabular-nums">{formatCOP(row.pending)}</td>
+                        <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{row.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin gastos en el periodo seleccionado</div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* Tab: Empleados */}
+      {activeTab === 'employees' && (
+        <Card variant="default" padding="lg">
+          <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Rendimiento por empleado</h2>
+          {loadingEmployees ? (
+            <Skeleton variant="text" lines={6} />
+          ) : employees.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border-default)] text-left text-xs text-[var(--text-tertiary)]">
+                    <th className="px-4 py-3 font-medium">Empleado</th>
+                    <th className="px-4 py-3 font-medium text-right">Ventas totales</th>
+                    <th className="px-4 py-3 font-medium text-right"># Órdenes</th>
+                    <th className="px-4 py-3 font-medium text-right">Ticket promedio</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-default)]">
+                  {employees.map((emp, idx) => (
+                    <tr key={emp.cashierId} className="hover:bg-[var(--bg-subtle)] transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold flex-shrink-0"
+                            style={{
+                              background: idx === 0 ? 'var(--gold-500)' : idx === 1 ? '#94a3b8' : idx === 2 ? '#cd7f32' : 'var(--bg-subtle)',
+                              color: idx < 3 ? '#0A0A0A' : 'var(--text-tertiary)',
+                            }}>
+                            {idx + 1}
+                          </span>
+                          <span className="font-medium text-[var(--text-primary)]">{emp.cashierId.slice(0, 8)}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-[var(--text-gold)] tabular-nums">{formatCOP(emp.totalSales)}</td>
+                      <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{emp.totalOrders}</td>
+                      <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{formatCOP(emp.avgTicket)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin datos de empleados en el periodo seleccionado</div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

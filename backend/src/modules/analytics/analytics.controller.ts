@@ -1,6 +1,10 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
+
+interface AuthRequest {
+  user: { sub: string; schemaName: string };
+}
 
 @ApiTags('analytics')
 @ApiBearerAuth()
@@ -36,5 +40,27 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Customer analytics: debt, top customers, purchase frequency' })
   customerInsights() {
     return this.analyticsService.getCustomerInsights();
+  }
+
+  @Get('expenses')
+  @ApiOperation({ summary: 'Expenses summary grouped by category with paid/pending split' })
+  getExpensesSummary(
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('branchId') branchId?: string,
+    @Request() req?: AuthRequest,
+  ) {
+    return this.analyticsService.getExpensesSummary(req!.user.schemaName, dateFrom, dateTo, branchId);
+  }
+
+  @Get('employees')
+  @ApiOperation({ summary: 'Employee performance: total sales, orders and avg ticket per cashier' })
+  getEmployeePerformance(
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('branchId') branchId?: string,
+    @Request() req?: AuthRequest,
+  ) {
+    return this.analyticsService.getEmployeePerformance(req!.user.schemaName, dateFrom, dateTo, branchId);
   }
 }

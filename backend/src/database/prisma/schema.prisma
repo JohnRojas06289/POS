@@ -217,6 +217,8 @@ model Order {
   discountTotal Decimal     @default(0) @db.Decimal(10, 2)
   taxTotal      Decimal     @default(0) @db.Decimal(10, 2)
   total         Decimal     @db.Decimal(10, 2)
+  isFreeEntry   Boolean     @default(false)
+  origin        String      @default("counter")
   notes         String?
   clientTimestamp DateTime?
   syncedAt      DateTime?
@@ -339,6 +341,7 @@ model Expense {
   amount      Decimal  @db.Decimal(10, 2)
   description String?
   receiptUrl  String?
+  isPaid      Boolean  @default(true)
   createdBy   String
   createdAt   DateTime @default(now())
 

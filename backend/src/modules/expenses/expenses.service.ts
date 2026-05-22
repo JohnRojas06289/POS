@@ -4,6 +4,15 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
+async function withSchema<T>(
+  tx: Prisma.TransactionClient,
+  schemaName: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  await tx.$executeRawUnsafe(`SET LOCAL search_path = "${schemaName}", public`);
+  return fn();
+}
+
 @Injectable()
 export class ExpensesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -22,6 +31,7 @@ export class ExpensesService {
         amount: dto.amount,
         description: dto.description,
         receiptUrl: dto.receiptUrl,
+        isPaid: dto.isPaid ?? true,
         createdBy,
       },
     });
@@ -41,6 +51,17 @@ export class ExpensesService {
       where,
       orderBy: { createdAt: 'desc' },
       take: 200,
+    });
+  }
+
+  async markAsPaid(expenseId: string, schemaName: string) {
+    return this.prisma.$transaction(async (tx) => {
+      return withSchema(tx, schemaName, async () => {
+        return tx.expense.update({
+          where: { id: expenseId },
+          data: { isPaid: true },
+        });
+      });
     });
   }
 

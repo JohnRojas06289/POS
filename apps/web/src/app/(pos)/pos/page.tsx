@@ -14,7 +14,7 @@ import { CurrencyDisplay } from '../../../components/ui';
 import { useToast } from '../../../components/ui/Toast';
 import { useAuthStore } from '../../../stores/auth.store';
 import { useOfflineStore } from '../../../stores/offline.store';
-import { posApi, cashApi } from '../../../lib/api';
+import { posApi, cashApi, tenantsApi } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -87,6 +87,7 @@ export default function POSPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hideOutOfStock, setHideOutOfStock] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItemState[]>([]);
@@ -99,6 +100,9 @@ export default function POSPage() {
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
   const [hasHeldCart, setHasHeldCart] = useState(false);
+  const [isFreeEntry, setIsFreeEntry] = useState(false);
+  const [freeEntryDescription, setFreeEntryDescription] = useState('');
+  const [orderOrigin, setOrderOrigin] = useState('counter');
   const clearTimer = useRef<ReturnType<typeof setTimeout>>();
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
   const [cashSession, setCashSession] = useState<{ id: string; openingAmount: number } | null>(null);
@@ -108,6 +112,14 @@ export default function POSPage() {
   const terminalId = useMemo(() => {
     if (typeof window === 'undefined') return 'web-terminal';
     return localStorage.getItem('nexus_terminal_id') ?? 'web-terminal';
+  }, []);
+
+  // Load tenant config for POS-specific settings
+  useEffect(() => {
+    void tenantsApi.getConfig().then((cfg: unknown) => {
+      const c = cfg as { hideOutOfStockProducts?: boolean } | null;
+      if (c?.hideOutOfStockProducts) setHideOutOfStock(true);
+    }).catch(() => { /* non-critical */ });
   }, []);
 
   // Load products (with 48h offline cache)
@@ -203,7 +215,7 @@ export default function POSPage() {
         e.preventDefault();
         (window as Window & { posSearchRef?: HTMLInputElement | null }).posSearchRef?.focus();
       }
-      if (e.key === 'F2' && cart.length > 0) {
+      if (e.key === 'F2' && (cart.length > 0 || isFreeEntry)) {
         e.preventDefault();
         setPaymentOpen(true);
       }
@@ -248,6 +260,9 @@ export default function POSPage() {
   // Filtered products
   const filtered = useMemo(() => {
     let visible = products;
+    if (hideOutOfStock) {
+      visible = visible.filter((p) => p.variants.some((v) => v.stock > 0));
+    }
     if (selectedCategory !== 'all') {
       visible = visible.filter((product) => product.categoryId === selectedCategory);
     }
@@ -256,7 +271,7 @@ export default function POSPage() {
     return visible.filter(
       (p) => p.name.toLowerCase().includes(q) || p.variants.some((v) => v.sku?.toLowerCase().includes(q)),
     );
-  }, [products, search, selectedCategory]);
+  }, [products, search, selectedCategory, hideOutOfStock]);
 
   const addToCart = useCallback((product: Product, variantIdx: number) => {
     const variant = product.variants[variantIdx];
@@ -402,14 +417,19 @@ export default function POSPage() {
     const payload = {
       localId,
       branchId,
-      items: cart.map((i) => ({
-        variantId: i.variantId,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        discount: computeDiscountAmount(i),
-      })),
+      isFreeEntry,
+      origin: orderOrigin,
+      items: isFreeEntry
+        ? []
+        : cart.map((i) => ({
+            variantId: i.variantId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            discount: computeDiscountAmount(i),
+          })),
       payments,
-      discountTotal: cartDiscountAmount,
+      discountTotal: isFreeEntry ? 0 : cartDiscountAmount,
+      notes: isFreeEntry && freeEntryDescription ? freeEntryDescription : undefined,
     };
 
     if (!isOnline) {
@@ -419,6 +439,8 @@ export default function POSPage() {
       setCart([]);
       setCartDiscountMode(null);
       setCartDiscountValue(0);
+      setIsFreeEntry(false);
+      setFreeEntryDescription('');
       toast('Venta guardada sin conexión y lista para sincronizar', 'success');
       return;
     }
@@ -457,6 +479,8 @@ export default function POSPage() {
       setCart([]);
       setCartDiscountMode(null);
       setCartDiscountValue(0);
+      setIsFreeEntry(false);
+      setFreeEntryDescription('');
       return;
     }
     // Optimistic stock update: reduce units in-memory so the cashier sees accurate stock immediately
@@ -496,7 +520,9 @@ export default function POSPage() {
     setCart([]);
     setCartDiscountMode(null);
     setCartDiscountValue(0);
-  }, [addPendingOrder, branch, branchId, cart, cartDiscountAmount, isOnline, itemDiscountTotal, queryClient, subtotal, tenant, toast, total]);
+    setIsFreeEntry(false);
+    setFreeEntryDescription('');
+  }, [addPendingOrder, branch, branchId, cart, cartDiscountAmount, freeEntryDescription, isOnline, isFreeEntry, itemDiscountTotal, orderOrigin, queryClient, subtotal, tenant, toast, total]);
 
   const restoreHeldCart = useCallback(() => {
     try {
@@ -576,7 +602,13 @@ export default function POSPage() {
 
         {/* Products grid */}
         <div className="flex-1 overflow-y-auto p-3">
-          {loading ? (
+          {isFreeEntry ? (
+            <div className="flex h-full flex-col items-center justify-center py-16 text-center">
+              <span className="mb-3 text-5xl" aria-hidden>💰</span>
+              <p className="font-medium text-[var(--text-secondary)]">Venta libre activa</p>
+              <p className="text-sm text-[var(--text-tertiary)]">Ingresa el monto directamente en el pago</p>
+            </div>
+          ) : loading ? (
             <SkeletonGrid count={12} />
           ) : filtered.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center py-16 text-center">
@@ -625,21 +657,61 @@ export default function POSPage() {
               <span className="ml-2 inline-flex items-center rounded-full bg-[rgba(201,168,76,0.12)] px-2 py-0.5 text-xs font-semibold text-[var(--text-gold)]">{itemCount}</span>
             )}
           </h2>
-          {cart.length > 0 && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleClear}
+              onClick={() => setIsFreeEntry((prev) => !prev)}
+              aria-pressed={isFreeEntry}
               className={cn(
-                'rounded-[var(--radius-sm)] px-2 py-1 text-xs font-medium transition-all duration-150',
-                clearConfirm
-                  ? 'border border-[var(--danger-text)] bg-[var(--danger-bg)] text-[var(--danger-text)]'
-                  : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--danger-text)]',
+                'rounded-[var(--radius-sm)] px-2 py-1 text-xs font-medium border transition-all duration-150',
+                isFreeEntry
+                  ? 'border-[#C9A84C] bg-[rgba(201,168,76,0.12)] text-[#C9A84C]'
+                  : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-tertiary)] hover:border-[#C9A84C] hover:text-[#C9A84C]',
               )}
-              aria-label="Limpiar carrito"
+              title="Venta libre: ingreso de caja sin afectar inventario"
             >
-              {clearConfirm ? '¿Seguro?' : 'Limpiar'}
+              Venta libre
             </button>
-          )}
+            {cart.length > 0 && !isFreeEntry && (
+              <button
+                onClick={handleClear}
+                className={cn(
+                  'rounded-[var(--radius-sm)] px-2 py-1 text-xs font-medium transition-all duration-150',
+                  clearConfirm
+                    ? 'border border-[var(--danger-text)] bg-[var(--danger-bg)] text-[var(--danger-text)]'
+                    : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--danger-text)]',
+                )}
+                aria-label="Limpiar carrito"
+              >
+                {clearConfirm ? '¿Seguro?' : 'Limpiar'}
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Venta libre: description + origin */}
+        {isFreeEntry && (
+          <div className="border-b border-[var(--border-default)] bg-[rgba(201,168,76,0.04)] px-3 py-3 space-y-2">
+            <p className="text-xs text-[#C9A84C] font-medium">Venta libre activa — sin movimiento de inventario</p>
+            <input
+              type="text"
+              value={freeEntryDescription}
+              onChange={(e) => setFreeEntryDescription(e.target.value)}
+              placeholder="Descripción (ej: servicio técnico, flete, etc.)"
+              className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[#C9A84C] focus:outline-none"
+            />
+            <select
+              value={orderOrigin}
+              onChange={(e) => setOrderOrigin(e.target.value)}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[#C9A84C] focus:outline-none"
+            >
+              <option value="counter">Mostrador</option>
+              <option value="delivery">Domicilio</option>
+              <option value="rappi">Rappi</option>
+              <option value="didi">Didi</option>
+              <option value="whatsapp">WhatsApp</option>
+            </select>
+          </div>
+        )}
 
         {hasHeldCart && (
           <div className="px-3 pt-3">
@@ -656,9 +728,9 @@ export default function POSPage() {
         <div className="flex-1 overflow-y-auto px-3" aria-label="Items en el carrito">
           {cart.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center py-8 text-center">
-              <span className="mb-2 text-4xl" aria-hidden>🛒</span>
-              <p className="text-sm text-[var(--text-tertiary)]">El carrito está vacío</p>
-              <p className="mt-1 text-xs text-[var(--text-tertiary)]">Click en un producto para agregar</p>
+              <span className="mb-2 text-4xl" aria-hidden>{isFreeEntry ? '💰' : '🛒'}</span>
+              <p className="text-sm text-[var(--text-tertiary)]">{isFreeEntry ? 'Ingresa el monto en el pago' : 'El carrito está vacío'}</p>
+              <p className="mt-1 text-xs text-[var(--text-tertiary)]">{isFreeEntry ? 'Esta venta no afecta inventario' : 'Click en un producto para agregar'}</p>
             </div>
           ) : (
             cart.map((item) => (
@@ -704,7 +776,24 @@ export default function POSPage() {
             </div>
           </div>
 
-          {!isOnline && cart.length > 0 && (
+          {!isFreeEntry && (
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-tertiary)]">Origen</label>
+              <select
+                value={orderOrigin}
+                onChange={(e) => setOrderOrigin(e.target.value)}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:border-[#C9A84C] focus:outline-none"
+              >
+                <option value="counter">Mostrador</option>
+                <option value="delivery">Domicilio</option>
+                <option value="rappi">Rappi</option>
+                <option value="didi">Didi</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </div>
+          )}
+
+          {!isOnline && (cart.length > 0 || isFreeEntry) && (
             <div className="rounded-[var(--radius-sm)] bg-[var(--warning-bg)] px-2 py-1.5 text-xs text-[var(--warning-text)]">
               ⚠ Sin conexión — la venta se sincronizará al reconectar
             </div>
@@ -712,12 +801,12 @@ export default function POSPage() {
 
           <button
             onClick={() => setPaymentOpen(true)}
-            disabled={cart.length === 0}
-            aria-disabled={cart.length === 0}
-            title={cart.length === 0 ? 'Agrega productos al carrito' : `Cobrar $${total.toLocaleString('es-CO')} (F2)`}
-              className={cn('h-12 w-full rounded-[var(--radius-md)] text-base font-bold transition-all duration-150', cart.length > 0 ? 'bg-[var(--gold-500)] text-[#1A1400] shadow-[var(--shadow-sm)] hover:bg-[var(--gold-400)] active:scale-[0.99]' : 'cursor-not-allowed bg-[var(--bg-subtle)] text-[var(--text-tertiary)]')}
+            disabled={!isFreeEntry && cart.length === 0}
+            aria-disabled={!isFreeEntry && cart.length === 0}
+            title={(!isFreeEntry && cart.length === 0) ? 'Agrega productos al carrito' : `Cobrar $${total.toLocaleString('es-CO')} (F2)`}
+              className={cn('h-12 w-full rounded-[var(--radius-md)] text-base font-bold transition-all duration-150', (isFreeEntry || cart.length > 0) ? 'bg-[var(--gold-500)] text-[#1A1400] shadow-[var(--shadow-sm)] hover:bg-[var(--gold-400)] active:scale-[0.99]' : 'cursor-not-allowed bg-[var(--bg-subtle)] text-[var(--text-tertiary)]')}
             >
-              {cart.length > 0 ? `Cobrar $${total.toLocaleString('es-CO')}` : 'Cobrar'}
+              {(isFreeEntry || cart.length > 0) ? `Cobrar $${total.toLocaleString('es-CO')}` : 'Cobrar'}
             </button>
         </div>
       </div>

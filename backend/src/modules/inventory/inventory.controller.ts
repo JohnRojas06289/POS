@@ -90,4 +90,23 @@ export class InventoryController {
   transferStock(@Body() dto: TransferStockDto, @Request() req: AuthRequest) {
     return this.inventoryService.transferStock(dto, req.user.sub, req.user.schemaName);
   }
+
+  @Patch('variants/:variantId/stock')
+  @ApiOperation({ summary: 'Quick inline stock adjustment — quantity is a delta (positive or negative)' })
+  quickAdjustStock(
+    @Param('variantId') variantId: string,
+    @Body() body: { quantity: number; branchId: string },
+    @Request() req: AuthRequest,
+  ) {
+    return this.inventoryService.adjustStock(
+      {
+        variantId,
+        branchId: body.branchId,
+        quantity: body.quantity,
+        reasonCode: 'count_correction',
+      },
+      req.user.sub,
+      req.user.schemaName,
+    );
+  }
 }

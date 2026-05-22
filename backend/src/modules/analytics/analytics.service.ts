@@ -2,6 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
+async function withSchema<T>(
+  tx: Prisma.TransactionClient,
+  schemaName: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  await tx.$executeRawUnsafe(`SET LOCAL search_path = "${schemaName}", public`);
+  return fn();
+}
+
 @Injectable()
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -225,6 +234,88 @@ export class AnalyticsService {
       estimatedMargin,
       byCategory,
     };
+  }
+
+  async getExpensesSummary(schemaName: string, dateFrom?: string, dateTo?: string, branchId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      return withSchema(tx, schemaName, async () => {
+        const from = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = dateTo ? new Date(dateTo) : new Date();
+
+        const byCategory = await tx.$queryRaw<Array<{ category: string; total: string; count: string; paid: string; pending: string }>>`
+          SELECT
+            category,
+            SUM(amount)::text AS total,
+            COUNT(*)::text AS count,
+            SUM(CASE WHEN "isPaid" = true THEN amount ELSE 0 END)::text AS paid,
+            SUM(CASE WHEN "isPaid" = false THEN amount ELSE 0 END)::text AS pending
+          FROM "Expense"
+          WHERE "createdAt" >= ${from} AND "createdAt" <= ${to}
+          ${branchId ? Prisma.sql`AND "branchId" = ${branchId}` : Prisma.empty}
+          GROUP BY category
+          ORDER BY total DESC
+        `;
+
+        const totalRow = await tx.$queryRaw<Array<{ total: string; paid: string; pending: string }>>`
+          SELECT
+            COALESCE(SUM(amount), 0)::text AS total,
+            COALESCE(SUM(CASE WHEN "isPaid" = true THEN amount ELSE 0 END), 0)::text AS paid,
+            COALESCE(SUM(CASE WHEN "isPaid" = false THEN amount ELSE 0 END), 0)::text AS pending
+          FROM "Expense"
+          WHERE "createdAt" >= ${from} AND "createdAt" <= ${to}
+          ${branchId ? Prisma.sql`AND "branchId" = ${branchId}` : Prisma.empty}
+        `;
+
+        return {
+          total: parseFloat(totalRow[0]?.total ?? '0'),
+          paid: parseFloat(totalRow[0]?.paid ?? '0'),
+          pending: parseFloat(totalRow[0]?.pending ?? '0'),
+          byCategory: byCategory.map((r) => ({
+            category: r.category,
+            total: parseFloat(r.total),
+            count: parseInt(r.count, 10),
+            paid: parseFloat(r.paid),
+            pending: parseFloat(r.pending),
+          })),
+        };
+      });
+    });
+  }
+
+  async getEmployeePerformance(schemaName: string, dateFrom?: string, dateTo?: string, branchId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      return withSchema(tx, schemaName, async () => {
+        const from = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = dateTo ? new Date(dateTo) : new Date();
+
+        const result = await tx.$queryRaw<Array<{
+          cashier_id: string;
+          total_sales: string;
+          total_orders: string;
+          avg_ticket: string;
+        }>>`
+          SELECT
+            "cashierId" AS cashier_id,
+            SUM(total)::text AS total_sales,
+            COUNT(*)::text AS total_orders,
+            AVG(total)::text AS avg_ticket
+          FROM "Order"
+          WHERE status = 'completed'
+            AND "createdAt" >= ${from}
+            AND "createdAt" <= ${to}
+            ${branchId ? Prisma.sql`AND "branchId" = ${branchId}` : Prisma.empty}
+          GROUP BY "cashierId"
+          ORDER BY total_sales DESC
+        `;
+
+        return result.map((r) => ({
+          cashierId: r.cashier_id,
+          totalSales: parseFloat(r.total_sales),
+          totalOrders: parseInt(r.total_orders, 10),
+          avgTicket: parseFloat(r.avg_ticket),
+        }));
+      });
+    });
   }
 
   async getCustomerInsights() {

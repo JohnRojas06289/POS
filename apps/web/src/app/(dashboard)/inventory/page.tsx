@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo } from 'react';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Package, AlertTriangle, TrendingDown, Plus, ArrowUpDown, Download, Upload, Loader2 } from 'lucide-react';
+import { Search, Package, AlertTriangle, TrendingDown, Plus, ArrowUpDown, Download, Upload, Loader2, Pencil } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Skeleton } from '../../../components/ui/Skeleton';
@@ -495,6 +495,8 @@ export default function InventoryPage() {
   const [receiveProduct, setReceiveProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [newProductOpen, setNewProductOpen] = useState(false);
+  const [editingStockId, setEditingStockId] = useState<string | null>(null);
+  const [editingStockValue, setEditingStockValue] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
@@ -714,6 +716,27 @@ export default function InventoryPage() {
     void refetch();
   };
 
+  const handleStockCommit = async (product: Product, newValue: number) => {
+    const delta = newValue - product.stock;
+    setEditingStockId(null);
+    if (delta === 0) return;
+    if (!branchId) {
+      toast('No hay sucursal activa para ajustar stock', 'error');
+      return;
+    }
+    try {
+      await api.patch(`/inventory/variants/${product.id}/stock`, {
+        quantity: delta,
+        branchId,
+      });
+      toast('Stock actualizado', 'success');
+      await queryClient.invalidateQueries({ queryKey: ['inventory-products'] });
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast(msg ?? 'No se pudo ajustar el stock', 'error');
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -857,29 +880,51 @@ export default function InventoryPage() {
                     </td>
                     <td className="px-4 py-3 text-[--text-secondary]">{product.category}</td>
                     <td className="px-4 py-3">
-                      <div className="space-y-1">
-                        <div>
-                          <span className={`font-semibold tabular-nums ${product.stock === 0 ? 'text-[--danger]' : product.stock < product.minStock ? 'text-[--warning]' : 'text-[--text-primary]'}`}>
-                            {product.stock}
-                          </span>
-                          <span className="text-xs text-[--text-tertiary] ml-1">/ mín {product.minStock}</span>
+                      {editingStockId === product.id ? (
+                        <input
+                          type="number"
+                          autoFocus
+                          value={editingStockValue}
+                          onChange={(e) => setEditingStockValue(Number(e.target.value))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') void handleStockCommit(product, editingStockValue);
+                            if (e.key === 'Escape') setEditingStockId(null);
+                          }}
+                          onBlur={() => void handleStockCommit(product, editingStockValue)}
+                          className="w-20 border border-[--nexus-500] rounded-[--radius-sm] px-2 py-1 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none tabular-nums"
+                        />
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 group">
+                            <button
+                              onClick={() => { setEditingStockId(product.id); setEditingStockValue(product.stock); }}
+                              className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                              title="Editar stock"
+                            >
+                              <span className={`font-semibold tabular-nums ${product.stock === 0 ? 'text-[--danger]' : product.stock < product.minStock ? 'text-[--warning]' : 'text-[--text-primary]'}`}>
+                                {product.stock}
+                              </span>
+                              <Pencil size={11} className="text-[--text-tertiary] opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                            <span className="text-xs text-[--text-tertiary]">/ mín {product.minStock}</span>
+                          </div>
+                          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[--bg-tertiary]">
+                            <div
+                              className={cn(
+                                'h-full rounded-full',
+                                product.stock === 0
+                                  ? 'bg-[--danger]'
+                                  : product.stock < product.minStock
+                                  ? 'bg-[--warning]'
+                                  : 'bg-[--success]',
+                              )}
+                              style={{
+                                width: `${Math.max(6, Math.min(100, product.minStock > 0 ? (product.stock / product.minStock) * 100 : 100))}%`,
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[--bg-tertiary]">
-                          <div
-                            className={cn(
-                              'h-full rounded-full',
-                              product.stock === 0
-                                ? 'bg-[--danger]'
-                                : product.stock < product.minStock
-                                ? 'bg-[--warning]'
-                                : 'bg-[--success]',
-                            )}
-                            style={{
-                              width: `${Math.max(6, Math.min(100, product.minStock > 0 ? (product.stock / product.minStock) * 100 : 100))}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">{getStockBadge(product.stock, product.minStock)}</td>
                     <td className="px-4 py-3 text-right text-[--text-secondary] tabular-nums">${product.cpp.toLocaleString('es-CO')}</td>

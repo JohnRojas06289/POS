@@ -501,6 +501,18 @@ export default function SettingsPage() {
   const [newRoleOpen, setNewRoleOpen] = useState(false);
   const [roles, setRoles] = useState<RoleConfig[]>(DEFAULT_ROLE_CONFIGS);
 
+  // Business tab state
+  const [businessName, setBusinessName] = useState('');
+  const [nit, setNit] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [city, setCity] = useState('');
+  const [savingBusiness, setSavingBusiness] = useState(false);
+
+  // POS extras state
+  const [tipsEnabled, setTipsEnabled] = useState(false);
+  const [tipPercentage, setTipPercentage] = useState(10);
+  const [hideOutOfStockProducts, setHideOutOfStockProducts] = useState(false);
+
   const { data: config, isLoading: loadingConfig } = useQuery({ queryKey: ['tenant-config'], queryFn: tenantsApi.getConfig, retry: false });
   const { data: subscription, isLoading: loadingSubscription } = useQuery({ queryKey: ['billing-subscription'], queryFn: billingApi.getSubscription, retry: false });
   const { data: branches, isLoading: loadingBranches, refetch: refetchBranches } = useQuery({ queryKey: ['tenant-branches'], queryFn: tenantsApi.getBranches, retry: false });
@@ -508,13 +520,53 @@ export default function SettingsPage() {
   const { data: terminals, isLoading: loadingTerminals, refetch: refetchTerminals } = useQuery({ queryKey: ['tenant-terminals'], queryFn: tenantsApi.getTerminals, retry: false });
 
   useEffect(() => {
-    const tenantRoles = (config as { roles?: RoleConfig[] } | undefined)?.roles;
+    const c = config as {
+      roles?: RoleConfig[];
+      name?: string;
+      nit?: string;
+      whatsapp?: string;
+      city?: string;
+      tipsEnabled?: boolean;
+      tipPercentage?: number;
+      hideOutOfStockProducts?: boolean;
+    } | undefined;
+    const tenantRoles = c?.roles;
     setRoles(Array.isArray(tenantRoles) && tenantRoles.length > 0 ? tenantRoles : DEFAULT_ROLE_CONFIGS);
+    if (c) {
+      setBusinessName(c.name ?? '');
+      setNit(c.nit ?? '');
+      setWhatsapp(c.whatsapp ?? '');
+      setCity(c.city ?? '');
+      setTipsEnabled(c.tipsEnabled ?? false);
+      setTipPercentage(c.tipPercentage ?? 10);
+      setHideOutOfStockProducts(c.hideOutOfStockProducts ?? false);
+    }
   }, [config]);
 
   const handleSave = async () => {
     await tenantsApi.updateConfig({ roles });
     toast('Configuración guardada', 'success');
+  };
+
+  const handleSaveBusiness = async () => {
+    setSavingBusiness(true);
+    try {
+      await tenantsApi.updateConfig({ businessName, nit, whatsapp, city });
+      toast('Información del negocio guardada', 'success');
+    } catch {
+      toast('Error al guardar la información del negocio', 'error');
+    } finally {
+      setSavingBusiness(false);
+    }
+  };
+
+  const handleSavePosExtras = async () => {
+    try {
+      await tenantsApi.updateConfig({ tipsEnabled, tipPercentage, hideOutOfStockProducts });
+      toast('Configuración POS guardada', 'success');
+    } catch {
+      toast('Error al guardar la configuración POS', 'error');
+    }
   };
 
   const currentPlan = (subscription as SubscriptionSummary | undefined)?.plan;
@@ -619,19 +671,54 @@ export default function SettingsPage() {
           <div>
             <SectionTitle>Información del negocio</SectionTitle>
             {loadingConfig ? <Skeleton variant="text" lines={5} /> : (
-              <div className="grid sm:grid-cols-2 gap-5 max-w-2xl">
-                <Field label="Nombre del negocio">
-                  <TextInput defaultValue={(config as { name?: string })?.name ?? ''} placeholder="Mi Negocio S.A.S." />
-                </Field>
-                <Field label="NIT">
-                  <TextInput defaultValue={(config as { nit?: string })?.nit ?? ''} placeholder="900.123.456-7" />
-                </Field>
-                <Field label="WhatsApp">
-                  <TextInput defaultValue={(config as { whatsapp?: string })?.whatsapp ?? ''} placeholder="+57 300 123 4567" />
-                </Field>
-                <Field label="Ciudad">
-                  <TextInput defaultValue={(config as { city?: string })?.city ?? ''} placeholder="Bogotá, Colombia" />
-                </Field>
+              <div className="max-w-2xl space-y-5">
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <Field label="Nombre del negocio">
+                    <input
+                      value={businessName}
+                      onChange={(e) => setBusinessName(e.target.value)}
+                      placeholder="Mi Negocio S.A.S."
+                      className={inputCls} style={inputSty}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+                    />
+                  </Field>
+                  <Field label="NIT">
+                    <input
+                      value={nit}
+                      onChange={(e) => setNit(e.target.value)}
+                      placeholder="900.123.456-7"
+                      className={inputCls} style={inputSty}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+                    />
+                  </Field>
+                  <Field label="WhatsApp">
+                    <input
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      placeholder="+57 300 123 4567"
+                      className={inputCls} style={inputSty}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+                    />
+                  </Field>
+                  <Field label="Ciudad">
+                    <input
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="Bogotá, Colombia"
+                      className={inputCls} style={inputSty}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold-500)')}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+                    />
+                  </Field>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <BtnPrimary onClick={() => void handleSaveBusiness()} disabled={savingBusiness}>
+                    {savingBusiness ? 'Guardando...' : 'Guardar cambios'}
+                  </BtnPrimary>
+                </div>
               </div>
             )}
           </div>
@@ -674,6 +761,83 @@ export default function SettingsPage() {
                   <span className="text-sm" style={{ color: 'var(--text-primary)' }}>IVA 19% habilitado</span>
                 </label>
               </Field>
+
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>Propinas</label>
+                <div className="space-y-4 rounded-xl p-4" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Habilitar propinas en el POS</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Permite al cajero cobrar propina al finalizar la venta</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tipsEnabled}
+                      onChange={(e) => setTipsEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                      style={{ accentColor: 'var(--gold-500)' }}
+                    />
+                  </label>
+                  {tipsEnabled && (
+                    <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+                      <p className="text-xs font-medium mt-3" style={{ color: 'var(--text-secondary)' }}>Porcentaje sugerido</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {[5, 10, 15, 20].map((pct) => (
+                          <button
+                            key={pct}
+                            type="button"
+                            onClick={() => setTipPercentage(pct)}
+                            className="px-3 py-1.5 text-sm rounded-full border transition-all"
+                            style={{
+                              background: tipPercentage === pct ? 'var(--gold-500)' : 'var(--bg-surface)',
+                              color: tipPercentage === pct ? '#0A0A0A' : 'var(--text-secondary)',
+                              borderColor: tipPercentage === pct ? 'var(--gold-500)' : 'var(--border-default)',
+                            }}
+                          >
+                            {pct}%
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Personalizado:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={tipPercentage}
+                          onChange={(e) => setTipPercentage(Number(e.target.value))}
+                          className="w-20 rounded-lg px-2 py-1.5 text-sm outline-none"
+                          style={{ border: '1px solid var(--border-default)', background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+                        />
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>Stock</label>
+                <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Ocultar productos sin stock en el POS</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Los productos con stock 0 no aparecen en la grilla del POS</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={hideOutOfStockProducts}
+                      onChange={(e) => setHideOutOfStockProducts(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                      style={{ accentColor: 'var(--gold-500)' }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <BtnPrimary onClick={() => void handleSavePosExtras()}>Guardar configuración POS</BtnPrimary>
+              </div>
             </div>
           </div>
         )}

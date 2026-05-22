@@ -95,6 +95,9 @@ export class TenantsService {
       taxConfig: this.parseJson<Record<string, unknown>>(config?.taxConfig, {}),
       dianConfig: this.parseJson<Record<string, unknown>>(config?.dianConfig, {}),
       roles: this.parseJson<TenantRoleConfig[]>(this.parseJson<Record<string, unknown>>(config?.value, {}).roles, DEFAULT_ROLE_CONFIGS),
+      tipsEnabled: Boolean(configValue.tipsEnabled ?? false),
+      tipPercentage: Number(configValue.tipPercentage ?? 10),
+      hideOutOfStockProducts: Boolean(configValue.hideOutOfStockProducts ?? false),
       updatedAt: config?.updatedAt ?? null,
     };
   }
@@ -111,6 +114,9 @@ export class TenantsService {
       taxConfig?: Record<string, unknown>;
       dianConfig?: Record<string, unknown>;
       roles?: TenantRoleConfig[];
+      tipsEnabled?: boolean;
+      tipPercentage?: number;
+      hideOutOfStockProducts?: boolean;
     },
   ) {
     const tenant = await this.getTenantRecord(tenantId);
@@ -125,6 +131,9 @@ export class TenantsService {
       defaultBranchId: currentValue.defaultBranchId ?? null,
       defaultTerminalId: currentValue.defaultTerminalId ?? null,
       roles: data.roles ?? this.parseJson<TenantRoleConfig[]>(currentValue.roles, DEFAULT_ROLE_CONFIGS),
+      tipsEnabled: data.tipsEnabled ?? currentValue.tipsEnabled ?? false,
+      tipPercentage: data.tipPercentage ?? currentValue.tipPercentage ?? 10,
+      hideOutOfStockProducts: data.hideOutOfStockProducts ?? currentValue.hideOutOfStockProducts ?? false,
     };
 
     await this.prisma.$executeRawUnsafe(

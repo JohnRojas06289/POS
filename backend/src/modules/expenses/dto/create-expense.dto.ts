@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
 
 export class CreateExpenseDto {
   @ApiProperty({ required: false })
@@ -25,4 +25,9 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsString()
   receiptUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isPaid?: boolean;
 }
