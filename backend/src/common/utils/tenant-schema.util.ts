@@ -23,6 +23,9 @@ export const TENANT_TEMPLATE_TABLES = [
   'SyncQueue',
   'AiEvent',
   'DianDocument',
+  'Quote',
+  'QuoteItem',
+  'Table',
 ] as const;
 
 export function assertValidSchemaName(schemaName: string): void {

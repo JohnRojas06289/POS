@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "🌱 Running database seed..."
-npx prisma db seed --schema=src/database/prisma/schema.prisma || echo "⚠️  Seed failed or already up to date, continuing..."
+echo "Running database migrations..."
+npx prisma migrate deploy --schema=src/database/prisma/schema.prisma
 
-echo "🚀 Starting server..."
+echo "Starting server..."
 exec node dist/main.js
