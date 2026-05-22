@@ -407,7 +407,7 @@ export class PosService {
               await tx.$queryRawUnsafe<Array<{ id: string; number: number; notes: string | null }>>(
                 `SELECT id, number, notes
                  FROM "Table"
-                 WHERE id = $1
+                 WHERE id = $1::uuid
                  LIMIT 1`,
                 orderTableId,
               )

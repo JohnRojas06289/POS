@@ -280,7 +280,7 @@ export class AuthService {
     const users = await this.prisma.$queryRawUnsafe(
       `SELECT id, name, email, role, "branchId", "isActive"
        FROM "${tenant.schemaName}"."User"
-       WHERE id = $1
+       WHERE id = $1::uuid
        LIMIT 1`,
       user.sub,
     ) as Array<{ id: string; name: string; email: string; role: string; branchId: string | null; isActive: boolean }>;
@@ -295,7 +295,7 @@ export class AuthService {
       const branches = await this.prisma.$queryRawUnsafe(
         `SELECT id, name
          FROM "${tenant.schemaName}"."Branch"
-         WHERE id = $1
+         WHERE id = $1::uuid
          LIMIT 1`,
         profile.branchId,
       ) as Array<{ id: string; name: string }>;
@@ -383,7 +383,7 @@ export class AuthService {
     const users = await this.prisma.$queryRawUnsafe(
       `SELECT id, email, pin, role, "branchId"
        FROM "${tenant.schemaName}"."User"
-       WHERE "branchId" = $1 AND pin IS NOT NULL AND "isActive" = true`,
+       WHERE "branchId" = $1::uuid AND pin IS NOT NULL AND "isActive" = true`,
       dto.branchId,
     ) as Array<{
       id: string;
@@ -530,7 +530,7 @@ export class AuthService {
     await this.prisma.$executeRawUnsafe(
       `UPDATE "${payload.schemaName}"."User"
        SET "passwordHash" = $2, "updatedAt" = NOW()
-       WHERE id = $1`,
+       WHERE id = $1::uuid`,
       payload.userId,
       passwordHash,
     );
@@ -632,7 +632,7 @@ export class AuthService {
       const subscriptions = await this.prisma.$queryRawUnsafe(
         `SELECT "killSwitch"
          FROM "public"."Subscription"
-         WHERE "tenantId" = $1 AND status = 'active'
+         WHERE "tenantId" = $1::uuid AND status = 'active'
          ORDER BY "createdAt" DESC
          LIMIT 1`,
         tenantId,
@@ -659,7 +659,7 @@ export class AuthService {
       const terminals = await this.prisma.$queryRawUnsafe(
         `SELECT id, "branchId", "isActive", "isBlocked", "deviceFingerprint"
          FROM "${schemaName}"."Terminal"
-         WHERE id = $1
+         WHERE id = $1::uuid
          LIMIT 1`,
         dto.terminalId,
       ) as ResolvedTerminal[];
@@ -673,7 +673,7 @@ export class AuthService {
         await this.prisma.$executeRawUnsafe(
           `UPDATE "${schemaName}"."Terminal"
            SET "deviceFingerprint" = $2, "updatedAt" = NOW()
-           WHERE id = $1`,
+           WHERE id = $1::uuid`,
           terminal.id,
           dto.deviceFingerprint,
         );
@@ -735,7 +735,7 @@ export class AuthService {
     const terminals = await this.prisma.$queryRawUnsafe(
       `SELECT id, "branchId", "isActive", "isBlocked", "deviceFingerprint"
        FROM "${schemaName}"."Terminal"
-       WHERE id = $1
+       WHERE id = $1::uuid
        LIMIT 1`,
       terminalId,
     ) as ResolvedTerminal[];

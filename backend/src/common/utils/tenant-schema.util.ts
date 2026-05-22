@@ -45,6 +45,11 @@ type TableNameRow = {
   table_name: string;
 };
 
+// Columns added after initial schema creation that must be backfilled for existing tenants.
+const COLUMN_MIGRATIONS: Array<{ table: string; column: string; definition: string }> = [
+  { table: 'Order', column: 'tableId', definition: 'TEXT' },
+];
+
 export async function ensureTenantSchemaTables(
   executor: RawQueryExecutor,
   schemaName: string,
@@ -93,5 +98,27 @@ export async function ensureTenantSchemaTables(
     await executor.$executeRawUnsafe(
       `CREATE TABLE IF NOT EXISTS "${schemaName}"."${table}" (LIKE "tenant"."${table}" INCLUDING ALL)`,
     );
+  }
+
+  // Backfill columns added to existing tables after initial schema creation.
+  for (const { table, column, definition } of COLUMN_MIGRATIONS) {
+    if (!existing.has(table)) continue; // newly created above — already has the column
+    const columnExists = await executor.$queryRawUnsafe(
+      `SELECT 1 AS has_column
+       FROM information_schema.columns
+       WHERE table_schema = $1
+         AND table_name = $2
+         AND column_name = $3
+       LIMIT 1`,
+      schemaName,
+      table,
+      column,
+    ) as Array<{ has_column: number }>;
+
+    if (!columnExists[0]) {
+      await executor.$executeRawUnsafe(
+        `ALTER TABLE "${schemaName}"."${table}" ADD COLUMN IF NOT EXISTS "${column}" ${definition}`,
+      );
+    }
   }
 }
