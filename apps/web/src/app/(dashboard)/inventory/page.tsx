@@ -588,77 +588,129 @@ export default function InventoryPage() {
     else { setSortField(field); setSortAsc(true); }
   };
 
+  const csvEscape = (value: unknown): string => {
+    const str = String(value ?? '');
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const parseCsvRow = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
   const exportCsv = () => {
-    const rows = [
-      ['sku', 'name', 'category', 'stock', 'minStock', 'cpp', 'price', 'marginPercent'],
-      ...filtered.map((product) => {
-        const margin = product.price > 0
-          ? Math.round(((product.price - product.cpp) / product.price) * 100)
-          : 0;
-        return [
-          product.sku,
-          product.name,
-          product.category,
-          product.stock,
-          product.minStock,
-          product.cpp,
-          product.price,
-          margin,
-        ];
-      }),
-    ];
-    const csv = rows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const header = ['sku', 'name', 'category', 'stock', 'minStock', 'cpp', 'price', 'marginPercent'];
+    const dataRows = products.map((product) => {
+      const margin = product.price > 0
+        ? Math.round(((product.price - product.cpp) / product.price) * 100)
+        : 0;
+      return [
+        product.sku,
+        product.name,
+        product.category,
+        product.stock,
+        product.minStock,
+        product.cpp,
+        product.price,
+        margin,
+      ].map(csvEscape);
+    });
+
+    const csv = [header.map(csvEscape), ...dataRows].map((row) => row.join(',')).join('\n');
+    // BOM for Excel compatibility
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `inventory-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.download = `inventario-${new Date().toISOString().slice(0, 10)}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
+    toast(`CSV exportado con ${products.length} producto${products.length !== 1 ? 's' : ''}`, 'success');
   };
 
   const importCsv = async (file: File) => {
+    if (!branchId) {
+      toast('No hay sucursal activa para recibir stock', 'error');
+      return;
+    }
+
     const content = await file.text();
-    const lines = content.split(/\r?\n/).filter(Boolean);
+    // Strip BOM if present
+    const stripped = content.startsWith('\uFEFF') ? content.slice(1) : content;
+    const lines = stripped.split(/\r?\n/).filter((l) => l.trim().length > 0);
     const [, ...rows] = lines;
+
+    if (rows.length === 0) {
+      toast('El archivo no contiene filas de datos', 'warning');
+      return;
+    }
+
     let imported = 0;
+    let failed = 0;
+
+    toast(`Importando ${rows.length} producto${rows.length !== 1 ? 's' : ''}…`, 'info');
 
     for (const row of rows) {
-      const [sku, name, _category, stock, minStock, cpp, price] = row.split(',');
-      if (!sku || !name || !price) continue;
+      const [sku, name, _category, stock, minStock, cpp, price] = parseCsvRow(row);
+      if (!sku || !name || !price) { failed++; continue; }
 
       try {
         const created = await api.post('/inventory/products', {
           name,
           sku,
-          unitPrice: Number(price),
+          unitPrice: Number(price) || 0,
           hasVariants: false,
           variants: [{
-            sku: `${sku}-DEFAULT`,
+            sku,
             name: 'Default',
-            unitPrice: Number(price),
+            unitPrice: Number(price) || 0,
             minStock: Number(minStock) || 0,
           }],
         });
 
         const variantId = created.data?.variants?.[0]?.id as string | undefined;
-        if (variantId && Number(stock) > 0 && Number(cpp) > 0) {
+        const qty = Number(stock) || 0;
+        const cost = Number(cpp) || 0;
+
+        if (variantId && qty > 0) {
           await api.post('/inventory/stock/receive', {
             variantId,
             branchId,
-            quantity: Number(stock),
-            unitCost: Number(cpp),
+            quantity: qty,
+            unitCost: cost > 0 ? cost : 1,
             invoiceNumber: `CSV-${Date.now()}`,
           });
         }
 
         imported++;
       } catch {
-        // continue with next row
+        failed++;
       }
     }
 
-    toast(`Importación finalizada. Productos creados: ${imported}`, imported > 0 ? 'success' : 'warning');
+    const msg = failed > 0
+      ? `Importación finalizada: ${imported} creados, ${failed} con error`
+      : `Importación exitosa: ${imported} producto${imported !== 1 ? 's' : ''} creados`;
+    toast(msg, imported > 0 ? 'success' : 'warning');
+    await queryClient.invalidateQueries({ queryKey: ['inventory-products'] });
     void refetch();
   };
 
