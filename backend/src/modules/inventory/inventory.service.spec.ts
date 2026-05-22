@@ -9,6 +9,7 @@ const makeMockPrisma = () => ({
   stockEntry: { create: jest.fn() },
   stockMovement: { create: jest.fn(), findMany: jest.fn() },
   $transaction: jest.fn(),
+  $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
 });
 
 describe('InventoryService', () => {
@@ -46,6 +47,7 @@ describe('InventoryService', () => {
       await service.receiveStock(
         { variantId: 'var-1', branchId: 'b1', quantity: 10, unitCost: 5000 },
         'user-1',
+        'tenant_test',
       );
 
       expect(capturedRef.current?.data.unitCost).toBeCloseTo(5000);
@@ -80,6 +82,7 @@ describe('InventoryService', () => {
         await service.receiveStock(
           { variantId: 'var-1', branchId: 'b1', quantity: state.qty, unitCost: state.cost },
           'user-1',
+          'tenant_test',
         );
 
         expect(capturedRef.current?.data.unitCost).toBeCloseTo(state.expectedCPP, 1);
@@ -95,6 +98,7 @@ describe('InventoryService', () => {
         service.adjustStock(
           { variantId: 'var-1', branchId: 'b1', quantity: -10, reasonCode: 'count_correction' },
           'user-1',
+          'tenant_test',
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -112,6 +116,7 @@ describe('InventoryService', () => {
       await service.transferStock(
         { variantId: 'var-1', fromBranchId: 'branch-a', toBranchId: 'branch-b', quantity: 10 },
         'user-1',
+        'tenant_test',
       );
 
       expect(mockPrisma.stockMovement.create).toHaveBeenCalledTimes(2);

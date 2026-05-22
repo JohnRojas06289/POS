@@ -4,7 +4,7 @@ import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { CreatePurchaseOrderDto, ReceivePurchaseOrderDto } from './dto/create-purchase-order.dto';
 
-interface AuthRequest { user: { sub: string } }
+interface AuthRequest { user: { sub: string; schemaName: string } }
 
 @ApiTags('suppliers')
 @ApiBearerAuth()
@@ -42,7 +42,7 @@ export class SuppliersController {
     @Body() dto: ReceivePurchaseOrderDto,
     @Request() req: AuthRequest,
   ) {
-    return this.suppliersService.receivePurchaseOrder(id, orderId, dto, req.user.sub);
+    return this.suppliersService.receivePurchaseOrder(id, orderId, dto, req.user.sub, req.user.schemaName);
   }
 
   @Get(':id/purchase-orders')

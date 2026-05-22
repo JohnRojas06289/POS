@@ -12,6 +12,7 @@ import { TransferStockDto } from './dto/transfer-stock.dto';
 import { CreateProductDto, CreateVariantDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { assertValidSchemaName } from '../../common/utils/tenant-schema.util';
 
 @Injectable()
 export class InventoryService {
@@ -20,7 +21,9 @@ export class InventoryService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async createProduct(dto: CreateProductDto, createdBy: string) {
+  async createProduct(dto: CreateProductDto, createdBy: string, schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const product = await this.prisma.product.create({
       data: {
         id: uuidv4(),
@@ -63,14 +66,20 @@ export class InventoryService {
       },
       include: { variants: true },
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
     return product;
   }
 
-  async updateProduct(id: string, dto: UpdateProductDto) {
+  async updateProduct(id: string, dto: UpdateProductDto, schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const product = await this.prisma.product.findUnique({ where: { id } });
-    if (!product) throw new NotFoundException(`Product ${id} not found`);
+    if (!product) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Product ${id} not found`);
+    }
 
-    return this.prisma.product.update({
+    const updated = await this.prisma.product.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -82,14 +91,20 @@ export class InventoryService {
       },
       include: { variants: true },
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+    return updated;
   }
 
-  async addVariants(productId: string, variants: CreateVariantDto[]) {
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
-    });
-    if (!product) throw new NotFoundException(`Product ${productId} not found`);
+  async addVariants(productId: string, variants: CreateVariantDto[], schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Product ${productId} not found`);
+    }
     if (!variants.length) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException('At least one variant is required');
     }
 
@@ -108,17 +123,22 @@ export class InventoryService {
       })),
     });
 
-    return this.prisma.product.findUnique({
+    const result = await this.prisma.product.findUnique({
       where: { id: productId },
       include: { variants: true },
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+    return result;
   }
 
   async listProducts(filters: {
     search?: string;
     categoryId?: string;
     hasStock?: boolean;
-  }) {
+  }, schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
+
     const where: Prisma.ProductWhereInput = { isActive: true };
 
     if (filters.search) {
@@ -136,6 +156,8 @@ export class InventoryService {
       orderBy: { name: 'asc' },
     });
 
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+
     if (filters.hasStock === true) {
       return products.filter((p) => p.variants.some((v) => Number(v.stock) > 0));
     }
@@ -146,13 +168,19 @@ export class InventoryService {
     return products;
   }
 
-  async receiveStock(dto: ReceiveStockDto, receivedBy: string) {
+  async receiveStock(dto: ReceiveStockDto, receivedBy: string, schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const variant = await this.prisma.productVariant.findUnique({
       where: { id: dto.variantId },
     });
-    if (!variant) throw new NotFoundException(`Variant ${dto.variantId} not found`);
+    if (!variant) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Variant ${dto.variantId} not found`);
+    }
 
-    return this.prisma.$transaction(async (tx: PrismaService) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await (tx as unknown as PrismaService).$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
       // CPP calculation: (currentStock * currentCPP + newQty * newCost) / (currentStock + newQty)
       const currentStock = variant.stock;
       const currentCPP = Number(variant.unitCost);
@@ -222,24 +250,33 @@ export class InventoryService {
         stockEntry: entryId,
       };
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+    return result;
   }
 
-  async adjustStock(dto: AdjustStockDto, adjustedBy: string) {
+  async adjustStock(dto: AdjustStockDto, adjustedBy: string, schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const variant = await this.prisma.productVariant.findUnique({
       where: { id: dto.variantId },
     });
-    if (!variant) throw new NotFoundException(`Variant ${dto.variantId} not found`);
+    if (!variant) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Variant ${dto.variantId} not found`);
+    }
 
     const currentStock = variant.stock;
     const newStock = currentStock + dto.quantity;
 
     if (newStock < 0) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException(
         `Adjustment would result in negative stock (current: ${currentStock}, delta: ${dto.quantity})`,
       );
     }
 
-    return this.prisma.$transaction(async (tx: PrismaService) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await (tx as unknown as PrismaService).$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
       const updated = await tx.productVariant.update({
         where: { id: dto.variantId },
         data: { stock: newStock },
@@ -261,13 +298,20 @@ export class InventoryService {
 
       return { variant: updated, previousStock: currentStock, newStock };
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+    return result;
   }
 
-  async getKardex(variantId: string, cursor?: string, limit = 20) {
+  async getKardex(variantId: string, schemaName: string, cursor?: string, limit = 20) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const variant = await this.prisma.productVariant.findUnique({
       where: { id: variantId },
     });
-    if (!variant) throw new NotFoundException(`Variant ${variantId} not found`);
+    if (!variant) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Variant ${variantId} not found`);
+    }
 
     const where: Prisma.StockMovementWhereInput = { variantId };
     if (cursor) where.id = { gt: cursor };
@@ -277,6 +321,8 @@ export class InventoryService {
       take: limit + 1,
       orderBy: { createdAt: 'desc' },
     });
+
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
 
     const hasMore = movements.length > limit;
     const data = hasMore ? movements.slice(0, limit) : movements;
@@ -289,12 +335,15 @@ export class InventoryService {
     };
   }
 
-  async getLowStock() {
+  async getLowStock(schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const variants = await this.prisma.productVariant.findMany({
       where: { isActive: true },
       include: { product: { select: { name: true, sku: true } } },
       orderBy: { stock: 'asc' },
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
 
     const lowStock = variants
       .filter((v) => v.stock <= v.minStock)
@@ -309,16 +358,22 @@ export class InventoryService {
     return lowStock;
   }
 
-  async transferStock(dto: TransferStockDto, transferredBy: string) {
+  async transferStock(dto: TransferStockDto, transferredBy: string, schemaName: string) {
+    assertValidSchemaName(schemaName);
     if (dto.fromBranchId === dto.toBranchId) {
       throw new BadRequestException('Source and destination branches must be different');
     }
 
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const variant = await this.prisma.productVariant.findUnique({
       where: { id: dto.variantId },
     });
-    if (!variant) throw new NotFoundException(`Variant ${dto.variantId} not found`);
+    if (!variant) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Variant ${dto.variantId} not found`);
+    }
     if (variant.stock < dto.quantity) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException(
         `Insufficient stock: available ${variant.stock}, requested ${dto.quantity}`,
       );
@@ -326,7 +381,8 @@ export class InventoryService {
 
     const transferId = uuidv4();
 
-    return this.prisma.$transaction(async (tx: PrismaService) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await (tx as unknown as PrismaService).$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
       const prevQty = variant.stock;
       const newQty = prevQty - dto.quantity;
 
@@ -376,5 +432,7 @@ export class InventoryService {
         quantity: dto.quantity,
       };
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+    return result;
   }
 }

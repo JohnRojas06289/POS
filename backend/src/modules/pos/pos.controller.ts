@@ -7,7 +7,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { RefundOrderDto } from './dto/refund-order.dto';
 
 interface AuthRequest {
-  user: { sub: string; branchId: string };
+  user: { sub: string; branchId: string; schemaName: string };
 }
 
 @ApiTags('pos')
@@ -19,7 +19,7 @@ export class PosController {
   @Post('orders')
   @ApiOperation({ summary: 'Create a new order (supports multi-payment, offline)' })
   createOrder(@Body() dto: CreateOrderDto, @Request() req: AuthRequest) {
-    return this.posService.createOrder(dto, req.user.sub);
+    return this.posService.createOrder(dto, req.user.sub, req.user.schemaName);
   }
 
   @Get('orders')
@@ -41,25 +41,25 @@ export class PosController {
       limit: limit ? parseInt(limit, 10) : 20,
       cursor,
       branchId: req?.user?.branchId ?? '',
-    });
+    }, req!.user.schemaName);
   }
 
   @Get('orders/:id')
   @ApiOperation({ summary: 'Get order detail with items and payments' })
-  getOrder(@Param('id') id: string) {
-    return this.posService.getOrder(id);
+  getOrder(@Param('id') id: string, @Request() req: AuthRequest) {
+    return this.posService.getOrder(id, req.user.schemaName);
   }
 
   @Patch('orders/:id/hold')
   @ApiOperation({ summary: 'Put order on hold' })
-  holdOrder(@Param('id') id: string) {
-    return this.posService.holdOrder(id);
+  holdOrder(@Param('id') id: string, @Request() req: AuthRequest) {
+    return this.posService.holdOrder(id, req.user.schemaName);
   }
 
   @Patch('orders/:id/resume')
   @ApiOperation({ summary: 'Resume a held order' })
-  resumeOrder(@Param('id') id: string) {
-    return this.posService.resumeOrder(id);
+  resumeOrder(@Param('id') id: string, @Request() req: AuthRequest) {
+    return this.posService.resumeOrder(id, req.user.schemaName);
   }
 
   @Post('orders/:id/refund')
@@ -69,6 +69,6 @@ export class PosController {
     @Body() dto: RefundOrderDto,
     @Request() req: AuthRequest,
   ) {
-    return this.posService.refundOrder(id, dto, req.user.sub);
+    return this.posService.refundOrder(id, dto, req.user.sub, req.user.schemaName);
   }
 }

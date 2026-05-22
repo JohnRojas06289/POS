@@ -9,6 +9,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { RefundOrderDto } from './dto/refund-order.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
+import { assertValidSchemaName } from '../../common/utils/tenant-schema.util';
 
 interface OrderFilters {
   status?: string;
@@ -45,11 +46,14 @@ export class PosService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async createOrder(dto: CreateOrderDto, cashierId: string): Promise<OrderSummary> {
+  async createOrder(dto: CreateOrderDto, cashierId: string, schemaName: string): Promise<OrderSummary> {
+    assertValidSchemaName(schemaName);
     const normalizedPayments = dto.payments.map((payment) => ({
       ...payment,
       method: payment.method === 'credit' ? 'credit_store' : payment.method,
     }));
+
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
 
     // Idempotent offline orders: same localId returns the first successful result
     if (dto.localId) {
@@ -58,6 +62,7 @@ export class PosService {
         include: { items: true, payments: true },
       });
       if (existing) {
+        await this.prisma.$executeRawUnsafe('SET search_path = public');
         return existing as unknown as OrderSummary;
       }
     }
@@ -69,6 +74,7 @@ export class PosService {
     });
 
     if (variants.length !== variantIds.length) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException('One or more product variants not found or inactive');
     }
 
@@ -76,6 +82,7 @@ export class PosService {
     for (const item of dto.items) {
       const variant = variants.find((v) => v.id === item.variantId)!;
       if (variant.stock < item.quantity) {
+        await this.prisma.$executeRawUnsafe('SET search_path = public');
         throw new BadRequestException(
           `Insufficient stock for variant ${variant.sku}: available ${variant.stock}, requested ${item.quantity}`,
         );
@@ -113,11 +120,13 @@ export class PosService {
       .reduce((sum, payment) => sum + payment.amount, 0);
 
     if (paymentsSum + 0.01 < total) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException(
         `Payments total (${paymentsSum}) does not cover order total (${total})`,
       );
     }
     if (changeDue > 0.01 && cashPaid + 0.01 < changeDue) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException(
         `Change due (${changeDue}) exceeds cash received (${cashPaid})`,
       );
@@ -129,6 +138,7 @@ export class PosService {
 
     if (creditStoreAmount > 0) {
       if (!dto.customerId) {
+        await this.prisma.$executeRawUnsafe('SET search_path = public');
         throw new BadRequestException(
           'credit_store requires a customerId to validate creditLimit',
         );
@@ -138,12 +148,14 @@ export class PosService {
         where: { id: dto.customerId },
       });
       if (!customer) {
+        await this.prisma.$executeRawUnsafe('SET search_path = public');
         throw new NotFoundException(`Customer ${dto.customerId} not found`);
       }
 
       const creditLimit = Number(customer.creditLimit);
       const currentBalance = Number(customer.creditBalance);
       if (creditLimit > 0 && currentBalance + creditStoreAmount > creditLimit) {
+        await this.prisma.$executeRawUnsafe('SET search_path = public');
         throw new BadRequestException(
           `Credit limit exceeded: limit ${creditLimit}, current balance ${currentBalance}, requested ${creditStoreAmount}`,
         );
@@ -153,6 +165,8 @@ export class PosService {
     const orderId = uuidv4();
 
     const order = await this.prisma.$transaction(async (tx) => {
+      await (tx as unknown as PrismaService).$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
+
       // Create order
       const created = await tx.order.create({
         data: {
@@ -248,13 +262,18 @@ export class PosService {
       return created;
     });
 
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+
     return {
       ...(order as unknown as OrderSummary),
       changeDue,
     };
   }
 
-  async listOrders(filters: OrderFilters) {
+  async listOrders(filters: OrderFilters, schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
+
     const where: Prisma.OrderWhereInput = {
       branchId: filters.branchId,
     };
@@ -279,6 +298,8 @@ export class PosService {
       include: { items: true, payments: true },
     });
 
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+
     const hasMore = orders.length > limit;
     const data = hasMore ? orders.slice(0, limit) : orders;
     const nextCursor = hasMore ? data[data.length - 1].id : null;
@@ -286,52 +307,78 @@ export class PosService {
     return { data, nextCursor, hasMore };
   }
 
-  async getOrder(id: string) {
+  async getOrder(id: string, schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: { items: true, payments: true },
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
     if (!order) throw new NotFoundException(`Order ${id} not found`);
     return order;
   }
 
-  async holdOrder(id: string): Promise<{ id: string; status: string }> {
+  async holdOrder(id: string, schemaName: string): Promise<{ id: string; status: string }> {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const order = await this.prisma.order.findUnique({ where: { id } });
-    if (!order) throw new NotFoundException(`Order ${id} not found`);
+    if (!order) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Order ${id} not found`);
+    }
     if (!['pending', 'completed'].includes(order.status)) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException(`Order status '${order.status}' cannot be put on hold`);
     }
-    return this.prisma.order.update({
+    const result = await this.prisma.order.update({
       where: { id },
       data: { status: 'hold' },
       select: { id: true, status: true },
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+    return result;
   }
 
-  async resumeOrder(id: string): Promise<{ id: string; status: string }> {
+  async resumeOrder(id: string, schemaName: string): Promise<{ id: string; status: string }> {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const order = await this.prisma.order.findUnique({ where: { id } });
-    if (!order) throw new NotFoundException(`Order ${id} not found`);
+    if (!order) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Order ${id} not found`);
+    }
     if (order.status !== 'hold') {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException(`Order status is '${order.status}', not 'hold'`);
     }
-    return this.prisma.order.update({
+    const result = await this.prisma.order.update({
       where: { id },
       data: { status: 'pending' },
       select: { id: true, status: true },
     });
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+    return result;
   }
 
-  async refundOrder(orderId: string, dto: RefundOrderDto, cashierId: string) {
+  async refundOrder(orderId: string, dto: RefundOrderDto, cashierId: string, schemaName: string) {
+    assertValidSchemaName(schemaName);
+    await this.prisma.$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { items: true },
     });
-    if (!order) throw new NotFoundException(`Order ${orderId} not found`);
+    if (!order) {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
     if (order.status === 'cancelled') {
+      await this.prisma.$executeRawUnsafe('SET search_path = public');
       throw new BadRequestException('Cannot refund a cancelled order');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await (tx as unknown as PrismaService).$executeRawUnsafe(`SET search_path = "${schemaName}", public`);
       let refundTotal = 0;
 
       for (const refundItem of dto.items) {
@@ -403,6 +450,9 @@ export class PosService {
 
       return { order: updatedOrder, refundTotal };
     });
+
+    await this.prisma.$executeRawUnsafe('SET search_path = public');
+    return result;
   }
 
   getStatus() {

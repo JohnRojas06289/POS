@@ -75,6 +75,7 @@ export class SuppliersService {
     orderId: string,
     dto: ReceivePurchaseOrderDto,
     receivedBy: string,
+    schemaName: string,
   ) {
     const order = await this.prisma.purchaseOrder.findFirst({
       where: { id: orderId, supplierId },
@@ -98,6 +99,7 @@ export class SuppliersService {
           purchaseOrderId: orderId,
         },
         receivedBy,
+        schemaName,
       );
       results.push(result);
     }

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PosService } from './pos.service';
 import { PrismaService } from '../../database/prisma/prisma.service';
-import { ConflictException, BadRequestException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 
 const mockVariant = {
   id: 'var-1',
@@ -29,6 +29,7 @@ const mockPrisma = {
   creditTransaction: { create: jest.fn() },
   customer: { update: jest.fn() },
   $transaction: jest.fn(),
+  $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
 };
 
 describe('PosService', () => {
@@ -47,20 +48,22 @@ describe('PosService', () => {
   });
 
   describe('createOrder', () => {
-    it('throws ConflictException for duplicate offline localId', async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({ id: 'existing-order' });
+    it('returns existing order for duplicate offline localId (idempotent)', async () => {
+      const existingOrder = { id: 'existing-order', items: [], payments: [] };
+      mockPrisma.order.findUnique.mockResolvedValue(existingOrder);
 
-      await expect(
-        service.createOrder(
-          {
-            localId: 'some-local-id',
-            branchId: 'branch-1',
-            items: [{ variantId: 'var-1', quantity: 1, unitPrice: 9900 }],
-            payments: [{ method: 'cash', amount: 9900 }],
-          },
-          'cashier-1',
-        ),
-      ).rejects.toThrow(ConflictException);
+      const result = await service.createOrder(
+        {
+          localId: 'some-local-id',
+          branchId: 'branch-1',
+          items: [{ variantId: 'var-1', quantity: 1, unitPrice: 9900 }],
+          payments: [{ method: 'cash', amount: 9900 }],
+        },
+        'cashier-1',
+        'tenant_test',
+      );
+
+      expect(result.id).toBe('existing-order');
     });
 
     it('throws BadRequestException when payments do not match total', async () => {
@@ -75,6 +78,7 @@ describe('PosService', () => {
             payments: [{ method: 'cash', amount: 5000 }], // wrong total
           },
           'cashier-1',
+          'tenant_test',
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -109,6 +113,7 @@ describe('PosService', () => {
           ],
         },
         'cashier-1',
+        'tenant_test',
       );
 
       expect(result.status).toBe('completed');
@@ -127,6 +132,7 @@ describe('PosService', () => {
             payments: [{ method: 'cash', amount: 49500 }],
           },
           'cashier-1',
+          'tenant_test',
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -135,13 +141,13 @@ describe('PosService', () => {
       mockPrisma.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'completed' });
       mockPrisma.order.update.mockResolvedValue({ id: 'order-1', status: 'hold' });
 
-      const held = await service.holdOrder('order-1');
+      const held = await service.holdOrder('order-1', 'tenant_test');
       expect(held.status).toBe('hold');
 
       mockPrisma.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'hold' });
       mockPrisma.order.update.mockResolvedValue({ id: 'order-1', status: 'pending' });
 
-      const resumed = await service.resumeOrder('order-1');
+      const resumed = await service.resumeOrder('order-1', 'tenant_test');
       expect(resumed.status).toBe('pending');
     });
 
@@ -163,6 +169,7 @@ describe('PosService', () => {
         'order-1',
         { items: [{ orderItemId, quantity: 1 }], refundMethod: 'cash' },
         'cashier-1',
+        'tenant_test',
       );
 
       expect(mockPrisma.stockMovement.create).toHaveBeenCalledWith(
