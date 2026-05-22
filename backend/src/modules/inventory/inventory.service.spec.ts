@@ -26,6 +26,8 @@ describe('InventoryService', () => {
     }).compile();
     service = module.get<InventoryService>(InventoryService);
     jest.clearAllMocks();
+    // Default: run transaction callbacks using the mock as tx (has $executeRawUnsafe)
+    mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma));
   });
 
   describe('CPP calculation (receiveStock)', () => {
