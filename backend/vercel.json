@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "buildCommand": "npx prisma generate --schema=src/database/prisma/schema.prisma && npx prisma migrate deploy --schema=src/database/prisma/schema.prisma && npx nest build",
+  "installCommand": "npm install",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "memory": 1024,
+      "includeFiles": "dist/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/:path*", "destination": "/api/index" }
+  ]
+}

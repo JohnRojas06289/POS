@@ -10,13 +10,21 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private memoryStore = new Map<string, { value: string; expiresAt: number | null }>();
 
   onModuleInit(): void {
-    this.client = new Redis({
-      host: process.env.REDIS_HOST ?? 'localhost',
-      port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-      lazyConnect: true,
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1,
-    });
+    const redisUrl = process.env.REDIS_URL;
+
+    this.client = redisUrl
+      ? new Redis(redisUrl, {
+          lazyConnect: true,
+          enableOfflineQueue: false,
+          maxRetriesPerRequest: 1,
+        })
+      : new Redis({
+          host: process.env.REDIS_HOST ?? 'localhost',
+          port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+          lazyConnect: true,
+          enableOfflineQueue: false,
+          maxRetriesPerRequest: 1,
+        });
 
     this.client.on('connect', () => {
       this.redisAvailable = true;
