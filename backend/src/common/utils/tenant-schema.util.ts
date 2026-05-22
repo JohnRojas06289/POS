@@ -38,6 +38,10 @@ type RawQueryExecutor = {
   $executeRawUnsafe: (...args: unknown[]) => Promise<unknown>;
 };
 
+type TableNameRow = {
+  table_name: string;
+};
+
 export async function ensureTenantSchemaTables(
   executor: RawQueryExecutor,
   schemaName: string,
@@ -50,16 +54,29 @@ export async function ensureTenantSchemaTables(
   const rows = await executor.$queryRawUnsafe(
     `SELECT table_name
      FROM information_schema.tables
-     WHERE table_schema = $1
-       AND table_name = ANY($2::text[])`,
+     WHERE table_schema = $1`,
     schemaName,
-    tables,
-  ) as Array<{ table_name: string }>;
+  ) as TableNameRow[];
 
   const existing = new Set(rows.map((row) => row.table_name));
   const missing = tables.filter((table) => !existing.has(table));
 
   for (const table of missing) {
+    const templateExists = await executor.$queryRawUnsafe(
+      `SELECT 1 AS has_template
+       FROM information_schema.tables
+       WHERE table_schema = 'tenant'
+         AND table_name = $1
+       LIMIT 1`,
+      table,
+    ) as Array<{ has_template: number }>;
+
+    if (!templateExists[0]) {
+      throw new BadRequestException(
+        `Tenant template table missing: tenant.${table}`,
+      );
+    }
+
     await executor.$executeRawUnsafe(
       `CREATE TABLE IF NOT EXISTS "${schemaName}"."${table}" (LIKE "tenant"."${table}" INCLUDING ALL)`,
     );
