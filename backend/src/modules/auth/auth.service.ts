@@ -199,14 +199,14 @@ export class AuthService {
 
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO "${schemaName}"."Branch" (id, name, address, phone, "configOverride", "isActive", "createdAt", "updatedAt")
-       VALUES ($1, 'Sucursal Principal', NULL, NULL, '{}'::jsonb, true, NOW(), NOW())
+       VALUES ($1::uuid, 'Sucursal Principal', NULL, NULL, '{}'::jsonb, true, NOW(), NOW())
        ON CONFLICT (id) DO NOTHING`,
       branchId,
     );
 
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO "${schemaName}"."User" (id, "branchId", email, "passwordHash", name, role, "isActive", "createdAt", "updatedAt")
-       VALUES ($1, NULL, $2, $3, $4, 'owner', true, NOW(), NOW())
+       VALUES ($1::uuid, NULL, $2, $3, $4, 'owner', true, NOW(), NOW())
        ON CONFLICT (email) DO NOTHING`,
       userId,
       email,
@@ -218,7 +218,7 @@ export class AuthService {
       `INSERT INTO "${schemaName}"."Terminal"
         (id, "branchId", name, type, "deviceFingerprint", settings, "isBlocked", "isActive", "createdAt", "updatedAt")
        VALUES
-        ($1, $2, 'Caja Principal', 'pos', NULL, '{}'::jsonb, false, true, NOW(), NOW())
+        ($1::uuid, $2::uuid, 'Caja Principal', 'pos', NULL, '{}'::jsonb, false, true, NOW(), NOW())
        ON CONFLICT (id) DO NOTHING`,
       terminalId,
       branchId,
@@ -237,7 +237,7 @@ export class AuthService {
       `INSERT INTO "${schemaName}"."TenantConfig"
         (id, key, value, "posMode", "paymentMethods", "taxConfig", "dianConfig", "updatedAt")
        VALUES
-        ($1, 'default', $2::jsonb, $3, $4::jsonb, $5::jsonb, $6::jsonb, NOW())
+        ($1::uuid, 'default', $2::jsonb, $3, $4::jsonb, $5::jsonb, $6::jsonb, NOW())
        ON CONFLICT (key) DO UPDATE SET
         value = EXCLUDED.value,
         "posMode" = EXCLUDED."posMode",
