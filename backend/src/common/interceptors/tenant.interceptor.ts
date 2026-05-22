@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   CallHandler,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
@@ -30,6 +31,8 @@ const PUBLIC_ROUTES = [
 
 @Injectable()
 export class TenantInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(TenantInterceptor.name);
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
@@ -78,7 +81,14 @@ export class TenantInterceptor implements NestInterceptor {
       throw new UnauthorizedException('Invalid tenant schema');
     }
 
-    await ensureTenantSchemaTables(this.prisma, schemaName);
+    try {
+      await ensureTenantSchemaTables(this.prisma, schemaName);
+    } catch (error) {
+      this.logger.error(
+        `ensureTenantSchemaTables failed for schema "${schemaName}": ${error instanceof Error ? error.stack ?? error.message : JSON.stringify(error)}`,
+      );
+      throw error;
+    }
 
     request.user = payload;
 
