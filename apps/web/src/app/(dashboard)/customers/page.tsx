@@ -9,18 +9,78 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { customersApi, api } from '../../../lib/api';
 import { useToast } from '../../../components/ui/Toast';
 
-const mockCustomers = [
-  { id: '1', name: 'Carlos Ramírez', email: 'carlos@gmail.com', phone: '3001234567', totalOrders: 24, totalSpent: 1280000, creditLimit: 500000, creditUsed: 120000, lastOrder: '2026-05-19' },
-  { id: '2', name: 'María Gómez', email: 'maria@hotmail.com', phone: '3109876543', totalOrders: 8, totalSpent: 420000, creditLimit: 0, creditUsed: 0, lastOrder: '2026-05-15' },
-  { id: '3', name: 'Juan Pérez', email: 'juan@empresa.co', phone: '3205551234', totalOrders: 47, totalSpent: 3200000, creditLimit: 1000000, creditUsed: 850000, lastOrder: '2026-05-20' },
-  { id: '4', name: 'Ana Martínez', email: 'ana@gmail.com', phone: '3152223344', totalOrders: 15, totalSpent: 780000, creditLimit: 300000, creditUsed: 0, lastOrder: '2026-05-10' },
-  { id: '5', name: 'Luis Torres', email: 'luis@torres.co', phone: '3006667788', totalOrders: 31, totalSpent: 1950000, creditLimit: 800000, creditUsed: 600000, lastOrder: '2026-05-18' },
-];
+interface CustomerApiRow {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  creditLimit?: number | string | null;
+  creditBalance?: number | string | null;
+  totalPurchases?: number | string | null;
+  purchaseCount?: number | null;
+  lastPurchaseAt?: string | null;
+}
 
-type Customer = typeof mockCustomers[0];
+interface CreditTransaction {
+  id: string;
+  type: string;
+  amount: number | string;
+  balance?: number | string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+interface RecentOrder {
+  id: string;
+  total?: number | string | null;
+  status?: string | null;
+  createdAt?: string | null;
+}
+
+interface CustomerDetailApi {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  creditLimit?: number | string | null;
+  creditBalance?: number | string | null;
+  creditTransactions?: CreditTransaction[];
+  recentOrders?: RecentOrder[];
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  totalOrders: number;
+  totalSpent: number;
+  creditLimit: number;
+  creditUsed: number;
+  lastOrder: string | null;
+}
 
 function formatCOP(n: number) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return null;
+  return new Date(value).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function mapCustomerRow(raw: CustomerApiRow): Customer {
+  return {
+    id: raw.id,
+    name: raw.name,
+    email: raw.email ?? '',
+    phone: raw.phone ?? '',
+    totalOrders: Number(raw.purchaseCount ?? 0),
+    totalSpent: Number(raw.totalPurchases ?? 0),
+    creditLimit: Number(raw.creditLimit ?? 0),
+    creditUsed: Number(raw.creditBalance ?? 0),
+    lastOrder: raw.lastPurchaseAt ?? null,
+  };
 }
 
 function NewCustomerModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
@@ -81,6 +141,8 @@ function NewCustomerModal({ onClose, onSave }: { onClose: () => void; onSave: ()
 
 function PayCreditModal({ customer, onClose, onSave }: { customer: Customer; onClose: () => void; onSave: () => void }) {
   const [amount, setAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | 'nequi' | 'daviplata'>('cash');
+  const [reference, setReference] = useState('');
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -88,7 +150,11 @@ function PayCreditModal({ customer, onClose, onSave }: { customer: Customer; onC
     if (!amount || Number(amount) <= 0) return;
     setSaving(true);
     try {
-      await api.post(`/customers/${customer.id}/credit/payment`, { amount: Number(amount), method: 'cash', notes: '' });
+      await customersApi.payCredit(customer.id, {
+        amount: Number(amount),
+        paymentMethod,
+        reference: reference || undefined,
+      });
       toast('Abono registrado exitosamente', 'success');
       onSave();
     } catch {
@@ -110,6 +176,30 @@ function PayCreditModal({ customer, onClose, onSave }: { customer: Customer; onC
             <label className="block text-xs font-medium text-[--text-secondary] mb-1">Monto del abono *</label>
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" autoFocus />
           </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Método de pago</label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
+              className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]"
+            >
+              <option value="cash">Efectivo</option>
+              <option value="card">Tarjeta</option>
+              <option value="transfer">Transferencia</option>
+              <option value="nequi">Nequi</option>
+              <option value="daviplata">Daviplata</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Referencia (opcional)</label>
+            <input
+              type="text"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]"
+              placeholder="Comprobante, transferencia, recibo..."
+            />
+          </div>
         </div>
         <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium">Cancelar</button>
@@ -120,15 +210,19 @@ function PayCreditModal({ customer, onClose, onSave }: { customer: Customer; onC
   );
 }
 
-function CustomerDrawer({ customer, onClose, onPayCredit }: { customer: Customer; onClose: () => void; onPayCredit: () => void }) {
-  const creditPct = customer.creditLimit > 0 ? Math.round((customer.creditUsed / customer.creditLimit) * 100) : 0;
+function CustomerDrawer({ customer, onClose, onPayCredit }: { customer: Customer; onClose: () => void; onPayCredit: (customer: Customer) => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['customer-detail', customer.id],
+    queryFn: () => customersApi.getCustomer(customer.id),
+    retry: 1,
+  });
 
-  const creditHistory = [
-    { date: '2026-05-18', desc: 'Compra fiada', amount: +350000 },
-    { date: '2026-05-15', desc: 'Abono', amount: -200000 },
-    { date: '2026-05-10', desc: 'Compra fiada', amount: +170000 },
-    { date: '2026-05-05', desc: 'Abono total', amount: -320000 },
-  ];
+  const detail = (data ?? null) as CustomerDetailApi | null;
+  const creditLimit = Number(detail?.creditLimit ?? customer.creditLimit ?? 0);
+  const creditUsed = Number(detail?.creditBalance ?? customer.creditUsed ?? 0);
+  const creditPct = creditLimit > 0 ? Math.round((creditUsed / creditLimit) * 100) : 0;
+  const creditHistory = Array.isArray(detail?.creditTransactions) ? detail.creditTransactions : [];
+  const recentOrders = Array.isArray(detail?.recentOrders) ? detail.recentOrders : [];
 
   return (
     <div className="fixed inset-0 z-50 flex" onClick={onClose}>
@@ -142,8 +236,8 @@ function CustomerDrawer({ customer, onClose, onPayCredit }: { customer: Customer
           {/* Contact */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-[--text-tertiary] uppercase tracking-wide">Contacto</p>
-            <div className="flex items-center gap-2 text-sm text-[--text-secondary]"><Mail size={14} />{customer.email}</div>
-            <div className="flex items-center gap-2 text-sm text-[--text-secondary]"><Phone size={14} />{customer.phone}</div>
+            <div className="flex items-center gap-2 text-sm text-[--text-secondary]"><Mail size={14} />{detail?.email || customer.email || 'Sin email'}</div>
+            <div className="flex items-center gap-2 text-sm text-[--text-secondary]"><Phone size={14} />{detail?.phone || customer.phone || 'Sin teléfono'}</div>
           </div>
 
           {/* Stats */}
@@ -159,12 +253,12 @@ function CustomerDrawer({ customer, onClose, onPayCredit }: { customer: Customer
           </div>
 
           {/* Credit */}
-          {customer.creditLimit > 0 && (
+          {creditLimit > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-[--text-tertiary] uppercase tracking-wide flex items-center gap-1"><CreditCard size={12} /> Crédito</p>
               <div className="flex justify-between text-xs text-[--text-secondary]">
-                <span>Usado: {formatCOP(customer.creditUsed)}</span>
-                <span>Límite: {formatCOP(customer.creditLimit)}</span>
+                <span>Usado: {formatCOP(creditUsed)}</span>
+                <span>Límite: {formatCOP(creditLimit)}</span>
               </div>
               <div className="h-2 bg-[--bg-tertiary] rounded-full overflow-hidden">
                 <div
@@ -176,25 +270,60 @@ function CustomerDrawer({ customer, onClose, onPayCredit }: { customer: Customer
 
               {/* Credit timeline */}
               <p className="text-xs font-medium text-[--text-tertiary] uppercase tracking-wide mt-3">Historial de crédito</p>
+              {isLoading ? (
+                <Skeleton variant="text" lines={4} />
+              ) : creditHistory.length > 0 ? (
+                <div className="space-y-2">
+                  {creditHistory.map((entry) => {
+                    const amount = Number(entry.amount ?? 0);
+                    const isPayment = entry.type === 'payment';
+                    const signedAmount = isPayment ? -Math.abs(amount) : Math.abs(amount);
+                    const label = isPayment ? 'Abono' : entry.type === 'purchase' ? 'Compra fiada' : entry.type;
+                    return (
+                      <div key={entry.id} className="flex items-center justify-between py-1.5 border-b border-[--border] last:border-0">
+                        <div>
+                          <p className="text-xs font-medium text-[--text-primary]">{entry.notes || label}</p>
+                          <p className="text-xs text-[--text-tertiary]">{formatDate(entry.createdAt) ?? '—'}</p>
+                        </div>
+                        <span className={`text-sm font-semibold tabular-nums ${signedAmount > 0 ? 'text-[--danger]' : 'text-[--success]'}`}>
+                          {signedAmount > 0 ? '+' : ''}{formatCOP(signedAmount)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-[--text-tertiary]">Sin movimientos de crédito registrados.</p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-[--text-tertiary] uppercase tracking-wide">Órdenes recientes</p>
+            {isLoading ? (
+              <Skeleton variant="text" lines={3} />
+            ) : recentOrders.length > 0 ? (
               <div className="space-y-2">
-                {creditHistory.map((entry, i) => (
-                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-[--border] last:border-0">
+                {recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between py-1.5 border-b border-[--border] last:border-0">
                     <div>
-                      <p className="text-xs font-medium text-[--text-primary]">{entry.desc}</p>
-                      <p className="text-xs text-[--text-tertiary]">{entry.date}</p>
+                      <p className="text-xs font-medium text-[--text-primary]">Orden #{order.id.slice(0, 8)}</p>
+                      <p className="text-xs text-[--text-tertiary]">{formatDate(order.createdAt) ?? '—'} · {order.status ?? '—'}</p>
                     </div>
-                    <span className={`text-sm font-semibold tabular-nums ${entry.amount > 0 ? 'text-[--danger]' : 'text-[--success]'}`}>
-                      {entry.amount > 0 ? '+' : ''}{formatCOP(entry.amount)}
+                    <span className="text-sm font-semibold tabular-nums text-[--text-primary]">
+                      {formatCOP(Number(order.total ?? 0))}
                     </span>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-[--text-tertiary]">Este cliente todavía no tiene órdenes registradas.</p>
+            )}
+          </div>
         </div>
 
         <div className="p-5 border-t border-[--border]">
-          <button onClick={onPayCredit} className="w-full py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
+          <button onClick={() => onPayCredit(customer)} className="w-full py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] transition-colors">
             Registrar abono
           </button>
         </div>
@@ -215,8 +344,16 @@ export default function CustomersPage() {
     retry: 1,
   });
 
-  const customers: Customer[] = Array.isArray(customersData?.data) ? customersData.data :
-                                  Array.isArray(customersData) ? customersData : mockCustomers;
+  const customersRaw = Array.isArray((customersData as { data?: unknown[] } | undefined)?.data)
+    ? (customersData as { data: CustomerApiRow[] }).data
+    : Array.isArray(customersData)
+      ? customersData as CustomerApiRow[]
+      : [];
+
+  const customers: Customer[] = useMemo(
+    () => customersRaw.map((row) => mapCustomerRow(row)),
+    [customersRaw],
+  );
 
   const filtered = useMemo(() =>
     customers.filter((c: Customer) =>
@@ -311,14 +448,16 @@ export default function CustomersPage() {
             </tbody>
           </table>
           {!isLoading && filtered.length === 0 && (
-            <div className="py-12 text-center text-[--text-tertiary] text-sm">No se encontraron clientes</div>
+            <div className="py-12 text-center text-[--text-tertiary] text-sm">
+              {customers.length === 0 ? 'Todavía no hay clientes registrados' : 'No se encontraron clientes'}
+            </div>
           )}
         </div>
       </Card>
 
       {newCustomerOpen && <NewCustomerModal onClose={() => setNewCustomerOpen(false)} onSave={() => { void refetch(); setNewCustomerOpen(false); }} />}
       {paymentCustomer && <PayCreditModal customer={paymentCustomer} onClose={() => setPaymentCustomer(null)} onSave={() => { void refetch(); setPaymentCustomer(null); }} />}
-      {selected && <CustomerDrawer customer={selected} onClose={() => setSelected(null)} onPayCredit={() => setPaymentCustomer(selected)} />}
+      {selected && <CustomerDrawer customer={selected} onClose={() => setSelected(null)} onPayCredit={(customer) => setPaymentCustomer(customer)} />}
     </div>
   );
 }

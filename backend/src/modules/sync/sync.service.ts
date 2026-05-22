@@ -161,6 +161,8 @@ export class SyncService {
       customerId?: string;
       terminalId?: string;
       notes?: string;
+      tipAmount?: number;
+      tipPercentage?: number;
     };
 
     const items = payload.items ?? [];
@@ -169,14 +171,31 @@ export class SyncService {
     const discountTotal = 0;
     const taxTotal = 0;
     const total = subtotal - discountTotal + taxTotal;
+    const tipAmount = Number(payload.tipAmount ?? 0);
+    const tipPercentage = payload.tipPercentage !== undefined ? Number(payload.tipPercentage) : undefined;
+    const payableTotal = total + tipAmount;
     const paymentsSum = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const cashPaid = payments
+      .filter((payment) => payment.method === 'cash')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    const changeDue = Math.max(0, parseFloat((paymentsSum - payableTotal).toFixed(2)));
 
-    if (paymentsSum + 0.01 < total) {
+    if (paymentsSum + 0.01 < payableTotal) {
       return {
         conflictReason: JSON.stringify({
           reason: 'insufficient_payment',
-          expected: total,
+          expected: payableTotal,
           received: paymentsSum,
+        }),
+      };
+    }
+
+    if (changeDue > 0.01 && cashPaid + 0.01 < changeDue) {
+      return {
+        conflictReason: JSON.stringify({
+          reason: 'invalid_change_due',
+          changeDue,
+          cashPaid,
         }),
       };
     }
@@ -233,10 +252,19 @@ export class SyncService {
               })),
             },
             payments: {
-              create: payments.map((p) => ({
+              create: payments.map((p, index) => ({
                 id: uuidv4(),
                 method: p.method,
                 amount: p.amount,
+                metadata: {
+                  ...(index === 0 && tipAmount > 0
+                    ? {
+                        tipAmount,
+                        ...(tipPercentage !== undefined ? { tipPercentage } : {}),
+                      }
+                    : {}),
+                  ...(p.method === 'cash' && changeDue > 0 ? { changeDue } : {}),
+                },
               })),
             },
         },

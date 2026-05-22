@@ -11,7 +11,7 @@ export class OrderItemDto {
 }
 
 export class PaymentDto {
-  @ApiProperty() @IsEnum(['cash','card','nequi','daviplata','credit_store']) method!: string;
+  @ApiProperty() @IsEnum(['cash','card','nequi','daviplata','transfer','credit_store']) method!: string;
   @ApiProperty() @IsNumber() @Min(0.01) amount!: number;
   @ApiProperty({ required: false }) @IsOptional() @IsString() reference?: string;
 }
@@ -26,6 +26,8 @@ export class CreateOrderDto {
   @ApiProperty({ type: [PaymentDto] })
   @IsArray() @ValidateNested({ each: true }) @Type(() => PaymentDto) payments!: PaymentDto[];
   @ApiProperty({ required: false }) @IsOptional() @IsNumber() @Min(0) discountTotal?: number;
+  @ApiProperty({ required: false }) @IsOptional() @IsNumber() @Min(0) tipAmount?: number;
+  @ApiProperty({ required: false }) @IsOptional() @IsNumber() @Min(0) tipPercentage?: number;
   @ApiProperty({ required: false }) @IsOptional() @IsString() notes?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsDateString() clientTimestamp?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsBoolean() isFreeEntry?: boolean;

@@ -28,8 +28,9 @@ export class CreateQuoteDto {
   @IsUUID()
   customerId?: string;
 
+  @IsOptional()
   @IsString()
-  branchId: string;
+  branchId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

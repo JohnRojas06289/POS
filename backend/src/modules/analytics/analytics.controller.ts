@@ -63,4 +63,15 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getEmployeePerformance(req!.user.schemaName, dateFrom, dateTo, branchId);
   }
+
+  @Get('tips')
+  @ApiOperation({ summary: 'Tips summary with daily trend and distribution by configured percentage' })
+  getTipsSummary(
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('branchId') branchId?: string,
+    @Request() req?: AuthRequest,
+  ) {
+    return this.analyticsService.getTipsSummary(req!.user.schemaName, dateFrom, dateTo, branchId);
+  }
 }

@@ -1,8 +1,9 @@
 import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateTableDto {
+  @IsOptional()
   @IsString()
-  branchId: string;
+  branchId?: string;
 
   @IsInt()
   @Min(1)

@@ -28,10 +28,11 @@ function selectRangeDays(range: Range) {
   return RANGE_OPTIONS.find((option) => option.value === range)?.days ?? 30;
 }
 
-type AnalyticsTab = 'sales' | 'expenses' | 'employees';
+type AnalyticsTab = 'sales' | 'tips' | 'expenses' | 'employees';
 
 const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string; description: string; icon: React.ReactNode }> = [
   { id: 'sales', label: 'Ventas', description: 'Resumen operativo, mix de pago y órdenes recientes.', icon: <Store size={16} /> },
+  { id: 'tips', label: 'Propinas', description: 'Seguimiento de propinas cobradas, promedio y distribución.', icon: <Banknote size={16} /> },
   { id: 'expenses', label: 'Gastos', description: 'Control de deuda, categorías y salidas de caja.', icon: <ReceiptText size={16} /> },
   { id: 'employees', label: 'Empleados', description: 'Desempeño por cajero y rendimiento comercial.', icon: <Users size={16} /> },
 ];
@@ -98,6 +99,13 @@ export default function AnalyticsPage() {
     enabled: activeTab === 'employees',
   });
 
+  const { data: tipsData, isLoading: loadingTips } = useQuery({
+    queryKey: ['analytics-tips', range, branchId],
+    queryFn: () => analyticsApi.getTipsSummary(analyticsParams),
+    retry: 1,
+    enabled: activeTab === 'tips',
+  });
+
   const branches = Array.isArray(branchesData) ? branchesData : [];
   const sales = (salesData ?? {}) as {
     totalSales?: number;
@@ -133,6 +141,13 @@ export default function AnalyticsPage() {
   const employees = Array.isArray(employeesData)
     ? (employeesData as Array<{ cashierId: string; totalSales: number; totalOrders: number; avgTicket: number }>)
     : [];
+  const tips = (tipsData ?? {}) as {
+    total?: number;
+    ordersWithTips?: number;
+    averageTip?: number;
+    byDay?: Array<{ day: string; total: number; orders: number }>;
+    byPercentage?: Array<{ label: string; total: number; orders: number }>;
+  };
 
   const chartRevenue = sales.salesByDay ?? [];
   const paymentMix = sales.revenueByPaymentMethod ?? [];
@@ -142,6 +157,11 @@ export default function AnalyticsPage() {
   const topCustomers = customers.topCustomers ?? [];
   const recentOrders = sales.recentOrders ?? [];
   const expensesByCategory = expenses.byCategory ?? [];
+  const tipsByDay = tips.byDay ?? [];
+  const tipsByPercentage = tips.byPercentage ?? [];
+  const tipsParticipation = (sales.totalSales ?? 0) > 0
+    ? Math.round(((tips.total ?? 0) / (sales.totalSales ?? 1)) * 100)
+    : 0;
   const activeTabInfo = ANALYTICS_TABS.find((tab) => tab.id === activeTab) ?? ANALYTICS_TABS[0];
 
   return (
@@ -421,6 +441,118 @@ export default function AnalyticsPage() {
               </div>
             ) : (
               <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">No hay órdenes para mostrar</div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* Tab: Propinas */}
+      {activeTab === 'tips' && (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard icon={<Banknote size={18} />} label="Propinas cobradas" value={formatCOP(tips.total ?? 0)} loading={loadingTips} />
+            <MetricCard icon={<ReceiptText size={18} />} label="Órdenes con propina" value={(tips.ordersWithTips ?? 0).toLocaleString('es-CO')} loading={loadingTips} />
+            <MetricCard icon={<TrendingUp size={18} />} label="Propina promedio" value={formatCOP(tips.averageTip ?? 0)} loading={loadingTips} />
+            <MetricCard icon={<CreditCard size={18} />} label="% sobre ventas" value={`${tipsParticipation}%`} loading={loadingTips || loadingSales} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Card variant="default" padding="lg" className="xl:col-span-2">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">Propinas por día</h2>
+                <span className="rounded-full bg-[var(--bg-subtle)] px-2 py-1 text-xs text-[var(--text-secondary)]">{range}</span>
+              </div>
+              {loadingTips ? (
+                <Skeleton variant="rect" height={260} className="w-full" />
+              ) : tipsByDay.length > 0 ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={tipsByDay} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="nexus-tips" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10B981" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" opacity={0.5} />
+                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`} />
+                    <Tooltip content={<ChartTooltip formatValue={formatCOP} />} />
+                    <Area type="monotone" dataKey="total" stroke="#10B981" strokeWidth={2.5} fill="url(#nexus-tips)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin propinas registradas en el periodo</div>
+              )}
+            </Card>
+
+            <Card variant="default" padding="lg">
+              <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Distribución por porcentaje</h2>
+              {loadingTips ? (
+                <Skeleton variant="rect" height={260} className="w-full" />
+              ) : tipsByPercentage.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={tipsByPercentage}
+                        dataKey="total"
+                        nameKey="label"
+                        innerRadius={52}
+                        outerRadius={82}
+                        paddingAngle={3}
+                      >
+                        {tipsByPercentage.map((entry, index) => (
+                          <Cell key={entry.label} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip formatValue={formatCOP} />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-3 space-y-2">
+                    {tipsByPercentage.map((item, index) => (
+                      <div key={item.label} className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2 text-[var(--text-secondary)]">
+                          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: COLORS[index % COLORS.length] }} />
+                          {item.label}
+                        </span>
+                        <span className="font-medium text-[var(--text-primary)]">{formatCOP(item.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">Sin distribución de propinas todavía</div>
+              )}
+            </Card>
+          </div>
+
+          <Card variant="default" padding="lg">
+            <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">Detalle por tipo de propina</h2>
+            {loadingTips ? (
+              <Skeleton variant="text" lines={5} />
+            ) : tipsByPercentage.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border-default)] text-left text-xs text-[var(--text-tertiary)]">
+                      <th className="px-4 py-3 font-medium">Tipo</th>
+                      <th className="px-4 py-3 font-medium text-right">Órdenes</th>
+                      <th className="px-4 py-3 font-medium text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-default)]">
+                    {tipsByPercentage.map((row) => (
+                      <tr key={row.label}>
+                        <td className="px-4 py-3 font-medium text-[var(--text-primary)]">{row.label}</td>
+                        <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{row.orders}</td>
+                        <td className="px-4 py-3 text-right font-medium text-[var(--text-gold)]">{formatCOP(row.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-sm text-[var(--text-tertiary)]">No hay propinas para desglosar.</div>
             )}
           </Card>
         </>

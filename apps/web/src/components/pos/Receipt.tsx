@@ -18,6 +18,8 @@ export interface ReceiptData {
   subtotal: number;
   itemDiscountTotal: number;
   cartDiscountAmount: number;
+  tipAmount?: number;
+  tipPercentage?: number;
   total: number;
   change: number;
 }
@@ -65,6 +67,7 @@ export function Receipt({ data, onClose }: ReceiptProps) {
     subtotal,
     itemDiscountTotal,
     cartDiscountAmount,
+    tipAmount = 0,
     total,
     change,
   } = data;
@@ -212,6 +215,12 @@ export function Receipt({ data, onClose }: ReceiptProps) {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
               <span style={{ fontSize: '13px', color: '#34D399' }}>Descuentos</span>
               <span style={{ fontSize: '13px', color: '#34D399' }}>-{formatCOP(totalDiscounts)}</span>
+            </div>
+          )}
+          {tipAmount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span style={{ fontSize: '13px', color: '#C9A84C' }}>Propina</span>
+              <span style={{ fontSize: '13px', color: '#C9A84C' }}>{formatCOP(tipAmount)}</span>
             </div>
           )}
           <div

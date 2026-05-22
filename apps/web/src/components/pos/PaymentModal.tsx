@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useId } from 'react';
 import { Badge, CurrencyDisplay } from '../ui';
 import { cn } from '../../lib/cn';
+import { formatCOP } from '../../lib/currency';
 import { Receipt } from './Receipt';
 import type { ReceiptData } from './Receipt';
 
@@ -20,17 +21,26 @@ interface PaymentLine {
   amount: number;
 }
 
+interface PaymentConfirmation {
+  payments: PaymentLine[];
+  tipAmount: number;
+  tipPercentage?: number;
+}
+
 interface PaymentModalProps {
   open: boolean;
   onClose: () => void;
   total: number;
   cart: CartItemData[];
   hasCustomer: boolean;
-  onConfirm: (payments: PaymentLine[]) => Promise<void>;
+  onConfirm: (payload: PaymentConfirmation) => Promise<void>;
   receiptData?: ReceiptData | null;
+  tipsEnabled?: boolean;
+  suggestedTipPercentage?: number;
 }
 
 export type { ReceiptData };
+export type { PaymentConfirmation };
 
 const METHODS = [
   { id: 'cash', label: 'Efectivo', icon: '💵' },
@@ -41,29 +51,54 @@ const METHODS = [
   { id: 'credit_store', label: 'Fiado', icon: '🤝', requiresCustomer: true },
 ] as const;
 
-export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfirm, receiptData }: PaymentModalProps) {
+export function PaymentModal({
+  open,
+  onClose,
+  total,
+  cart,
+  hasCustomer,
+  onConfirm,
+  receiptData,
+  tipsEnabled = false,
+  suggestedTipPercentage = 10,
+}: PaymentModalProps) {
   const titleId = useId();
   const [payments, setPayments] = useState<PaymentLine[]>([]);
+  const [tipMode, setTipMode] = useState<'none' | 'preset' | 'custom'>('none');
+  const [presetTipPercentage, setPresetTipPercentage] = useState<number>(suggestedTipPercentage);
+  const [customTipAmount, setCustomTipAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [txId, setTxId] = useState('');
   const [countdown, setCountdown] = useState(5);
 
+  const tipAmount = tipMode === 'custom'
+    ? Math.max(0, parseFloat(customTipAmount || '0') || 0)
+    : tipMode === 'preset'
+      ? Math.round((total * presetTipPercentage) / 100)
+      : 0;
+  const tipPercentage = tipMode === 'preset' ? presetTipPercentage : undefined;
+  const payableTotal = total + tipAmount;
   const assigned = payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const remaining = Math.max(0, total - assigned);
-  const change = Math.max(0, assigned - total);
-  const progressPct = total > 0 ? Math.min(100, (assigned / total) * 100) : 0;
-  const isComplete = Math.abs(assigned - total) < 0.01 || (change > 0 && payments.some((payment) => payment.method === 'cash'));
-  const canConfirm = isComplete && !loading;
+  const remaining = Math.max(0, payableTotal - assigned);
+  const change = Math.max(0, assigned - payableTotal);
+  const progressPct = payableTotal > 0 ? Math.min(100, (assigned / payableTotal) * 100) : 0;
+  const canSettleWithCashChange = change > 0 && payments.some((payment) => payment.method === 'cash');
+  const isCompleteWithTip = Math.abs(assigned - payableTotal) < 0.01 || canSettleWithCashChange;
+  const canConfirm = isCompleteWithTip && !loading;
+  const uniqueTipPresets = Array.from(new Set([5, suggestedTipPercentage, 10, 15].filter((value) => value > 0))).sort((a, b) => a - b);
 
   useEffect(() => {
     if (!open) return;
     setPayments([]);
+    setTipMode('none');
+    setPresetTipPercentage(suggestedTipPercentage);
+    setCustomTipAmount('');
     setLoading(false);
     setSuccess(false);
     setTxId('');
     setCountdown(5);
-  }, [open]);
+  }, [open, suggestedTipPercentage]);
 
   useEffect(() => {
     if (!success) return;
@@ -105,7 +140,7 @@ export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfir
   const handleConfirm = async () => {
     setLoading(true);
     try {
-      await onConfirm(payments);
+      await onConfirm({ payments, tipAmount, tipPercentage });
       setTxId(`#${Math.floor(Math.random() * 90000 + 10000)}`);
       setCountdown(5);
       setSuccess(true);
@@ -159,12 +194,81 @@ export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfir
             <div className="flex items-start justify-between border-b border-[var(--border-default)] p-4">
               <div>
                 <h2 id={titleId} style={{ fontFamily: 'var(--font-display)' }} className="text-2xl font-medium tracking-tight text-[var(--text-primary)]">Cobrar</h2>
-                <CurrencyDisplay amount={total} size="xl" gold />
+                <CurrencyDisplay amount={payableTotal} size="xl" gold />
+                {tipAmount > 0 && (
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    Base {formatCOP(total)} + propina {formatCOP(tipAmount)}
+                  </p>
+                )}
               </div>
               <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)]" aria-label="Cerrar">✕</button>
             </div>
 
             <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
+              {tipsEnabled && (
+                <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] p-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Propina</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setTipMode('none')}
+                      className={cn(
+                        'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                        tipMode === 'none'
+                          ? 'border-[var(--gold-500)] bg-[rgba(201,168,76,0.1)] text-[var(--text-gold)]'
+                          : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--gold-500)]',
+                      )}
+                    >
+                      Sin propina
+                    </button>
+                    {uniqueTipPresets.map((value) => (
+                      <button
+                        key={value}
+                        onClick={() => {
+                          setTipMode('preset');
+                          setPresetTipPercentage(value);
+                        }}
+                        className={cn(
+                          'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                          tipMode === 'preset' && presetTipPercentage === value
+                            ? 'border-[var(--gold-500)] bg-[rgba(201,168,76,0.1)] text-[var(--text-gold)]'
+                            : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--gold-500)]',
+                        )}
+                      >
+                        {value}%
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setTipMode('custom')}
+                      className={cn(
+                        'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                        tipMode === 'custom'
+                          ? 'border-[var(--gold-500)] bg-[rgba(201,168,76,0.1)] text-[var(--text-gold)]'
+                          : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--gold-500)]',
+                      )}
+                    >
+                      Personalizada
+                    </button>
+                  </div>
+                  {tipMode === 'custom' && (
+                    <div className="mt-3">
+                      <label className="mb-1 block text-xs text-[var(--text-secondary)]">Monto de propina</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={customTipAmount}
+                        onChange={(event) => setCustomTipAmount(event.target.value)}
+                        className="w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--gold-500)]"
+                        placeholder="0"
+                      />
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                    <span>Propina aplicada</span>
+                    <span className="font-semibold text-[var(--text-primary)]">{formatCOP(tipAmount)}</span>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-[var(--text-tertiary)]">Método de pago</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -224,7 +328,7 @@ export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfir
               {payments.length > 0 && (
                 <div>
                   <div className="mb-1 flex justify-between text-xs text-[var(--text-secondary)]">
-                    <span>Asignado ${assigned.toLocaleString('es-CO')} de ${total.toLocaleString('es-CO')}</span>
+                    <span>Asignado ${assigned.toLocaleString('es-CO')} de ${payableTotal.toLocaleString('es-CO')}</span>
                     {change > 0 && <span className="font-medium text-[var(--success-text)]">Vuelto: ${change.toLocaleString('es-CO')}</span>}
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-subtle)]">
@@ -247,7 +351,7 @@ export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfir
                 onClick={() => void handleConfirm()}
                 disabled={!canConfirm}
                 aria-disabled={!canConfirm}
-                title={!canConfirm ? 'El monto asignado debe igualar el total' : undefined}
+                title={!canConfirm ? 'El monto asignado debe igualar el total a cobrar' : undefined}
                 className={cn(
                   'flex h-12 w-full items-center justify-center rounded-[var(--radius-md)] font-semibold transition-all duration-150',
                   canConfirm ? 'bg-[var(--gold-500)] text-[#1A1400] hover:bg-[var(--gold-400)]' : 'cursor-not-allowed bg-[var(--bg-subtle)] text-[var(--text-tertiary)]',

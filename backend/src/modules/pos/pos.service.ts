@@ -51,6 +51,36 @@ export interface OrderSummary {
   changeDue?: number;
 }
 
+function readPaymentMetadataNumber(metadata: unknown, key: 'changeDue' | 'tipAmount' | 'tipPercentage'): number {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return 0;
+  const raw = (metadata as Record<string, unknown>)[key];
+  const value = typeof raw === 'number' ? raw : Number(raw ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function extractOrderFinancials(payments: Array<{ amount: Prisma.Decimal | number; metadata: unknown }>) {
+  const tipAmount = payments.reduce(
+    (max, payment) => Math.max(max, readPaymentMetadataNumber(payment.metadata, 'tipAmount')),
+    0,
+  );
+  const tipPercentage = payments.reduce(
+    (max, payment) => Math.max(max, readPaymentMetadataNumber(payment.metadata, 'tipPercentage')),
+    0,
+  );
+  const changeDue = payments.reduce(
+    (max, payment) => Math.max(max, readPaymentMetadataNumber(payment.metadata, 'changeDue')),
+    0,
+  );
+  const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+
+  return {
+    tipAmount,
+    tipPercentage: tipPercentage > 0 ? tipPercentage : null,
+    changeDue,
+    chargedTotal: Math.max(0, paidTotal - changeDue),
+  };
+}
+
 @Injectable()
 export class PosService {
   private readonly logger = new Logger(PosService.name);
@@ -120,16 +150,26 @@ export class PosService {
         const subtotal = itemsWithCost.reduce((s, r) => s + r.lineSubtotal, 0);
         const discountTotal = (dto.discountTotal ?? 0) + itemsWithCost.reduce((s, r) => s + r.lineDiscount, 0);
         const taxTotal = itemsWithCost.reduce((s, r) => s + r.lineTax, 0);
+        const tipAmount = Number((dto.tipAmount ?? 0).toFixed(2));
+        const tipPercentage = dto.tipPercentage !== undefined ? Number(dto.tipPercentage) : undefined;
+        if (!Number.isFinite(tipAmount) || tipAmount < 0) {
+          throw new BadRequestException('tipAmount must be a valid non-negative number');
+        }
+        if (tipPercentage !== undefined && (!Number.isFinite(tipPercentage) || tipPercentage < 0)) {
+          throw new BadRequestException('tipPercentage must be a valid non-negative number');
+        }
+
         const total = subtotal - discountTotal + taxTotal;
+        const payableTotal = total + tipAmount;
 
         const paymentsSum = normalizedPayments.reduce((s, p) => s + p.amount, 0);
-        const changeDue = Math.max(0, parseFloat((paymentsSum - total).toFixed(2)));
+        const changeDue = Math.max(0, parseFloat((paymentsSum - payableTotal).toFixed(2)));
         const cashPaid = normalizedPayments
           .filter((p) => p.method === 'cash')
           .reduce((sum, p) => sum + p.amount, 0);
 
-        if (paymentsSum + 0.01 < total) {
-          throw new BadRequestException(`Payments total (${paymentsSum}) does not cover order total (${total})`);
+        if (paymentsSum + 0.01 < payableTotal) {
+          throw new BadRequestException(`Payments total (${paymentsSum}) does not cover order total (${payableTotal})`);
         }
         if (changeDue > 0.01 && cashPaid + 0.01 < changeDue) {
           throw new BadRequestException(`Change due (${changeDue}) exceeds cash received (${cashPaid})`);
@@ -189,12 +229,20 @@ export class PosService {
               })),
             },
             payments: {
-              create: normalizedPayments.map((p) => ({
+              create: normalizedPayments.map((p, index) => ({
                 id: uuidv4(),
                 method: p.method,
                 amount: p.amount,
                 reference: p.reference,
-                metadata: p.method === 'cash' && changeDue > 0 ? { changeDue } : {},
+                metadata: {
+                  ...(index === 0 && tipAmount > 0
+                    ? {
+                        tipAmount,
+                        ...(tipPercentage !== undefined ? { tipPercentage } : {}),
+                      }
+                    : {}),
+                  ...(p.method === 'cash' && changeDue > 0 ? { changeDue } : {}),
+                },
               })),
             },
           },
@@ -279,7 +327,58 @@ export class PosService {
 
         const hasMore = orders.length > limit;
         const data = hasMore ? orders.slice(0, limit) : orders;
-        return { data, nextCursor: hasMore ? data[data.length - 1].id : null, hasMore };
+        const customerIds = Array.from(
+          new Set(
+            data
+              .map((order) => order.customerId)
+              .filter((customerId): customerId is string => Boolean(customerId)),
+          ),
+        );
+
+        const customers = customerIds.length > 0
+          ? await tx.customer.findMany({
+              where: { id: { in: customerIds } },
+              select: { id: true, name: true, phone: true },
+            })
+          : [];
+
+        const tableIds = Array.from(
+          new Set(
+            data
+              .map((order) => (order as { tableId?: string | null }).tableId ?? null)
+              .filter((tableId): tableId is string => Boolean(tableId)),
+          ),
+        );
+
+        const tables = tableIds.length > 0
+          ? await tx.$queryRawUnsafe<Array<{ id: string; number: number }>>(
+              `SELECT id, number
+               FROM "Table"
+               WHERE id IN (${tableIds.map((_, index) => `$${index + 1}`).join(', ')})`,
+              ...tableIds,
+            )
+          : [];
+
+        const customerMap = new Map(customers.map((customer) => [customer.id, customer]));
+        const tableMap = new Map(tables.map((table) => [table.id, table]));
+
+        return {
+          data: data.map((order) => {
+            const financials = extractOrderFinancials(order.payments);
+            return {
+              ...order,
+              ...financials,
+              customerName: order.customerId ? customerMap.get(order.customerId)?.name ?? null : null,
+              customerPhone: order.customerId ? customerMap.get(order.customerId)?.phone ?? null : null,
+              tableNumber: (() => {
+                const tableId = (order as { tableId?: string | null }).tableId ?? null;
+                return tableId ? tableMap.get(tableId)?.number ?? null : null;
+              })(),
+            };
+          }),
+          nextCursor: hasMore ? data[data.length - 1].id : null,
+          hasMore,
+        };
       });
     });
   }
@@ -288,9 +387,78 @@ export class PosService {
     assertValidSchemaName(schemaName);
     return this.prisma.$transaction(async (tx) => {
       return withSchema(tx, schemaName, async () => {
-        const order = await tx.order.findUnique({ where: { id }, include: { items: true, payments: true } });
+        const order = await tx.order.findUnique({
+          where: { id },
+          include: { items: true, payments: true },
+        });
         if (!order) throw new NotFoundException(`Order ${id} not found`);
-        return order;
+
+        const customer = order.customerId
+          ? await tx.customer.findUnique({
+              where: { id: order.customerId },
+              select: { id: true, name: true, phone: true, email: true },
+            })
+          : null;
+
+        const orderTableId = (order as { tableId?: string | null }).tableId ?? null;
+
+        const table = orderTableId
+          ? (
+              await tx.$queryRawUnsafe<Array<{ id: string; number: number; notes: string | null }>>(
+                `SELECT id, number, notes
+                 FROM "Table"
+                 WHERE id = $1
+                 LIMIT 1`,
+                orderTableId,
+              )
+            )[0] ?? null
+          : null;
+
+        const variantIds = Array.from(new Set(order.items.map((item) => item.variantId)));
+        const variants = variantIds.length > 0
+          ? await tx.productVariant.findMany({
+              where: { id: { in: variantIds } },
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                productId: true,
+              },
+            })
+          : [];
+
+        const productIds = Array.from(new Set(variants.map((variant) => variant.productId)));
+        const products = productIds.length > 0
+          ? await tx.product.findMany({
+              where: { id: { in: productIds } },
+              select: { id: true, name: true },
+            })
+          : [];
+
+        const variantMap = new Map(variants.map((variant) => [variant.id, variant]));
+        const productMap = new Map(products.map((product) => [product.id, product]));
+
+        const financials = extractOrderFinancials(order.payments);
+
+        return {
+          ...order,
+          ...financials,
+          customer,
+          customerName: customer?.name ?? null,
+          table,
+          tableNumber: table?.number ?? null,
+          items: order.items.map((item) => {
+            const variant = variantMap.get(item.variantId);
+            const product = variant ? productMap.get(variant.productId) : null;
+            return {
+              ...item,
+              variantName: variant?.name ?? 'Variante',
+              sku: variant?.sku ?? null,
+              productId: variant?.productId ?? null,
+              productName: product?.name ?? 'Producto',
+            };
+          }),
+        };
       });
     });
   }

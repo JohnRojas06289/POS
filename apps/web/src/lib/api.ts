@@ -153,6 +153,8 @@ export const analyticsApi = {
     api.get('/analytics/expenses', { params }).then((r) => r.data),
   getEmployeePerformance: (params: Record<string, string>) =>
     api.get('/analytics/employees', { params }).then((r) => r.data),
+  getTipsSummary: (params: Record<string, string>) =>
+    api.get('/analytics/tips', { params }).then((r) => r.data),
 };
 
 export const syncApi = {

@@ -13,7 +13,7 @@ import { QuotesService } from './quotes.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 
 interface AuthRequest {
-  user: { sub: string; schemaName: string };
+  user: { sub: string; schemaName: string; branchId?: string };
 }
 
 @ApiTags('quotes')
@@ -25,7 +25,11 @@ export class QuotesController {
   @Post()
   @ApiOperation({ summary: 'Create a new quote with line items' })
   create(@Body() dto: CreateQuoteDto, @Request() req: AuthRequest) {
-    return this.quotesService.create(dto, req.user.sub, req.user.schemaName);
+    return this.quotesService.create(
+      { ...dto, branchId: dto.branchId ?? req.user.branchId },
+      req.user.sub,
+      req.user.schemaName,
+    );
   }
 
   @Get()

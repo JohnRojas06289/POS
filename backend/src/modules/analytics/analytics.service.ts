@@ -318,6 +318,100 @@ export class AnalyticsService {
     });
   }
 
+  async getTipsSummary(schemaName: string, dateFrom?: string, dateTo?: string, branchId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      return withSchema(tx, schemaName, async () => {
+        const from = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = dateTo ? new Date(dateTo) : new Date();
+
+        const totals = await tx.$queryRaw<Array<{
+          total: string;
+          orders: string;
+          average: string;
+        }>>`
+          SELECT
+            COALESCE(SUM(CASE
+              WHEN COALESCE((p.metadata->>'tipAmount')::numeric, 0) > 0 THEN (p.metadata->>'tipAmount')::numeric
+              ELSE 0
+            END), 0)::text AS total,
+            COUNT(DISTINCT CASE
+              WHEN COALESCE((p.metadata->>'tipAmount')::numeric, 0) > 0 THEN o.id
+              ELSE NULL
+            END)::text AS orders,
+            COALESCE(AVG(CASE
+              WHEN COALESCE((p.metadata->>'tipAmount')::numeric, 0) > 0 THEN (p.metadata->>'tipAmount')::numeric
+              ELSE NULL
+            END), 0)::text AS average
+          FROM "Payment" p
+          INNER JOIN "Order" o ON o.id = p."orderId"
+          WHERE o.status = 'completed'
+            AND o."createdAt" >= ${from}
+            AND o."createdAt" <= ${to}
+            ${branchId ? Prisma.sql`AND o."branchId" = ${branchId}` : Prisma.empty}
+        `;
+
+        const byDay = await tx.$queryRaw<Array<{
+          day: string;
+          total: string;
+          orders: string;
+        }>>`
+          SELECT
+            TO_CHAR(DATE(o."createdAt"), 'YYYY-MM-DD') AS day,
+            COALESCE(SUM((p.metadata->>'tipAmount')::numeric), 0)::text AS total,
+            COUNT(DISTINCT o.id)::text AS orders
+          FROM "Payment" p
+          INNER JOIN "Order" o ON o.id = p."orderId"
+          WHERE o.status = 'completed'
+            AND o."createdAt" >= ${from}
+            AND o."createdAt" <= ${to}
+            AND COALESCE((p.metadata->>'tipAmount')::numeric, 0) > 0
+            ${branchId ? Prisma.sql`AND o."branchId" = ${branchId}` : Prisma.empty}
+          GROUP BY DATE(o."createdAt")
+          ORDER BY DATE(o."createdAt") ASC
+        `;
+
+        const byPercentage = await tx.$queryRaw<Array<{
+          label: string;
+          total: string;
+          orders: string;
+        }>>`
+          SELECT
+            CASE
+              WHEN NULLIF(p.metadata->>'tipPercentage', '') IS NOT NULL THEN CONCAT(p.metadata->>'tipPercentage', '%')
+              ELSE 'Personalizada'
+            END AS label,
+            COALESCE(SUM((p.metadata->>'tipAmount')::numeric), 0)::text AS total,
+            COUNT(DISTINCT o.id)::text AS orders
+          FROM "Payment" p
+          INNER JOIN "Order" o ON o.id = p."orderId"
+          WHERE o.status = 'completed'
+            AND o."createdAt" >= ${from}
+            AND o."createdAt" <= ${to}
+            AND COALESCE((p.metadata->>'tipAmount')::numeric, 0) > 0
+            ${branchId ? Prisma.sql`AND o."branchId" = ${branchId}` : Prisma.empty}
+          GROUP BY 1
+          ORDER BY SUM((p.metadata->>'tipAmount')::numeric) DESC
+        `;
+
+        return {
+          total: parseFloat(totals[0]?.total ?? '0'),
+          ordersWithTips: parseInt(totals[0]?.orders ?? '0', 10),
+          averageTip: parseFloat(totals[0]?.average ?? '0'),
+          byDay: byDay.map((row) => ({
+            day: row.day,
+            total: parseFloat(row.total),
+            orders: parseInt(row.orders, 10),
+          })),
+          byPercentage: byPercentage.map((row) => ({
+            label: row.label,
+            total: parseFloat(row.total),
+            orders: parseInt(row.orders, 10),
+          })),
+        };
+      });
+    });
+  }
+
   async getCustomerInsights() {
     const [totalCustomers, customersWithDebt, topCustomers] = await Promise.all([
       this.prisma.customer.count({ where: { isActive: true } }),

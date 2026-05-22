@@ -6,6 +6,7 @@ import { SearchBar } from '../../../components/pos/SearchBar';
 import { ProductCard } from '../../../components/pos/ProductCard';
 import { CartItem } from '../../../components/pos/CartItem';
 import { PaymentModal } from '../../../components/pos/PaymentModal';
+import type { PaymentConfirmation } from '../../../components/pos/PaymentModal';
 import { CashSessionModal } from '../../../components/pos/CashSessionModal';
 import { BarcodeScannerModal } from '../../../components/pos/BarcodeScannerModal';
 import type { ReceiptData } from '../../../components/pos/Receipt';
@@ -89,6 +90,8 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true);
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
   const [openCashReminder, setOpenCashReminder] = useState(true);
+  const [tipsEnabled, setTipsEnabled] = useState(false);
+  const [tipPercentage, setTipPercentage] = useState(10);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItemState[]>([]);
@@ -118,9 +121,16 @@ export default function POSPage() {
   // Load tenant config for POS-specific settings
   useEffect(() => {
     void tenantsApi.getConfig().then((cfg: unknown) => {
-      const c = cfg as { hideOutOfStockProducts?: boolean; openCashReminder?: boolean } | null;
+      const c = cfg as {
+        hideOutOfStockProducts?: boolean;
+        openCashReminder?: boolean;
+        tipsEnabled?: boolean;
+        tipPercentage?: number;
+      } | null;
       if (c?.hideOutOfStockProducts) setHideOutOfStock(true);
       setOpenCashReminder(c?.openCashReminder ?? true);
+      setTipsEnabled(Boolean(c?.tipsEnabled ?? false));
+      setTipPercentage(Number(c?.tipPercentage ?? 10));
     }).catch(() => { /* non-critical */ });
   }, []);
 
@@ -379,13 +389,18 @@ export default function POSPage() {
   );
   const itemCount = useMemo(() => cart.reduce((s, i) => s + i.quantity, 0), [cart]);
 
-  const handleConfirmPayment = useCallback(async (payments: Array<{ method: string; amount: number }>) => {
+  const handleConfirmPayment = useCallback(async ({
+    payments,
+    tipAmount,
+    tipPercentage: appliedTipPercentage,
+  }: PaymentConfirmation) => {
     if (!branchId) {
       toast('No se pudo identificar la sucursal activa', 'error');
       return;
     }
 
     const localId = uuidv4();
+    const payableTotal = total + tipAmount;
     const receiptBase = {
       id: localId,
       createdAt: new Date().toISOString(),
@@ -397,7 +412,9 @@ export default function POSPage() {
       subtotal,
       itemDiscountTotal,
       cartDiscountAmount,
-      total,
+      tipAmount,
+      tipPercentage: appliedTipPercentage,
+      total: payableTotal,
     };
 
     const persistReceipt = (mode: 'online' | 'offline' | 'pending') => {
@@ -431,6 +448,8 @@ export default function POSPage() {
           })),
       payments,
       discountTotal: isFreeEntry ? 0 : cartDiscountAmount,
+      tipAmount,
+      tipPercentage: appliedTipPercentage,
       notes: isFreeEntry && freeEntryDescription ? freeEntryDescription : undefined,
     };
 
@@ -450,9 +469,10 @@ export default function POSPage() {
     try {
       await posApi.createOrder(payload);
       persistReceipt('online');
-      const cashPayment = payments.find((p) => p.method === 'cash');
-      const cashPaid = cashPayment?.amount ?? 0;
-      const changeAmount = Math.max(0, cashPaid - total);
+      const cashPaid = payments
+        .filter((payment) => payment.method === 'cash')
+        .reduce((sum, payment) => sum + payment.amount, 0);
+      const changeAmount = Math.max(0, cashPaid - payableTotal);
       setLastReceipt({
         txId: localId.split('-')[0].toUpperCase(),
         createdAt: new Date().toISOString(),
@@ -469,7 +489,9 @@ export default function POSPage() {
         subtotal,
         itemDiscountTotal,
         cartDiscountAmount,
-        total,
+        tipAmount,
+        tipPercentage: appliedTipPercentage,
+        total: payableTotal,
         change: changeAmount,
       });
     } catch {
@@ -839,6 +861,8 @@ export default function POSPage() {
         hasCustomer={false}
         onConfirm={handleConfirmPayment}
         receiptData={lastReceipt}
+        tipsEnabled={tipsEnabled}
+        suggestedTipPercentage={tipPercentage}
       />
 
       {/* Variant Selector (simple inline modal) */}

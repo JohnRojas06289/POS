@@ -14,7 +14,7 @@ import { TablesService } from './tables.service';
 import { CreateTableDto } from './dto/create-table.dto';
 
 interface AuthRequest {
-  user: { sub: string; schemaName: string };
+  user: { sub: string; schemaName: string; branchId?: string };
 }
 
 @ApiTags('tables')
@@ -26,7 +26,10 @@ export class TablesController {
   @Post()
   @ApiOperation({ summary: 'Create a new table' })
   create(@Body() dto: CreateTableDto, @Request() req: AuthRequest) {
-    return this.tablesService.create(dto, req.user.schemaName);
+    return this.tablesService.create(
+      { ...dto, branchId: dto.branchId ?? req.user.branchId },
+      req.user.schemaName,
+    );
   }
 
   @Get()

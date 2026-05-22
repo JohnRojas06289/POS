@@ -15,9 +15,9 @@ interface BusinessInfo {
 interface Product {
   id: string;
   name: string;
-  description?: string | null;
-  categoryId?: string | null;
-  imageUrl?: string | null;
+  description: string | null;
+  categoryId: string | null;
+  imageUrl: string | null;
   hasVariants: boolean;
   variants: Array<{
     id: string;
@@ -45,16 +45,30 @@ async function fetchProducts(slug: string): Promise<Product[]> {
   try {
     const res = await fetch(`${base}/catalog/${slug}/products`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
-    const data = await res.json();
-    const rawProducts = Array.isArray(data) ? data : (data as { data?: Product[] })?.data ?? [];
+    const data = await res.json() as unknown;
+    const rawProducts = Array.isArray(data)
+      ? data as Array<Record<string, unknown>>
+      : Array.isArray((data as { data?: unknown[] })?.data)
+        ? ((data as { data: unknown[] }).data as Array<Record<string, unknown>>)
+        : [];
 
     return rawProducts.map((product) => ({
-      ...product,
+      id: String(product.id ?? ''),
+      name: String(product.name ?? 'Producto'),
+      description: product.description == null ? null : String(product.description),
+      categoryId: product.categoryId == null ? null : String(product.categoryId),
+      imageUrl: product.imageUrl == null ? null : String(product.imageUrl),
+      hasVariants: Boolean(product.hasVariants),
       variants: Array.isArray(product.variants)
-        ? product.variants.map((variant) => ({
-            ...variant,
-            unitPrice: Number(variant.unitPrice),
-            stock: Number(variant.stock),
+        ? (product.variants as Array<Record<string, unknown>>).map((variant) => ({
+            id: String(variant.id ?? ''),
+            sku: String(variant.sku ?? ''),
+            name: String(variant.name ?? 'Variante'),
+            attributes: typeof variant.attributes === 'object' && variant.attributes !== null
+              ? variant.attributes as Record<string, unknown>
+              : {},
+            unitPrice: Number(variant.unitPrice ?? 0),
+            stock: Number(variant.stock ?? 0),
           }))
         : [],
     }));

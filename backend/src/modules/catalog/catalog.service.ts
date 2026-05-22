@@ -71,9 +71,14 @@ export class CatalogService {
       });
     });
 
+    const configValue = (config?.value as {
+      businessName?: string;
+      whatsapp?: string | null;
+    } | null) ?? null;
+
     return {
-      name: tenant.name,
-      whatsapp: tenant.phone ?? null,
+      name: configValue?.businessName ?? tenant.name,
+      whatsapp: configValue?.whatsapp ?? tenant.phone ?? null,
       country: tenant.country,
       currency: tenant.currency,
       businessType: tenant.businessType,
