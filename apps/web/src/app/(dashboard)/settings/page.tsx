@@ -306,9 +306,15 @@ function NewTerminalModal({ branches, onClose, onSave }: { branches: Array<{ id:
 
 function NewRoleModal({ onClose, onSave }: { onClose: () => void; onSave: (role: RoleConfig) => void }) {
   const [name, setName] = useState('');
-  const [id, setId] = useState('');
   const [description, setDescription] = useState('');
   const [permissions, setPermissions] = useState<string[]>([]);
+
+  // ID is derived from the name — lowercase, no accents, spaces → underscores
+  const generatedId = name
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
 
   const toggle = (pid: string) => setPermissions((prev) => prev.includes(pid) ? prev.filter((x) => x !== pid) : [...prev, pid]);
 
@@ -322,7 +328,20 @@ function NewRoleModal({ onClose, onSave }: { onClose: () => void; onSave: (role:
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
           <div className="grid grid-cols-2 gap-4">
             <ModalInput label="Nombre *" value={name} onChange={setName} placeholder="Supervisor" autoFocus />
-            <ModalInput label="ID *" value={id} onChange={setId} placeholder="supervisor" />
+            {/* Read-only generated ID */}
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>ID del sistema</label>
+              <div
+                className="w-full rounded-lg px-3 py-2 text-sm flex items-center gap-2"
+                style={{ border: '1px solid var(--border-default)', background: 'var(--bg-subtle)', color: 'var(--text-tertiary)' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+                  <rect x="1" y="4" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M4 4V3a2 2 0 1 1 4 0v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+                <span className="font-mono text-xs">{generatedId || 'se generará del nombre'}</span>
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Descripción</label>
@@ -340,7 +359,7 @@ function NewRoleModal({ onClose, onSave }: { onClose: () => void; onSave: (role:
         </div>
         <div className="px-6 py-4 flex justify-end gap-2 flex-shrink-0" style={{ borderTop: '1px solid var(--border-default)' }}>
           <BtnSecondary onClick={onClose}>Cancelar</BtnSecondary>
-          <BtnPrimary onClick={() => { if (name && id) { onSave({ id, name, description, permissions }); } }} disabled={!name || !id}>Guardar rol</BtnPrimary>
+          <BtnPrimary onClick={() => { if (name && generatedId) { onSave({ id: generatedId, name, description, permissions }); } }} disabled={!name}>Guardar rol</BtnPrimary>
         </div>
       </div>
     </div>
@@ -356,6 +375,119 @@ function formatCurrency(value: string | number): string {
 }
 function formatBillingCycle(cycle: string): string {
   return cycle === 'lifetime' ? 'Pago único' : 'Mensual';
+}
+
+// ─── Role list (collapsible) ──────────────────────────────────────────────────
+
+function RoleList({ roles, setRoles, inputCls, inputSty }: {
+  roles: RoleConfig[];
+  setRoles: React.Dispatch<React.SetStateAction<RoleConfig[]>>;
+  inputCls: string;
+  inputSty: React.CSSProperties;
+}) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const ROLE_BADGE: Record<string, string> = { owner: 'Propietario', manager: 'Gerente', cashier: 'Cajero' };
+
+  return (
+    <div className="mt-6 space-y-3">
+      {roles.map((role, index) => {
+        const open = expanded === role.id;
+        return (
+          <div
+            key={role.id}
+            className="rounded-xl overflow-hidden"
+            style={{ border: `1px solid ${open ? 'var(--gold-500)' : 'var(--border-default)'}`, background: 'var(--bg-surface)', transition: 'border-color 150ms' }}
+          >
+            {/* Header — always visible, click to toggle */}
+            <button
+              type="button"
+              onClick={() => setExpanded(open ? null : role.id)}
+              className="w-full flex items-center justify-between px-5 py-4 text-left"
+              style={{ background: open ? 'rgba(201,168,76,0.04)' : 'transparent' }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                  style={{ background: open ? 'var(--gold-500)' : 'var(--bg-subtle)', color: open ? '#0A0A0A' : 'var(--text-tertiary)' }}
+                >
+                  {role.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{role.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                    {ROLE_BADGE[role.id] ?? role.id} · {role.permissions.length} permisos
+                  </p>
+                </div>
+              </div>
+              <svg
+                width="16" height="16" viewBox="0 0 16 16" fill="none"
+                style={{ color: 'var(--text-tertiary)', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms' }}
+              >
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {/* Expandable content */}
+            {open && (
+              <div className="px-5 pb-5" style={{ borderTop: '1px solid var(--border-default)' }}>
+                <div className="pt-4 space-y-4">
+                  {/* Name + read-only ID */}
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Field label="Nombre">
+                      <input
+                        value={role.name}
+                        onChange={(e) => setRoles((prev) => prev.map((r, i) => i === index ? { ...r, name: e.target.value } : r))}
+                        className={inputCls} style={inputSty}
+                      />
+                    </Field>
+                    <Field label="ID del sistema">
+                      <div
+                        className="w-full rounded-lg px-3 py-2 text-sm flex items-center gap-2"
+                        style={{ border: '1px solid var(--border-default)', background: 'var(--bg-subtle)', color: 'var(--text-tertiary)' }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+                          <rect x="1" y="4" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+                          <path d="M4 4V3a2 2 0 1 1 4 0v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                        </svg>
+                        <span className="font-mono text-xs">{role.id}</span>
+                      </div>
+                    </Field>
+                  </div>
+
+                  {/* Description */}
+                  <Field label="Descripción">
+                    <textarea
+                      value={role.description}
+                      onChange={(e) => setRoles((prev) => prev.map((r, i) => i === index ? { ...r, description: e.target.value } : r))}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none min-h-[72px]"
+                      style={inputSty}
+                    />
+                  </Field>
+
+                  {/* Permissions */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Permisos</label>
+                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{role.permissions.length} seleccionados</span>
+                    </div>
+                    <PermissionMatrix
+                      selected={role.permissions}
+                      onToggle={(pid) => setRoles((prev) => prev.map((r, i) => {
+                        if (i !== index) return r;
+                        const has = r.permissions.includes(pid);
+                        return { ...r, permissions: has ? r.permissions.filter((p) => p !== pid) : [...r.permissions, pid] };
+                      }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -632,38 +764,7 @@ export default function SettingsPage() {
               Roles y permisos
             </SectionTitle>
             <InfoBox>Después de guardar los cambios, el usuario debe cerrar e iniciar sesión para que los nuevos permisos se apliquen a su token.</InfoBox>
-            <div className="mt-6 space-y-6">
-              {roles.map((role, index) => (
-                <div key={role.id} className="rounded-xl p-5" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
-                  <div className="grid sm:grid-cols-2 gap-4 mb-4">
-                    <Field label="Nombre">
-                      <input value={role.name} onChange={(e) => setRoles((prev) => prev.map((r, i) => i === index ? { ...r, name: e.target.value } : r))} className={inputCls} style={inputSty} />
-                    </Field>
-                    <Field label="ID">
-                      <input value={role.id} onChange={(e) => setRoles((prev) => prev.map((r, i) => i === index ? { ...r, id: e.target.value } : r))} className={inputCls} style={inputSty} />
-                    </Field>
-                  </div>
-                  <Field label="Descripción">
-                    <textarea value={role.description} onChange={(e) => setRoles((prev) => prev.map((r, i) => i === index ? { ...r, description: e.target.value } : r))}
-                      className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none min-h-[72px]" style={inputSty} />
-                  </Field>
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Permisos</label>
-                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{role.permissions.length} seleccionados</span>
-                    </div>
-                    <PermissionMatrix
-                      selected={role.permissions}
-                      onToggle={(pid) => setRoles((prev) => prev.map((r, i) => {
-                        if (i !== index) return r;
-                        const has = r.permissions.includes(pid);
-                        return { ...r, permissions: has ? r.permissions.filter((p) => p !== pid) : [...r.permissions, pid] };
-                      }))}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <RoleList roles={roles} setRoles={setRoles} inputCls={inputCls} inputSty={inputSty} />
           </div>
         )}
 
