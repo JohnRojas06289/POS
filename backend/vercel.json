@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "npx prisma generate --schema=src/database/prisma/schema.prisma && npx prisma migrate deploy --schema=src/database/prisma/schema.prisma && ./node_modules/.bin/nest build",
   "installCommand": "npm install --include=dev",
   "functions": {
     "api/index.js": {
