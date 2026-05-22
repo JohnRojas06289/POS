@@ -309,7 +309,7 @@ export default function TablesPage() {
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['tables'] });
 
   const handleStatusChange = async (id: string, action: TableStatus | 'release') => {
-    setLoadingIds((prev) => new Set([...prev, id]));
+    setLoadingIds((prev) => new Set(Array.from(prev).concat(id)));
     try {
       if (action === 'release') {
         await tablesApi.release(id);
