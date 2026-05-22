@@ -98,6 +98,12 @@ export class TenantsService {
       tipsEnabled: Boolean(configValue.tipsEnabled ?? false),
       tipPercentage: Number(configValue.tipPercentage ?? 10),
       hideOutOfStockProducts: Boolean(configValue.hideOutOfStockProducts ?? false),
+      deliveryMethods: this.parseJson<string[]>(configValue.deliveryMethods, ['pickup', 'delivery']),
+      openCashReminder: Boolean(configValue.openCashReminder ?? true),
+      printerName: configValue.printerName ?? null,
+      paperWidth: String(configValue.paperWidth ?? '80mm'),
+      autoPrint: Boolean(configValue.autoPrint ?? false),
+      menuUrl: configValue.menuUrl ?? `/tienda/${tenant.slug}`,
       updatedAt: config?.updatedAt ?? null,
     };
   }
@@ -117,6 +123,12 @@ export class TenantsService {
       tipsEnabled?: boolean;
       tipPercentage?: number;
       hideOutOfStockProducts?: boolean;
+      deliveryMethods?: string[];
+      openCashReminder?: boolean;
+      printerName?: string;
+      paperWidth?: '58mm' | '80mm';
+      autoPrint?: boolean;
+      menuUrl?: string;
     },
   ) {
     const tenant = await this.getTenantRecord(tenantId);
@@ -134,6 +146,12 @@ export class TenantsService {
       tipsEnabled: data.tipsEnabled ?? currentValue.tipsEnabled ?? false,
       tipPercentage: data.tipPercentage ?? currentValue.tipPercentage ?? 10,
       hideOutOfStockProducts: data.hideOutOfStockProducts ?? currentValue.hideOutOfStockProducts ?? false,
+      deliveryMethods: data.deliveryMethods ?? this.parseJson<string[]>(currentValue.deliveryMethods, ['pickup', 'delivery']),
+      openCashReminder: data.openCashReminder ?? currentValue.openCashReminder ?? true,
+      printerName: data.printerName ?? currentValue.printerName ?? null,
+      paperWidth: data.paperWidth ?? currentValue.paperWidth ?? '80mm',
+      autoPrint: data.autoPrint ?? currentValue.autoPrint ?? false,
+      menuUrl: data.menuUrl ?? currentValue.menuUrl ?? `/tienda/${tenant.slug}`,
     };
 
     await this.prisma.$executeRawUnsafe(

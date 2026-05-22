@@ -60,6 +60,15 @@ export class TenantsController {
       taxConfig?: Record<string, unknown>;
       dianConfig?: Record<string, unknown>;
       roles?: Array<{ id: string; name: string; description: string; permissions: string[] }>;
+      tipsEnabled?: boolean;
+      tipPercentage?: number;
+      hideOutOfStockProducts?: boolean;
+      deliveryMethods?: string[];
+      openCashReminder?: boolean;
+      printerName?: string;
+      paperWidth?: '58mm' | '80mm';
+      autoPrint?: boolean;
+      menuUrl?: string;
     },
   ) {
     return this.tenantsService.updateTenantConfig(user.tenantId, body);

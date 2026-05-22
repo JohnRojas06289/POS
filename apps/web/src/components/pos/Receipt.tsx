@@ -105,8 +105,19 @@ export function Receipt({ data, onClose }: ReceiptProps) {
       {/* Print styles injected into the page */}
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          .nexus-receipt-print { display: block !important; }
+          body { background: #111111 !important; }
+          body > * { visibility: hidden !important; }
+          .nexus-receipt-print, .nexus-receipt-print * { visibility: visible !important; }
+          .nexus-receipt-print {
+            display: block !important;
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+          }
           .nexus-receipt-no-print { display: none !important; }
         }
       `}</style>
@@ -127,6 +138,9 @@ export function Receipt({ data, onClose }: ReceiptProps) {
       >
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+          <p style={{ margin: '0 0 8px', fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
+            Comprobante de venta
+          </p>
           <h2 style={{ color: '#C9A84C', fontSize: '20px', fontWeight: 700, margin: 0 }}>
             {businessName}
           </h2>
@@ -141,6 +155,17 @@ export function Receipt({ data, onClose }: ReceiptProps) {
           <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginTop: '2px' }}>
             #{txId}
           </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+            <span style={{ padding: '4px 8px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>
+              {items.length} items
+            </span>
+            <span style={{ padding: '4px 8px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>
+              {payments.length} pagos
+            </span>
+            <span style={{ padding: '4px 8px', borderRadius: '999px', border: '1px solid rgba(201,168,76,0.18)', background: 'rgba(201,168,76,0.08)', fontSize: '10px', color: '#C9A84C' }}>
+              Total {formatCOP(total)}
+            </span>
+          </div>
         </div>
 
         {/* Divider */}

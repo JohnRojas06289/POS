@@ -88,6 +88,7 @@ export default function POSPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
+  const [openCashReminder, setOpenCashReminder] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItemState[]>([]);
@@ -117,8 +118,9 @@ export default function POSPage() {
   // Load tenant config for POS-specific settings
   useEffect(() => {
     void tenantsApi.getConfig().then((cfg: unknown) => {
-      const c = cfg as { hideOutOfStockProducts?: boolean } | null;
+      const c = cfg as { hideOutOfStockProducts?: boolean; openCashReminder?: boolean } | null;
       if (c?.hideOutOfStockProducts) setHideOutOfStock(true);
+      setOpenCashReminder(c?.openCashReminder ?? true);
     }).catch(() => { /* non-critical */ });
   }, []);
 
@@ -687,6 +689,23 @@ export default function POSPage() {
             )}
           </div>
         </div>
+
+        {!cashSession && !cashSessionLoading && openCashReminder && (
+          <div className="border-b border-amber-200 bg-amber-50 px-3 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-amber-200 bg-white px-4 py-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Caja pendiente</p>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">Abre la caja antes de registrar ventas para mantener el control operativo.</p>
+              </div>
+              <button
+                onClick={() => setCashModalMode('open')}
+                className="rounded-[var(--radius-md)] bg-amber-500 px-4 py-2 text-sm font-semibold text-[#1A1400] transition hover:bg-amber-400"
+              >
+                Abrir caja
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Venta libre: description + origin */}
         {isFreeEntry && (

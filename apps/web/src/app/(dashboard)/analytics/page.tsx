@@ -30,10 +30,10 @@ function selectRangeDays(range: Range) {
 
 type AnalyticsTab = 'sales' | 'expenses' | 'employees';
 
-const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string }> = [
-  { id: 'sales', label: 'Ventas' },
-  { id: 'expenses', label: 'Gastos' },
-  { id: 'employees', label: 'Empleados' },
+const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string; description: string; icon: React.ReactNode }> = [
+  { id: 'sales', label: 'Ventas', description: 'Resumen operativo, mix de pago y órdenes recientes.', icon: <Store size={16} /> },
+  { id: 'expenses', label: 'Gastos', description: 'Control de deuda, categorías y salidas de caja.', icon: <ReceiptText size={16} /> },
+  { id: 'employees', label: 'Empleados', description: 'Desempeño por cajero y rendimiento comercial.', icon: <Users size={16} /> },
 ];
 
 export default function AnalyticsPage() {
@@ -142,6 +142,7 @@ export default function AnalyticsPage() {
   const topCustomers = customers.topCustomers ?? [];
   const recentOrders = sales.recentOrders ?? [];
   const expensesByCategory = expenses.byCategory ?? [];
+  const activeTabInfo = ANALYTICS_TABS.find((tab) => tab.id === activeTab) ?? ANALYTICS_TABS[0];
 
   return (
     <div className="space-y-6 p-6">
@@ -176,14 +177,49 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+        <Card variant="default" padding="lg">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Sección activa</p>
+              <h2 className="mt-2 text-2xl font-semibold text-[var(--text-primary)]">{activeTabInfo.label}</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">{activeTabInfo.description}</p>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[rgba(201,168,76,0.12)] text-[var(--text-gold)]">
+              {activeTabInfo.icon}
+            </div>
+          </div>
+        </Card>
+
+        <Card variant="default" padding="lg">
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Cambio rápido</p>
+          <div className="mt-3 flex flex-col gap-2">
+            {ANALYTICS_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-between rounded-[var(--radius-md)] border px-3 py-2 text-left transition-colors ${activeTab === tab.id ? 'border-[var(--border-gold)] bg-[var(--bg-subtle)]' : 'border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--border-gold)]'}`}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+                  {tab.icon}
+                  {tab.label}
+                </span>
+                {activeTab === tab.id && <span className="text-xs text-[var(--text-gold)]">Activo</span>}
+              </button>
+            ))}
+          </div>
+        </Card>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] p-1 w-fit">
         {ANALYTICS_TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            className={`inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
           >
+            {tab.icon}
             {tab.label}
           </button>
         ))}

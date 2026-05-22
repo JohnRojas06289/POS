@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Building2, ShoppingCart, MapPin, FileText, Shield, MonitorSmartphone, Palette, Save } from 'lucide-react';
+import { AlertTriangle, Building2, ShoppingCart, MapPin, FileText, Shield, MonitorSmartphone, Palette, Save, Copy } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useToast } from '../../../components/ui/Toast';
@@ -29,6 +29,13 @@ type PermissionGroup = { id: string; title: string; description: string; options
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAYMENT_METHODS = ['Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Nequi', 'Daviplata', 'Transferencia'];
+const DELIVERY_METHODS = [
+  { id: 'pickup', label: 'Recoger en tienda' },
+  { id: 'delivery', label: 'Domicilio' },
+  { id: 'rappi', label: 'Rappi' },
+  { id: 'didi', label: 'Didi' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+];
 
 const PERMISSION_GROUPS: PermissionGroup[] = [
   { id: 'dashboard', title: 'Dashboard', description: 'Acceso a métricas, tarjetas y resumen operativo.', options: [{ id: 'dashboard:read', label: 'Ver dashboard', description: 'Abre el resumen general del negocio.', route: '/dashboard', importance: 'high' }] },
@@ -512,6 +519,8 @@ export default function SettingsPage() {
   const [tipsEnabled, setTipsEnabled] = useState(false);
   const [tipPercentage, setTipPercentage] = useState(10);
   const [hideOutOfStockProducts, setHideOutOfStockProducts] = useState(false);
+  const [deliveryMethods, setDeliveryMethods] = useState<string[]>(['pickup', 'delivery']);
+  const [openCashReminder, setOpenCashReminder] = useState(true);
 
   // Print settings state
   const [printerName, setPrinterName] = useState('');
@@ -528,12 +537,18 @@ export default function SettingsPage() {
     const c = config as {
       roles?: RoleConfig[];
       name?: string;
+      slug?: string;
       nit?: string;
       whatsapp?: string;
       city?: string;
       tipsEnabled?: boolean;
       tipPercentage?: number;
       hideOutOfStockProducts?: boolean;
+      deliveryMethods?: string[];
+      openCashReminder?: boolean;
+      printerName?: string;
+      paperWidth?: string;
+      autoPrint?: boolean;
     } | undefined;
     const tenantRoles = c?.roles;
     setRoles(Array.isArray(tenantRoles) && tenantRoles.length > 0 ? tenantRoles : DEFAULT_ROLE_CONFIGS);
@@ -545,11 +560,21 @@ export default function SettingsPage() {
       setTipsEnabled(c.tipsEnabled ?? false);
       setTipPercentage(c.tipPercentage ?? 10);
       setHideOutOfStockProducts(c.hideOutOfStockProducts ?? false);
-      setPrinterName((c as { printerName?: string }).printerName ?? '');
-      setPaperWidth(((c as { paperWidth?: string }).paperWidth ?? '80mm') as '58mm' | '80mm');
-      setAutoPrint((c as { autoPrint?: boolean }).autoPrint ?? false);
+      setDeliveryMethods(Array.isArray(c.deliveryMethods) && c.deliveryMethods.length > 0 ? c.deliveryMethods : ['pickup', 'delivery']);
+      setOpenCashReminder(c.openCashReminder ?? true);
+      setPrinterName(c.printerName ?? '');
+      setPaperWidth((c.paperWidth ?? '80mm') as '58mm' | '80mm');
+      setAutoPrint(c.autoPrint ?? false);
     }
   }, [config]);
+
+  const publicMenuPath = (config as { slug?: string } | undefined)?.slug ? `/tienda/${(config as { slug?: string }).slug}` : '';
+
+  const copyMenuUrl = async () => {
+    if (!publicMenuPath || typeof window === 'undefined') return;
+    await navigator.clipboard.writeText(`${window.location.origin}${publicMenuPath}`);
+    toast('URL del menú copiada', 'success');
+  };
 
   const handleSave = async () => {
     await tenantsApi.updateConfig({ roles });
@@ -570,7 +595,17 @@ export default function SettingsPage() {
 
   const handleSavePosExtras = async () => {
     try {
-      await tenantsApi.updateConfig({ tipsEnabled, tipPercentage, hideOutOfStockProducts, printerName, paperWidth, autoPrint });
+      await tenantsApi.updateConfig({
+        tipsEnabled,
+        tipPercentage,
+        hideOutOfStockProducts,
+        deliveryMethods,
+        openCashReminder,
+        printerName,
+        paperWidth,
+        autoPrint,
+        menuUrl: publicMenuPath,
+      });
       toast('Configuración POS guardada', 'success');
     } catch {
       toast('Error al guardar la configuración POS', 'error');
@@ -844,8 +879,90 @@ export default function SettingsPage() {
               </div>
 
               <div>
+                <label className="block text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>Métodos de entrega</label>
+                <div className="flex flex-wrap gap-2">
+                  {DELIVERY_METHODS.map((method) => {
+                    const active = deliveryMethods.includes(method.id);
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => setDeliveryMethods((prev) => active ? prev.filter((item) => item !== method.id) : [...prev, method.id])}
+                        className="px-3 py-1.5 text-sm rounded-full border transition-all"
+                        style={{
+                          background: active ? 'var(--gold-500)' : 'var(--bg-surface)',
+                          color: active ? '#0A0A0A' : 'var(--text-secondary)',
+                          borderColor: active ? 'var(--gold-500)' : 'var(--border-default)',
+                        }}
+                      >
+                        {method.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>Recordatorios</label>
+                <div className="rounded-xl p-4" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Recordar abrir caja al iniciar</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Muestra una alerta persistente hasta abrir la sesión de caja</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={openCashReminder}
+                      onChange={(e) => setOpenCashReminder(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                      style={{ accentColor: 'var(--gold-500)' }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>Catálogo virtual</label>
+                <div className="space-y-3 rounded-xl p-4" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Ruta pública del menú</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Comparte este enlace con tus clientes para pedidos por WhatsApp</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={publicMenuPath}
+                      className={inputCls}
+                      style={inputSty}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void copyMenuUrl()}
+                      className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
+                      style={{ border: '1px solid var(--border-default)', background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+                    >
+                      <Copy size={14} /> Copiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>Impresión</label>
                 <div className="space-y-4 rounded-xl p-4" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[
+                      { title: '1. Vincula', text: 'Escribe el nombre exacto de la impresora' },
+                      { title: '2. Ajusta', text: 'Selecciona 58mm u 80mm según tu equipo' },
+                      { title: '3. Automatiza', text: 'Activa el autoimpreso al terminar ventas' },
+                    ].map((step) => (
+                      <div key={step.title} className="rounded-lg p-3" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-base)' }}>
+                        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--gold-500)' }}>{step.title}</p>
+                        <p className="mt-1 text-xs leading-5" style={{ color: 'var(--text-secondary)' }}>{step.text}</p>
+                      </div>
+                    ))}
+                  </div>
+
                   <div>
                     <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Nombre de impresora</label>
                     <input

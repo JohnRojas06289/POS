@@ -49,7 +49,17 @@ export async function ensureTenantSchemaTables(
 ): Promise<void> {
   assertValidSchemaName(schemaName);
 
-  await executor.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+  const schemaExists = await executor.$queryRawUnsafe(
+    `SELECT 1 AS has_schema
+     FROM information_schema.schemata
+     WHERE schema_name = $1
+     LIMIT 1`,
+    schemaName,
+  ) as Array<{ has_schema: number }>;
+
+  if (!schemaExists[0]) {
+    await executor.$executeRawUnsafe(`CREATE SCHEMA "${schemaName}"`);
+  }
 
   const rows = await executor.$queryRawUnsafe(
     `SELECT table_name

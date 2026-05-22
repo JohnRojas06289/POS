@@ -123,7 +123,17 @@ export function PaymentModal({ open, onClose, total, cart, hasCustomer, onConfir
       <div className="w-full max-w-xl overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
         {success ? (
           receiptData ? (
-            <div className="p-4 overflow-y-auto max-h-[90vh]">
+            <div className="p-4 overflow-y-auto max-h-[90vh] space-y-4">
+              <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-subtle)] px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Venta completada</p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-[var(--text-primary)]">Recibo listo para imprimir o compartir</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Venta {txId || receiptData.txId} · cierra automáticamente en {countdown}s</p>
+                  </div>
+                  {change > 0 && <div className="rounded-[var(--radius-sm)] bg-[var(--success-bg)] px-3 py-1.5 text-sm font-semibold text-[var(--success-text)]">Vuelto ${change.toLocaleString('es-CO')}</div>}
+                </div>
+              </div>
               <Receipt data={receiptData} onClose={onClose} />
             </div>
           ) : (

@@ -191,8 +191,11 @@ function NewProductModal({ onClose, onSave, branchId }: { onClose: () => void; o
   const [variants, setVariants] = useState<Array<{ sku: string; name: string; unitPrice: string; minStock: string }>>([
     { sku: '', name: '', unitPrice: '', minStock: '' },
   ]);
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const totalSteps = hasVariants ? 3 : 2;
+  const isLastStep = step === totalSteps - 1;
 
   const upsertVariant = (index: number, key: 'sku' | 'name' | 'unitPrice' | 'minStock', value: string) => {
     setVariants((prev) => prev.map((variant, currentIndex) => (currentIndex === index ? { ...variant, [key]: value } : variant)));
@@ -262,31 +265,48 @@ function NewProductModal({ onClose, onSave, branchId }: { onClose: () => void; o
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div className="bg-[--bg-primary] rounded-[--radius-lg] shadow-[--shadow-lg] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-[--border]">
-          <h3 className="font-semibold text-[--text-primary]">Nuevo producto</h3>
+          <div>
+            <h3 className="font-semibold text-[--text-primary]">Nuevo producto</h3>
+            <p className="mt-0.5 text-xs text-[--text-tertiary]">Paso {step + 1} de {totalSteps}</p>
+          </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-[--radius-sm] hover:bg-[--bg-tertiary] text-[--text-tertiary]">✕</button>
         </div>
         <div className="p-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Nombre *</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="Nombre del producto" autoFocus />
+          <div className="flex gap-1">
+            {Array.from({ length: totalSteps }).map((_, index) => (
+              <span
+                key={index}
+                className={`h-1.5 flex-1 rounded-full ${index <= step ? 'bg-[--nexus-500]' : 'bg-[--border]'}`}
+              />
+            ))}
           </div>
-          <div>
-            <label className="block text-xs font-medium text-[--text-secondary] mb-1">SKU *</label>
-            <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="BEB-001" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Precio unitario *</label>
-            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Imagen</label>
-            <ImageUpload value={imageUrl} onChange={setImageUrl} />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-[--text-secondary]">
-            <input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} />
-            Crear con variantes
-          </label>
-          {hasVariants && (
+
+          {step === 0 && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-[--text-secondary] mb-1">Nombre *</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="Nombre del producto" autoFocus />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[--text-secondary] mb-1">SKU *</label>
+                <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="BEB-001" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[--text-secondary] mb-1">Precio unitario *</label>
+                <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[--text-secondary] mb-1">Imagen</label>
+                <ImageUpload value={imageUrl} onChange={setImageUrl} />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-[--text-secondary]">
+                <input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} />
+                Crear con variantes
+              </label>
+            </div>
+          )}
+
+          {step === 1 && hasVariants && (
             <div className="space-y-3 rounded-[--radius-md] border border-[--border] bg-[--bg-secondary] p-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium uppercase tracking-wide text-[--text-secondary]">Variantes</p>
@@ -311,24 +331,47 @@ function NewProductModal({ onClose, onSave, branchId }: { onClose: () => void; o
               </div>
             </div>
           )}
-          <div>
-            <label className="block text-xs font-medium text-[--text-secondary] mb-1">Costo unitario</label>
-            <input type="number" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-[--text-secondary] mb-1">Stock inicial</label>
-              <input type="number" value={initialStock} onChange={(e) => setInitialStock(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
+
+          {((step === 1 && !hasVariants) || step === 2) && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-[--text-secondary] mb-1">Costo unitario</label>
+                <input type="number" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[--text-secondary] mb-1">Stock inicial</label>
+                  <input type="number" value={initialStock} onChange={(e) => setInitialStock(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[--text-secondary] mb-1">Stock mínimo</label>
+                  <input type="number" value={minStock} onChange={(e) => setMinStock(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-[--text-secondary] mb-1">Stock mínimo</label>
-              <input type="number" value={minStock} onChange={(e) => setMinStock(e.target.value)} className="w-full border border-[--border] rounded-[--radius-md] px-3 py-2 text-sm text-[--text-primary] bg-[--bg-primary] focus:outline-none focus:border-[--nexus-500]" placeholder="0" />
-            </div>
-          </div>
+          )}
         </div>
+
         <div className="p-5 border-t border-[--border] flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 bg-[--bg-tertiary] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium">Cancelar</button>
-          <button onClick={handleSave} disabled={!name || !sku || !price || saving} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50">Guardar</button>
+          {step > 0 && (
+            <button onClick={() => setStep((current) => current - 1)} className="px-4 py-2 border border-[--border] text-[--text-secondary] rounded-[--radius-md] text-sm font-medium hover:bg-[--bg-tertiary]">
+              Atrás
+            </button>
+          )}
+          {!isLastStep ? (
+            <button
+              onClick={() => setStep((current) => current + 1)}
+              disabled={(step === 0 && (!name || !sku || !price)) || (step === 1 && hasVariants && variants.length === 0)}
+              className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          ) : (
+            <button onClick={handleSave} disabled={!name || !sku || !price || saving} className="px-4 py-2 bg-[--nexus-500] text-white rounded-[--radius-md] text-sm font-medium hover:bg-[#1d4ed8] disabled:opacity-50">
+              Guardar
+            </button>
+          )}
         </div>
       </div>
     </div>
