@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma/prisma.service';
-import { assertValidSchemaName } from '../../common/utils/tenant-schema.util';
+import { assertValidSchemaName, ensureTenantSchemaTables } from '../../common/utils/tenant-schema.util';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -77,6 +77,7 @@ export class TenantsService {
 
   async getTenantConfig(tenantId: string) {
     const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['TenantConfig']);
     const config = await this.getDefaultConfigRow(tenant.schemaName);
     const configValue = this.parseJson<Record<string, unknown>>(config?.value, {});
 
@@ -151,6 +152,7 @@ export class TenantsService {
 
   async getTenantBranches(tenantId: string) {
     const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Branch', 'TenantConfig']);
     const config = await this.getDefaultConfigRow(tenant.schemaName);
     const defaultBranchId = this.parseJson<Record<string, unknown>>(config?.value, {}).defaultBranchId;
 
@@ -170,6 +172,7 @@ export class TenantsService {
 
   async getTenantUsers(tenantId: string) {
     const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Branch', 'User']);
 
     return this.prisma.$queryRawUnsafe(
       `SELECT u.id, u.name, u.email, u.role, u."branchId", u."isActive", u."createdAt", u."updatedAt",
@@ -186,6 +189,7 @@ export class TenantsService {
     data: { name: string; email: string; password: string; role: string; branchId?: string; pin?: string },
   ) {
     const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Branch', 'User']);
     if (!data.name || !data.email || !data.password || !data.role) {
       throw new BadRequestException('name, email, password and role are required');
     }
@@ -198,7 +202,7 @@ export class TenantsService {
       `INSERT INTO "${tenant.schemaName}"."User"
         (id, "branchId", email, "passwordHash", pin, name, role, "isActive", "createdAt", "updatedAt")
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW())
+         ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, true, NOW(), NOW())
        ON CONFLICT (email) DO NOTHING`,
       id,
       data.branchId ?? null,
@@ -224,6 +228,7 @@ export class TenantsService {
     data: { name: string; address?: string; phone?: string; configOverride?: Record<string, unknown> },
   ) {
     const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Branch']);
     if (!data.name) {
       throw new BadRequestException('Branch name is required');
     }
@@ -233,7 +238,7 @@ export class TenantsService {
       `INSERT INTO "${tenant.schemaName}"."Branch"
         (id, name, address, phone, "configOverride", "isActive", "createdAt", "updatedAt")
        VALUES
-        ($1, $2, $3, $4, $5::jsonb, true, NOW(), NOW())`,
+         ($1::uuid, $2, $3, $4, $5::jsonb, true, NOW(), NOW())`,
       id,
       data.name,
       data.address ?? null,
@@ -253,6 +258,7 @@ export class TenantsService {
 
   async getTenantTerminals(tenantId: string) {
     const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Branch', 'Terminal', 'TenantConfig']);
     const baseConfig = await this.getTenantConfig(tenantId);
 
     const terminals = await this.prisma.$queryRawUnsafe(
@@ -301,6 +307,7 @@ export class TenantsService {
     },
   ) {
     const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Branch', 'Terminal']);
     if (!data.branchId || !data.name) {
       throw new BadRequestException('branchId and name are required');
     }
@@ -310,7 +317,7 @@ export class TenantsService {
       `INSERT INTO "${tenant.schemaName}"."Terminal"
         (id, "branchId", name, type, "deviceFingerprint", settings, "isBlocked", "isActive", "createdAt", "updatedAt")
        VALUES
-        ($1, $2, $3, $4, $5, $6::jsonb, false, true, NOW(), NOW())`,
+         ($1::uuid, $2::uuid, $3, $4, $5, $6::jsonb, false, true, NOW(), NOW())`,
       id,
       data.branchId,
       data.name,
@@ -333,10 +340,11 @@ export class TenantsService {
 
   async setTerminalBlocked(tenantId: string, terminalId: string, blocked: boolean) {
     const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Terminal']);
     const rows = await this.prisma.$queryRawUnsafe(
       `UPDATE "${tenant.schemaName}"."Terminal"
        SET "isBlocked" = $2, "updatedAt" = NOW()
-       WHERE id = $1
+       WHERE id = $1::uuid
        RETURNING id, "branchId", name, type, "deviceFingerprint", settings, "isBlocked", "isActive", "createdAt", "updatedAt"`,
       terminalId,
       blocked,

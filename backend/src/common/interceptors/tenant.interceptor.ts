@@ -9,6 +9,8 @@ import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { JwtService } from '@nestjs/jwt';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { PrismaService } from '../../database/prisma/prisma.service';
+import { ensureTenantSchemaTables } from '../utils/tenant-schema.util';
 
 interface JwtPayload {
   sub: string;
@@ -31,9 +33,10 @@ export class TenantInterceptor implements NestInterceptor {
   constructor(
     private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
+    private readonly prisma: PrismaService,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const request = context.switchToHttp().getRequest<{
       path: string;
       headers: Record<string, string>;
@@ -74,6 +77,8 @@ export class TenantInterceptor implements NestInterceptor {
     if (!schemaName || !/^[a-z0-9_]+$/.test(schemaName)) {
       throw new UnauthorizedException('Invalid tenant schema');
     }
+
+    await ensureTenantSchemaTables(this.prisma, schemaName);
 
     request.user = payload;
 

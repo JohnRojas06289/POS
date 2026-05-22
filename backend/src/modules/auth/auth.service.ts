@@ -17,7 +17,7 @@ import { LoginDto } from './dto/login.dto';
 import { LoginPinDto } from './dto/login-pin.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { assertValidSchemaName, TENANT_TEMPLATE_TABLES } from '../../common/utils/tenant-schema.util';
+import { assertValidSchemaName, TENANT_TEMPLATE_TABLES, ensureTenantSchemaTables } from '../../common/utils/tenant-schema.util';
 import { CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { withRetry, withTimeout } from '../../common/utils/resilience.util';
 
@@ -275,11 +275,12 @@ export class AuthService {
     }
 
     assertValidSchemaName(tenant.schemaName);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Branch', 'User', 'TenantConfig']);
 
     const users = await this.prisma.$queryRawUnsafe(
       `SELECT id, name, email, role, "branchId", "isActive"
        FROM "${tenant.schemaName}"."User"
-       WHERE id = $1
+       WHERE id = $1::uuid
        LIMIT 1`,
       user.sub,
     ) as Array<{ id: string; name: string; email: string; role: string; branchId: string | null; isActive: boolean }>;
@@ -294,7 +295,7 @@ export class AuthService {
       const branches = await this.prisma.$queryRawUnsafe(
         `SELECT id, name
          FROM "${tenant.schemaName}"."Branch"
-         WHERE id = $1
+         WHERE id = $1::uuid
          LIMIT 1`,
         profile.branchId,
       ) as Array<{ id: string; name: string }>;
@@ -382,7 +383,7 @@ export class AuthService {
     const users = await this.prisma.$queryRawUnsafe(
       `SELECT id, email, pin, role, "branchId"
        FROM "${tenant.schemaName}"."User"
-       WHERE "branchId" = $1 AND pin IS NOT NULL AND "isActive" = true`,
+       WHERE "branchId" = $1::uuid AND pin IS NOT NULL AND "isActive" = true`,
       dto.branchId,
     ) as Array<{
       id: string;
@@ -529,7 +530,7 @@ export class AuthService {
     await this.prisma.$executeRawUnsafe(
       `UPDATE "${payload.schemaName}"."User"
        SET "passwordHash" = $2, "updatedAt" = NOW()
-       WHERE id = $1`,
+       WHERE id = $1::uuid`,
       payload.userId,
       passwordHash,
     );
@@ -631,7 +632,7 @@ export class AuthService {
       const subscriptions = await this.prisma.$queryRawUnsafe(
         `SELECT "killSwitch"
          FROM "public"."Subscription"
-         WHERE "tenantId" = $1 AND status = 'active'
+         WHERE "tenantId" = $1::uuid AND status = 'active'
          ORDER BY "createdAt" DESC
          LIMIT 1`,
         tenantId,
@@ -658,7 +659,7 @@ export class AuthService {
       const terminals = await this.prisma.$queryRawUnsafe(
         `SELECT id, "branchId", "isActive", "isBlocked", "deviceFingerprint"
          FROM "${schemaName}"."Terminal"
-         WHERE id = $1
+         WHERE id = $1::uuid
          LIMIT 1`,
         dto.terminalId,
       ) as ResolvedTerminal[];
@@ -672,7 +673,7 @@ export class AuthService {
         await this.prisma.$executeRawUnsafe(
           `UPDATE "${schemaName}"."Terminal"
            SET "deviceFingerprint" = $2, "updatedAt" = NOW()
-           WHERE id = $1`,
+           WHERE id = $1::uuid`,
           terminal.id,
           dto.deviceFingerprint,
         );
@@ -706,7 +707,7 @@ export class AuthService {
         `INSERT INTO "${schemaName}"."Terminal"
           (id, "branchId", name, type, "deviceFingerprint", settings, "isBlocked", "isActive", "createdAt", "updatedAt")
          VALUES
-          ($1, $2, $3, 'mobile_pos', $4, '{}'::jsonb, false, true, NOW(), NOW())`,
+           ($1::uuid, $2::uuid, $3, 'mobile_pos', $4, '{}'::jsonb, false, true, NOW(), NOW())`,
         terminalId,
         dto.branchId,
         dto.terminalName ?? 'Terminal móvil',
@@ -734,7 +735,7 @@ export class AuthService {
     const terminals = await this.prisma.$queryRawUnsafe(
       `SELECT id, "branchId", "isActive", "isBlocked", "deviceFingerprint"
        FROM "${schemaName}"."Terminal"
-       WHERE id = $1
+       WHERE id = $1::uuid
        LIMIT 1`,
       terminalId,
     ) as ResolvedTerminal[];

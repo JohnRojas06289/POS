@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma/prisma.service';
-import { assertValidSchemaName } from '../../common/utils/tenant-schema.util';
+import { assertValidSchemaName, ensureTenantSchemaTables } from '../../common/utils/tenant-schema.util';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { RecordPayrollPaymentDto } from './dto/record-payroll-payment.dto';
 import { v4 as uuidv4 } from 'uuid';
@@ -44,13 +44,14 @@ export class EmployeesService {
     filters: { branchId?: string; active?: string },
   ) {
     assertValidSchemaName(schemaName);
+    await ensureTenantSchemaTables(this.prisma, schemaName, ['Branch', 'Employee', 'PayrollPayment']);
 
     const conditions: string[] = [];
     const params: Array<string | boolean> = [];
 
     if (filters.branchId) {
       params.push(filters.branchId);
-      conditions.push(`e."branchId" = $${params.length}`);
+      conditions.push(`e."branchId" = $${params.length}::uuid`);
     }
 
     if (filters.active === 'true' || filters.active === 'false') {
@@ -97,7 +98,7 @@ export class EmployeesService {
       `INSERT INTO "${schemaName}"."Employee"
         (id, "userId", "branchId", name, "documentNumber", position, salary, "paymentFrequency", notes, "isActive", "hiredAt", "createdAt", "updatedAt")
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, NOW(), NOW())`,
+         ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, true, $10, NOW(), NOW())`,
       id,
       dto.userId ?? null,
       branchId,
@@ -126,9 +127,10 @@ export class EmployeesService {
     createdBy: string,
   ) {
     assertValidSchemaName(schemaName);
+    await ensureTenantSchemaTables(this.prisma, schemaName, ['Employee', 'PayrollPayment']);
 
     const employeeExists = await this.prisma.$queryRawUnsafe(
-      `SELECT id FROM "${schemaName}"."Employee" WHERE id = $1 LIMIT 1`,
+      `SELECT id FROM "${schemaName}"."Employee" WHERE id = $1::uuid LIMIT 1`,
       employeeId,
     ) as Array<{ id: string }>;
 
@@ -141,7 +143,7 @@ export class EmployeesService {
       `INSERT INTO "${schemaName}"."PayrollPayment"
         (id, "employeeId", amount, "periodStart", "periodEnd", notes, "createdBy", "createdAt")
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+         ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, NOW())`,
       id,
       employeeId,
       dto.amount,
@@ -154,7 +156,7 @@ export class EmployeesService {
     const payment = await this.prisma.$queryRawUnsafe(
       `SELECT id, "employeeId", amount, "periodStart", "periodEnd", notes, "createdBy", "createdAt"
        FROM "${schemaName}"."PayrollPayment"
-       WHERE id = $1
+       WHERE id = $1::uuid
        LIMIT 1`,
       id,
     ) as PayrollPaymentRow[];
@@ -167,6 +169,7 @@ export class EmployeesService {
     filters: { from?: string; to?: string },
   ) {
     assertValidSchemaName(schemaName);
+    await ensureTenantSchemaTables(this.prisma, schemaName, ['Employee', 'PayrollPayment']);
 
     const conditions: string[] = [];
     const params: Array<Date> = [];
