@@ -158,7 +158,7 @@ export class TenantsService {
       `INSERT INTO "${tenant.schemaName}"."TenantConfig"
         (id, key, value, "posMode", "paymentMethods", "taxConfig", "dianConfig", "updatedAt")
        VALUES
-        ($1, 'default', $2::jsonb, $3, $4::jsonb, $5::jsonb, $6::jsonb, NOW())
+        ($1::uuid, 'default', $2::jsonb, $3, $4::jsonb, $5::jsonb, $6::jsonb, NOW())
        ON CONFLICT (key) DO UPDATE SET
         value = EXCLUDED.value,
         "posMode" = EXCLUDED."posMode",
