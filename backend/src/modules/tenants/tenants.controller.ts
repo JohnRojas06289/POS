@@ -40,6 +40,16 @@ export class TenantsController {
     return this.tenantsService.createTenantUser(user.tenantId, body);
   }
 
+  @Patch('users/:id')
+  @ApiBearerAuth()
+  updateUser(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+    @Body() body: { branchId?: string | null },
+  ) {
+    return this.tenantsService.updateTenantUser(user.tenantId, id, body);
+  }
+
   @Post('branches')
   @ApiBearerAuth()
   createBranch(@CurrentUser() user: CurrentUserData, @Body() body: { name: string; address?: string; phone?: string; configOverride?: Record<string, unknown> }) {

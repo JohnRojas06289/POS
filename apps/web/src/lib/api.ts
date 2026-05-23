@@ -169,6 +169,7 @@ export const tenantsApi = {
   getTerminals: () => api.get('/tenants/terminals').then((r) => r.data),
   updateConfig: (data: unknown) => api.patch('/tenants/config', data).then((r) => r.data),
   createUser: (data: unknown) => api.post('/tenants/users', data).then((r) => r.data),
+  updateUser: (id: string, data: { branchId?: string | null }) => api.patch(`/tenants/users/${id}`, data).then((r) => r.data),
   createBranch: (data: unknown) => api.post('/tenants/branches', data).then((r) => r.data),
   createTerminal: (data: unknown) => api.post('/tenants/terminals', data).then((r) => r.data),
   blockTerminal: (id: string) => api.patch(`/tenants/terminals/${id}/block`).then((r) => r.data),

@@ -311,6 +311,106 @@ function NewTerminalModal({ branches, onClose, onSave }: { branches: Array<{ id:
   );
 }
 
+function AssignUsersModal({
+  branch,
+  users,
+  onClose,
+  onSaved,
+}: {
+  branch: { id: string; name: string };
+  users: Array<{ id: string; name: string; email: string; branchId: string | null }>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  // Local state: which users are assigned to THIS branch
+  const [assigned, setAssigned] = useState<Set<string>>(
+    () => new Set(users.filter((u) => u.branchId === branch.id).map((u) => u.id)),
+  );
+
+  const toggle = (userId: string) =>
+    setAssigned((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Detect changes: users newly assigned or newly unassigned from this branch
+      const toAssign = users.filter((u) => assigned.has(u.id) && u.branchId !== branch.id);
+      const toUnassign = users.filter((u) => !assigned.has(u.id) && u.branchId === branch.id);
+
+      await Promise.all([
+        ...toAssign.map((u) => tenantsApi.updateUser(u.id, { branchId: branch.id })),
+        ...toUnassign.map((u) => tenantsApi.updateUser(u.id, { branchId: null })),
+      ]);
+
+      toast('Usuarios actualizados', 'success');
+      onSaved();
+    } catch {
+      toast('Error al asignar usuarios', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      title={`Usuarios — ${branch.name}`}
+      onClose={onClose}
+      footer={
+        <>
+          <BtnSecondary onClick={onClose}>Cancelar</BtnSecondary>
+          <BtnPrimary onClick={() => void handleSave()} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar'}
+          </BtnPrimary>
+        </>
+      }
+    >
+      {users.length === 0 ? (
+        <p className="text-sm text-center py-4" style={{ color: 'var(--text-tertiary)' }}>No hay usuarios en el sistema</p>
+      ) : (
+        <div className="space-y-2">
+          {users.map((u) => {
+            const isAssigned = assigned.has(u.id);
+            return (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => toggle(u.id)}
+                className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors"
+                style={{
+                  border: `1px solid ${isAssigned ? 'var(--gold-500)' : 'var(--border-default)'}`,
+                  background: isAssigned ? 'rgba(201,168,76,0.06)' : 'var(--bg-base)',
+                }}
+              >
+                <span
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[10px] font-bold"
+                  style={{
+                    border: `1px solid ${isAssigned ? 'var(--gold-500)' : 'var(--border-default)'}`,
+                    background: isAssigned ? 'var(--gold-500)' : 'transparent',
+                    color: isAssigned ? '#0A0A0A' : 'transparent',
+                  }}
+                >
+                  ✓
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{u.name}</p>
+                  <p className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>{u.email}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
 function NewRoleModal({ onClose, onSave }: { onClose: () => void; onSave: (role: RoleConfig) => void }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -506,6 +606,7 @@ export default function SettingsPage() {
   const [newBranchOpen, setNewBranchOpen] = useState(false);
   const [newTerminalOpen, setNewTerminalOpen] = useState(false);
   const [newRoleOpen, setNewRoleOpen] = useState(false);
+  const [assignUsersBranch, setAssignUsersBranch] = useState<{ id: string; name: string } | null>(null);
   const [roles, setRoles] = useState<RoleConfig[]>(DEFAULT_ROLE_CONFIGS);
 
   // Business tab state
@@ -1034,7 +1135,16 @@ export default function SettingsPage() {
                         <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{b.name}</p>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{b.address ?? 'Sin dirección registrada'}</p>
                       </div>
-                      {b.isMain && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(201,168,76,0.1)', color: 'var(--gold-500)', border: '1px solid var(--border-gold)' }}>Principal</span>}
+                      <div className="flex items-center gap-2">
+                        {b.isMain && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(201,168,76,0.1)', color: 'var(--gold-500)', border: '1px solid var(--border-gold)' }}>Principal</span>}
+                        <button
+                          onClick={() => setAssignUsersBranch({ id: b.id, name: b.name })}
+                          className="px-3 py-1.5 text-xs rounded-lg font-medium transition-colors"
+                          style={{ border: '1px solid var(--border-default)', background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
+                        >
+                          Asignar usuarios
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -1163,6 +1273,14 @@ export default function SettingsPage() {
       {newBranchOpen && <NewBranchModal onClose={() => setNewBranchOpen(false)} onSave={() => { void refetchBranches(); setNewBranchOpen(false); }} />}
       {newTerminalOpen && <NewTerminalModal branches={Array.isArray(branches) ? branches as Array<{ id: string; name: string }> : []} onClose={() => setNewTerminalOpen(false)} onSave={() => { void refetchTerminals(); setNewTerminalOpen(false); }} />}
       {newRoleOpen && <NewRoleModal onClose={() => setNewRoleOpen(false)} onSave={(role) => { setRoles((prev) => [...prev, role]); setNewRoleOpen(false); }} />}
+      {assignUsersBranch && (
+        <AssignUsersModal
+          branch={assignUsersBranch}
+          users={(Array.isArray(users) ? users : []) as Array<{ id: string; name: string; email: string; branchId: string | null }>}
+          onClose={() => setAssignUsersBranch(null)}
+          onSaved={() => setAssignUsersBranch(null)}
+        />
+      )}
     </div>
   );
 }

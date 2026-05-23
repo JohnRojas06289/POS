@@ -250,6 +250,25 @@ export class TenantsService {
     };
   }
 
+  async updateTenantUser(
+    tenantId: string,
+    userId: string,
+    data: { branchId?: string | null },
+  ) {
+    const tenant = await this.getTenantRecord(tenantId);
+    await ensureTenantSchemaTables(this.prisma, tenant.schemaName, ['Branch', 'User']);
+
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE "${tenant.schemaName}"."User"
+       SET "branchId" = CASE WHEN $1::text IS NULL THEN NULL ELSE $1::uuid END, "updatedAt" = NOW()
+       WHERE id = $2::uuid`,
+      data.branchId ?? null,
+      userId,
+    );
+
+    return { id: userId, branchId: data.branchId ?? null };
+  }
+
   async createTenantBranch(
     tenantId: string,
     data: { name: string; address?: string; phone?: string; configOverride?: Record<string, unknown> },
