@@ -107,14 +107,16 @@ export class TablesService {
 
         await tx.$executeRaw(Prisma.sql`
           INSERT INTO "Table" (
-            id, "branchId", number, capacity, notes, status
+            id, "branchId", number, capacity, notes, status, "createdAt", "updatedAt"
           ) VALUES (
             ${tableId},
             ${dto.branchId},
             ${dto.number},
             ${dto.capacity ?? 4},
             ${dto.notes ?? null},
-            'available'
+            'available',
+            NOW(),
+            NOW()
           )
         `);
 
